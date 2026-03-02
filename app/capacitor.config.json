@@ -1,0 +1,8 @@
+{
+    "appId": "com.viralsync.app",
+    "appName": "Viral Sync",
+    "webDir": "out",
+    "server": {
+        "androidScheme": "https"
+    }
+}

@@ -1,0 +1,58 @@
+name: Anchor Test V4 Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  anchor-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        targets: x86_64-unknown-linux-gnu
+
+    - name: Cache Solana
+      id: solana-cache
+      uses: actions/cache@v3
+      with:
+        path: ~/.local/share/solana
+        key: ${{ runner.os }}-solana-1.18.23
+
+    - name: Install Solana Tool Suite
+      if: steps.solana-cache.outputs.cache-hit != 'true'
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v1.18.23/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+    - name: Install AVM & Anchor
+      run: |
+        cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+        avm install 0.30.1
+        avm use 0.30.1
+
+    - name: Install Dependencies
+      run: yarn install
+
+    - name: Copy target Keys if mapped
+      run: |
+        # Optional: Sync keys if defined securely via GitHub Secrets
+        # echo "${{ secrets.DEPLOY_KEY }}" > ./deploy.json
+
+    - name: Run Cargo Check
+      run: cargo check --manifest-path programs/viral_sync/Cargo.toml
+
+    - name: Run Anchor Test
+      run: anchor test
