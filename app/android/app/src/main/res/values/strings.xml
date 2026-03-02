@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Viral Sync</string>
+    <string name="title_activity_main">Viral Sync</string>
+    <string name="package_name">com.viralsync.app</string>
+    <string name="custom_url_scheme">com.viralsync.app</string>
+</resources>

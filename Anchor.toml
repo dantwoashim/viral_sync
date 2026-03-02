@@ -1,0 +1,24 @@
+[toolchain]
+
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+viral_sync = "D9ds2V6y4GFGKbo8wF8qQiF81dzhkiznmZsHepcSN6Ta"
+
+[programs.devnet]
+viral_sync = "D9ds2V6y4GFGKbo8wF8qQiF81dzhkiznmZsHepcSN6Ta"
+
+[programs.mainnet]
+viral_sync = "D9ds2V6y4GFGKbo8wF8qQiF81dzhkiznmZsHepcSN6Ta"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
