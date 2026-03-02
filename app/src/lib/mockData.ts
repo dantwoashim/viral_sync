@@ -1,6 +1,6 @@
 /**
- * Viral Sync — Mock Data for Demo
- * Realistic data for all hooks when on-chain accounts aren't available.
+ * Viral Sync - Mock Data for Demo
+ * Two distinct personas: Merchant (BREW Coffee) and Consumer (Sarah).
  */
 
 import { PublicKey } from '@solana/web3.js';
@@ -20,21 +20,24 @@ import type {
 const MOCK_MERCHANT = new PublicKey('8xHy7k3FnE2mPqVcASWJqd3cT9nGRj5x5Bn4V3LFUGL');
 const MOCK_MINT = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
 
-/* ── Merchant Config ── */
+/* ================================================================
+   MERCHANT PERSONA: "BREW Coffee" - a local coffee shop owner
+   ================================================================ */
+
 export const MOCK_MERCHANT_CONFIG: MerchantConfig = {
     bump: 255,
     merchant: MOCK_MERCHANT,
     mint: MOCK_MINT,
     isActive: true,
     minHoldBeforeShareSecs: 3600,
-    minTokensPerReferral: 10_000_000_000,      // 10 tokens
-    maxTokensPerReferral: 1_000_000_000_000,    // 1,000 tokens
+    minTokensPerReferral: 10_000_000_000,
+    maxTokensPerReferral: 1_000_000_000_000,
     maxReferralsPerWalletPerDay: 20,
     allowSecondGenTransfer: true,
     slotsPerDay: 216000,
     tokenExpiryDays: 30,
-    commissionRateBps: 500,                      // 5%
-    transferFeeBps: 50,                          // 0.5%
+    commissionRateBps: 800,                      // 8%
+    transferFeeBps: 50,
     firstIssuanceDone: true,
     currentSupply: 2_450_000_000_000_000,        // 2.45M tokens
     tokensIssued: 5_000_000_000_000_000,         // 5M tokens
@@ -42,29 +45,27 @@ export const MOCK_MERCHANT_CONFIG: MerchantConfig = {
     closeWindowEndsAt: 0,
 };
 
-/* ── Viral Oracle ── */
 export const MOCK_VIRAL_ORACLE: ViralOracle = {
     bump: 254,
     merchant: MOCK_MERCHANT,
     mint: MOCK_MINT,
-    kFactor: 147,                                // 1.47 — viral!
+    kFactor: 147,                                // 1.47 = viral
     medianReferralsPerUser: 3,
     p90ReferralsPerUser: 8,
     p10ReferralsPerUser: 1,
     referralConcentrationIndex: 3200,
-    shareRate: 72,                               // 72%
-    claimRate: 54,                               // 54%
-    firstRedeemRate: 31,                         // 31%
-    avgTimeShareToClaimSecs: 14400,              // 4 hours
-    avgTimeClaimToRedeemSecs: 86400,             // 24 hours
-    p50TimeShareToClaimSecs: 10800,              // 3 hours
-    commissionPerNewCustomerTokens: 50_000_000_000, // 50 tokens
+    shareRate: 72,
+    claimRate: 54,
+    firstRedeemRate: 31,
+    avgTimeShareToClaimSecs: 14400,
+    avgTimeClaimToRedeemSecs: 86400,
+    p50TimeShareToClaimSecs: 10800,
+    commissionPerNewCustomerTokens: 50_000_000_000,
     vsGoogleAdsEfficiencyBps: 34200,             // 342% more efficient
     computedAt: Math.floor(Date.now() / 1000) - 1800,
     dataPoints: 1247,
 };
 
-/* ── Merchant Reputation ── */
 export const MOCK_MERCHANT_REPUTATION: MerchantReputation = {
     bump: 253,
     merchant: MOCK_MERCHANT,
@@ -79,17 +80,16 @@ export const MOCK_MERCHANT_REPUTATION: MerchantReputation = {
     suspicionComputedAt: Math.floor(Date.now() / 1000) - 3600,
 };
 
-/* ── Merchant Bond ── */
 export const MOCK_MERCHANT_BOND: MerchantBond = {
     bump: 252,
     merchant: MOCK_MERCHANT,
-    bondedLamports: 5_000_000_000,               // 5 SOL
-    minRequiredLamports: 2_000_000_000,           // 2 SOL
+    bondedLamports: 5_000_000_000,
+    minRequiredLamports: 2_000_000_000,
     isLocked: true,
     unlockRequestedAt: 0,
 };
 
-/* ── Commission Ledger ── */
+/* Merchant-side commission ledger (aggregate of all referrers paying) */
 export const MOCK_COMMISSION_LEDGER: CommissionLedger = {
     bump: 251,
     referrer: MOCK_MERCHANT,
@@ -105,20 +105,52 @@ export const MOCK_COMMISSION_LEDGER: CommissionLedger = {
     highestSingleCommission: 500_000_000_000,
 };
 
-/* ── Recent Transactions ── */
+/* Merchant activity feed */
 const now = Math.floor(Date.now() / 1000);
 
 export const MOCK_TRANSACTIONS: ActivityItem[] = [
-    { signature: '5xK9Rq3...mP2x', slot: 284_567_890, timestamp: now - 180, type: 'commission', description: 'Commission earned from referral chain', amount: 50_000_000_000, success: true },
-    { signature: '7hL2Nm4...jF8y', slot: 284_567_850, timestamp: now - 900, type: 'redemption', description: 'Token redemption at Merchant POS', amount: 200_000_000_000, success: true },
-    { signature: '3pW6Ys8...kR4t', slot: 284_567_800, timestamp: now - 2400, type: 'share', description: 'Tokens shared via referral link', amount: 100_000_000_000, success: true },
-    { signature: '9dN1Xv7...bQ5w', slot: 284_567_750, timestamp: now - 5200, type: 'commission', description: 'Commission from Gen-2 referral', amount: 25_000_000_000, success: true },
-    { signature: '2jM4Bt6...hG9a', slot: 284_567_700, timestamp: now - 8100, type: 'share', description: 'Tokens shared to new customer', amount: 150_000_000_000, success: true },
-    { signature: '6fR8Wp1...cE3v', slot: 284_567_650, timestamp: now - 14400, type: 'redemption', description: 'Token redemption at store', amount: 300_000_000_000, success: true },
-    { signature: '1aS3Dk5...nH7m', slot: 284_567_600, timestamp: now - 21600, type: 'commission', description: 'Commission payout', amount: 75_000_000_000, success: true },
+    { signature: '5xK9Rq3...mP2x', slot: 284_567_890, timestamp: now - 180, type: 'redemption', description: 'Customer redeemed 200 BREW tokens in-store', amount: 200_000_000_000, success: true },
+    { signature: '7hL2Nm4...jF8y', slot: 284_567_850, timestamp: now - 900, type: 'commission', description: 'Commission paid to referrer Sarah', amount: 16_000_000_000, success: true },
+    { signature: '3pW6Ys8...kR4t', slot: 284_567_800, timestamp: now - 2400, type: 'share', description: 'New referral link shared by Tom', amount: 100_000_000_000, success: true },
+    { signature: '9dN1Xv7...bQ5w', slot: 284_567_750, timestamp: now - 5200, type: 'redemption', description: 'Customer redeemed 150 BREW tokens', amount: 150_000_000_000, success: true },
+    { signature: '2jM4Bt6...hG9a', slot: 284_567_700, timestamp: now - 8100, type: 'share', description: 'Referral link shared by Lisa', amount: 75_000_000_000, success: true },
+    { signature: '6fR8Wp1...cE3v', slot: 284_567_650, timestamp: now - 14400, type: 'redemption', description: 'Customer redeemed 300 BREW tokens', amount: 300_000_000_000, success: true },
+    { signature: '1aS3Dk5...nH7m', slot: 284_567_600, timestamp: now - 21600, type: 'commission', description: 'Commission paid to referrer Mike', amount: 24_000_000_000, success: true },
 ];
 
-/* ── Network Graph ── */
+/* ================================================================
+   CONSUMER PERSONA: "Sarah" - a regular customer who earns by
+   sharing referral links for BREW Coffee
+   ================================================================ */
+
+export const MOCK_CONSUMER_LEDGER: CommissionLedger = {
+    bump: 248,
+    referrer: new PublicKey('Bq4mN9pLnE2mPqVcASWJqd3cT9nGRj5x5Bn4V3LFUGL'),
+    merchant: MOCK_MERCHANT,
+    mint: MOCK_MINT,
+    claimable: 45_000_000_000,                   // 45 tokens pending
+    dustTenthsAccumulated: 3,
+    frozen: false,
+    frozenAmount: 0,
+    totalEarned: 820_000_000_000,                // 820 tokens lifetime
+    totalClaimed: 775_000_000_000,               // 775 tokens claimed
+    totalRedemptionsDriven: 6_500_000_000_000,
+    highestSingleCommission: 80_000_000_000,
+};
+
+export const MOCK_CONSUMER_TRANSACTIONS: ActivityItem[] = [
+    { signature: 'cTx1...aB3r', slot: 284_567_880, timestamp: now - 300, type: 'commission', description: 'Earned commission from Tom\'s purchase', amount: 16_000_000_000, success: true },
+    { signature: 'cTx2...zD7k', slot: 284_567_830, timestamp: now - 3600, type: 'share', description: 'Shared referral link to Tom', amount: 100_000_000_000, success: true },
+    { signature: 'cTx3...yF2m', slot: 284_567_770, timestamp: now - 7200, type: 'redemption', description: 'Redeemed 50 BREW tokens at BREW Coffee', amount: 50_000_000_000, success: true },
+    { signature: 'cTx4...wH9p', slot: 284_567_720, timestamp: now - 18000, type: 'commission', description: 'Earned commission from Lisa\'s visit', amount: 12_000_000_000, success: true },
+    { signature: 'cTx5...vJ4s', slot: 284_567_670, timestamp: now - 43200, type: 'share', description: 'Shared referral link to Lisa', amount: 75_000_000_000, success: true },
+];
+
+/* ================================================================
+   SHARED DATA (used by both roles)
+   ================================================================ */
+
+/* Network Graph */
 const mockAddresses = [
     '8xHy7k3F', 'Bq4mN9pL', 'Cf7rW2kD', 'Dh3sX6nG', 'Ej5tY8mH',
     'Fk2uZ1pJ', 'Gm9vA4qK', 'Hn6wB7rL', 'Jp8xC3sM', 'Kq1yD5tN',
@@ -155,7 +187,7 @@ export const MOCK_NETWORK_EDGES: NetworkEdge[] = [
     { from: MOCK_NETWORK_NODES[11].id, to: MOCK_NETWORK_NODES[14].id, tokensAttributed: 40_000_000_000 },
 ];
 
-/* ── Dispute Records ── */
+/* Dispute Records */
 export const MOCK_DISPUTE_RECORDS: DisputeRecord[] = [
     {
         bump: 250,

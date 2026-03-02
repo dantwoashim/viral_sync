@@ -126,7 +126,7 @@ export default function SettingsPage() {
                 <div className="section">
                     <div className="section-header"><span className="section-title">Support</span></div>
                     <div className="list-card">
-                        <a href="https://github.com/dantwoashim/viral-sync" target="_blank" rel="noopener noreferrer" className="list-item">
+                        <a href="https://github.com/dantwoashim/viral_sync" target="_blank" rel="noopener noreferrer" className="list-item">
                             <div className="list-item-icon" style={{ background: 'var(--mist)', color: 'var(--text-2)' }}><HelpCircle size={16} /></div>
                             <div className="list-item-content">
                                 <div className="list-item-title">Documentation</div>
@@ -136,7 +136,7 @@ export default function SettingsPage() {
                         </a>
 
                         {/* Switch Role */}
-                        <button className="list-item" onClick={() => router.push('/login')} style={{ width: '100%', textAlign: 'left' }}>
+                        <button className="list-item" onClick={() => router.push('/login?switch=1')} style={{ width: '100%', textAlign: 'left' }}>
                             <div className="list-item-icon" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}><User size={16} /></div>
                             <div className="list-item-content">
                                 <div className="list-item-title">Switch Role</div>

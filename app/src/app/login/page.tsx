@@ -1,41 +1,65 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import { Zap, Store, Smartphone, CheckCircle, ArrowRight, LogIn } from 'lucide-react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
+import { Zap, Store, Smartphone, CheckCircle, ArrowRight, LogIn, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="login-screen">
+                <div className="login-logo"><Zap size={30} color="white" /></div>
+                <h1 className="login-title">Viral Sync</h1>
+                <p className="login-subtitle">Loading...</p>
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
+    );
+}
+
+function LoginContent() {
     const { authenticated, login, setRole, role, loading } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const pendingRole = useRef<'merchant' | 'consumer' | null>(null);
+    const [switchMode, setSwitchMode] = useState(false);
 
-    // When auth completes + we have a pending role → set it and redirect
+    // Detect if we got here via "Switch Role" (already authenticated)
+    useEffect(() => {
+        if (authenticated && !pendingRole.current) {
+            const fromSwitch = searchParams.get('switch') === '1';
+            if (fromSwitch || !role) {
+                // User wants to pick a new role - stay on this page
+                setSwitchMode(true);
+                setRole(null);
+            } else {
+                // Normal visit while already logged in - redirect to dashboard
+                router.replace(role === 'merchant' ? '/' : '/consumer');
+            }
+        }
+    }, [authenticated, role, router, searchParams, setRole]);
+
+    // When auth completes + we have a pending role, set it and redirect
     useEffect(() => {
         if (authenticated && pendingRole.current) {
             const dest = pendingRole.current === 'merchant' ? '/' : '/consumer';
             setRole(pendingRole.current);
             pendingRole.current = null;
+            setSwitchMode(false);
             router.push(dest);
         }
     }, [authenticated, setRole, router]);
 
-    // If already authenticated + already has a role → redirect
-    useEffect(() => {
-        if (authenticated && role && !pendingRole.current) {
-            router.replace(role === 'merchant' ? '/' : '/consumer');
-        }
-    }, [authenticated, role, router]);
-
     const handleMerchant = () => {
         pendingRole.current = 'merchant';
         if (authenticated) {
-            // Already logged in - just set role and go
             setRole('merchant');
+            pendingRole.current = null;
+            setSwitchMode(false);
             router.push('/');
         } else {
-            // Open the login modal (Privy or demo). The useEffect above
-            // will fire once auth completes and redirect automatically.
             login();
         }
     };
@@ -44,6 +68,8 @@ export default function LoginPage() {
         pendingRole.current = 'consumer';
         if (authenticated) {
             setRole('consumer');
+            pendingRole.current = null;
+            setSwitchMode(false);
             router.push('/consumer');
         } else {
             login();
@@ -66,8 +92,16 @@ export default function LoginPage() {
 
             <h1 className="login-title">Viral Sync</h1>
             <p className="login-subtitle">
-                Smart referral tracking that grows your business. Choose how you want to get started.
+                {switchMode
+                    ? 'Switch your role. Pick how you want to use Viral Sync.'
+                    : 'Smart referral tracking that grows your business. Choose how you want to get started.'}
             </p>
+
+            {switchMode && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'rgba(45,138,99,0.1)', borderRadius: 12, marginBottom: 16, fontSize: 13, color: 'var(--jade, #2D8A63)' }}>
+                    <RefreshCw size={14} /> Switching roles
+                </div>
+            )}
 
             <div className="login-cards">
                 {/* Merchant */}
@@ -107,3 +141,4 @@ export default function LoginPage() {
         </div>
     );
 }
+
