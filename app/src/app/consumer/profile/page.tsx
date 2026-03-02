@@ -3,11 +3,13 @@
 import React from 'react';
 import { User, Coins, TrendingUp, Shield } from 'lucide-react';
 import { useWallet } from '@/lib/useWallet';
+import { useAuth } from '@/lib/auth';
 import { useCommissionLedger, useSolBalance } from '@/lib/hooks';
 import { formatTokenAmount, shortenAddress } from '@/lib/solana';
 
 export default function ProfilePage() {
     const publicKey = useWallet();
+    const { displayName } = useAuth();
     const ledger = useCommissionLedger(publicKey, null);
     const sol = useSolBalance(publicKey);
 
@@ -22,7 +24,7 @@ export default function ProfilePage() {
                         <User size={28} color="white" />
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-serif)' }}>
-                        {publicKey ? shortenAddress(publicKey.toBase58()) : 'Not Connected'}
+                        {displayName || (publicKey ? shortenAddress(publicKey.toBase58()) : 'Not Connected')}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
                         {publicKey ? publicKey.toBase58().substring(0, 20) + '...' : ''}

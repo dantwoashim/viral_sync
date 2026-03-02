@@ -44,7 +44,10 @@ import {
     MOCK_NETWORK_EDGES,
     MOCK_DISPUTE_RECORDS,
     MOCK_COMMISSION_LEDGER,
+    MOCK_CONSUMER_LEDGER,
+    MOCK_CONSUMER_TRANSACTIONS,
 } from './mockData';
+import { useAuth } from './auth';
 
 /* ── Generic Account Fetcher ── */
 
@@ -309,11 +312,13 @@ export function useCommissionLedger(
     referrer: PublicKey | null,
     merchant: PublicKey | null
 ): DataState<CommissionLedger> {
+    const { role } = useAuth();
     const state = useAccountData(
         () => (referrer && merchant) ? findCommissionLedgerPda(referrer, merchant) : null,
         decodeCommissionLedger
     );
-    return useMockFallback(state, MOCK_COMMISSION_LEDGER);
+    const fallback = role === 'consumer' ? MOCK_CONSUMER_LEDGER : MOCK_COMMISSION_LEDGER;
+    return useMockFallback(state, fallback);
 }
 
 export function useTokenGeneration(
@@ -360,9 +365,12 @@ export function useRecentTransactions(
         data: null, loading: true, error: null,
     });
 
+    const { role } = useAuth();
+    const mockTxs = role === 'consumer' ? MOCK_CONSUMER_TRANSACTIONS : MOCK_TRANSACTIONS;
+
     useEffect(() => {
         if (!address) {
-            setState({ data: MOCK_TRANSACTIONS.slice(0, limit), loading: false, error: null });
+            setState({ data: mockTxs.slice(0, limit), loading: false, error: null });
             return;
         }
         let mounted = true;
@@ -378,15 +386,15 @@ export function useRecentTransactions(
                     description: `Transaction ${shortenAddress(sig.signature, 6)}`,
                     success: sig.err === null,
                 }));
-                if (mounted) setState({ data: items.length > 0 ? items : MOCK_TRANSACTIONS.slice(0, limit), loading: false, error: null });
+                if (mounted) setState({ data: items.length > 0 ? items : mockTxs.slice(0, limit), loading: false, error: null });
             } catch {
-                if (mounted) setState({ data: MOCK_TRANSACTIONS.slice(0, limit), loading: false, error: null });
+                if (mounted) setState({ data: mockTxs.slice(0, limit), loading: false, error: null });
             }
         };
         doFetch();
         const interval = setInterval(doFetch, POLL_INTERVAL);
         return () => { mounted = false; clearInterval(interval); };
-    }, [address, limit]);
+    }, [address, limit, mockTxs]);
 
     return state;
 }
