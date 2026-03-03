@@ -165,6 +165,15 @@ Or use [Solana Playground](https://beta.solpg.io) to build and deploy from the b
 
 The live demo at [viral-sync.vercel.app](https://viral-sync.vercel.app) uses preloaded mock data to show the full merchant and consumer experience. Sign in with any email to explore both roles.
 
+### About the Mock Data
+
+The frontend currently uses mock data to populate dashboards, activity feeds, and analytics. This is intentional for the demo stage. Two personas are built in:
+
+- **BREW Coffee (Merchant)** - a coffee shop running a referral program with 2.45M tokens in circulation
+- **Sarah (Consumer)** - a customer who has earned 820 tokens by sharing referral links
+
+All React hooks (`useMerchantConfig`, `useViralOracle`, `useCommissionLedger`, etc.) first try to fetch real on-chain data from Solana devnet. If the accounts don't exist yet or the RPC call fails, they fall back to mock data. Once the on-chain program is initialized with real merchant accounts, the dashboard switches to live data automatically with no code changes needed.
+
 ---
 
 ## Team
