@@ -1,0 +1,29 @@
+{
+  "name": "viral-sync-workspace",
+  "private": true,
+  "workspaces": [
+    "app",
+    "relayer",
+    "server/actions",
+    "cranks",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test:anchor": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
+    "smoke:browser-stack": "ts-node --transpile-only scripts/runtime_browser_stack.ts",
+    "smoke:browser": "ts-node --transpile-only scripts/browser_smoke_playwright.ts"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.5.4",
+    "chai": "^4.5.0",
+    "playwright": "^1.51.1",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  }
+}

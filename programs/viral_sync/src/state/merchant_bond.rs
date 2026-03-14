@@ -9,3 +9,7 @@ pub struct MerchantBond {
     pub is_locked: bool,
     pub unlock_requested_at: i64,
 }
+
+impl MerchantBond {
+    pub const LEN: usize = 1 + 32 + 8 + 8 + 1 + 8;
+}

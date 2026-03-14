@@ -51,10 +51,11 @@ pub struct TokenGeneration {
     // Proof of Influence
     pub poi_score: u32,
     pub poi_updated_at: i64,
-    
+
     // Identity extensions
     pub identity_commitment: Option<[u8; 32]>,
     pub identity_provider: u16,
+    pub redemption_required_mask: u8,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Default, Copy)]

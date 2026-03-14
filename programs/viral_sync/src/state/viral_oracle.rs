@@ -32,3 +32,7 @@ pub struct ViralOracle {
     pub computed_at: i64,
     pub data_points: u32,
 }
+
+impl ViralOracle {
+    pub const LEN: usize = 1 + 32 + 32 + 8 + (12 * 4) + 8 + 8;
+}

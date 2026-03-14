@@ -3,7 +3,8 @@
  * Single source of truth for the current wallet address.
  * Reads from AuthProvider (connected user) → falls back to env → null.
  * 
- * Usage: replace `MERCHANT_PUBKEY` with `useWallet()` in any page.
+ * Usage: call `useWallet(true)` on merchant-only views that may intentionally
+ * fall back to the configured merchant public key.
  */
 
 'use client';
@@ -20,11 +21,14 @@ if (ENV_MERCHANT) {
 
 /**
  * Returns the active wallet public key.
- * Priority: Auth connected wallet → env MERCHANT_PUBKEY → null
+ * Priority: Auth connected wallet → optional env MERCHANT_PUBKEY fallback → null
  */
-export function useWallet(): PublicKey | null {
+export function useWallet(useMerchantFallback = false): PublicKey | null {
     const { walletAddress } = useAuth();
-    return useMemo(() => walletAddress ?? _envPubkey, [walletAddress]);
+    return useMemo(
+        () => walletAddress ?? (useMerchantFallback ? _envPubkey : null),
+        [useMerchantFallback, walletAddress]
+    );
 }
 
 /**

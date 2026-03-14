@@ -20,6 +20,8 @@ pub struct ReferralRecord {
 }
 
 impl ReferralRecord {
+    pub const SPACE: usize = 8 + 172;
+
     pub fn is_expired(&self, now: i64) -> bool {
         self.expires_at > 0 && now > self.expires_at
     }

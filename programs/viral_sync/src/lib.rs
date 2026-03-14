@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::prelude::*;
 
 pub mod errors;
@@ -15,11 +17,11 @@ pub mod viral_sync {
 
     // Phase 1
     pub fn init_token_generation(ctx: Context<InitTokenGeneration>) -> Result<()> {
-        instructions::init_token_generation::handler(ctx)
+        instructions::init_token_generation::init_token_generation(ctx)
     }
 
     pub fn init_treasury_token_generation(ctx: Context<InitTreasuryGen>) -> Result<()> {
-        instructions::init_treasury_token_generation::handler(ctx)
+        instructions::init_treasury_token_generation::init_treasury_generation(ctx)
     }
 
     pub fn create_mint_and_config(
@@ -35,17 +37,32 @@ pub mod viral_sync {
         instructions::merchant_init::issue_first_tokens_and_lock(ctx, amount)
     }
 
+    pub fn initialize_merchant_bond(
+        ctx: Context<InitializeMerchantBond>,
+        min_required_lamports: u64,
+    ) -> Result<()> {
+        instructions::merchant_init::initialize_merchant_bond(ctx, min_required_lamports)
+    }
+
+    pub fn initialize_vault_entry(ctx: Context<InitializeVaultEntry>, is_dex: bool) -> Result<()> {
+        instructions::merchant_init::initialize_vault_entry(ctx, is_dex)
+    }
+
     // Phase 2
+    #[interface(spl_transfer_hook_interface::initialize_extra_account_meta_list)]
     pub fn initialize_extra_account_meta_list(ctx: Context<InitExtraAccountMetaList>) -> Result<()> {
         instructions::transfer_hook::initialize_extra_account_meta_list(ctx)
     }
 
+    #[interface(spl_transfer_hook_interface::execute)]
     pub fn execute_transfer_hook(ctx: Context<ExecuteHook>, amount: u64) -> Result<()> {
         instructions::transfer_hook::execute_transfer_hook(ctx, amount)
     }
 
-    pub fn finalize_inbound(ctx: Context<FinalizeInbound>) -> Result<()> {
-        instructions::finalize_inbound::handler(ctx)
+    pub fn finalize_inbound<'info>(
+        ctx: Context<'_, '_, '_, 'info, FinalizeInbound<'info>>,
+    ) -> Result<()> {
+        instructions::finalize_inbound::finalize_inbound(ctx)
     }
 
     // Phase 3: Redemption & Commissions
@@ -108,6 +125,10 @@ pub mod viral_sync {
         )
     }
 
+    pub fn initialize_viral_oracle(ctx: Context<InitializeViralOracle>) -> Result<()> {
+        instructions::oracles::initialize_viral_oracle(ctx)
+    }
+
     pub fn compute_merchant_reputation(
         ctx: Context<ComputeMerchantReputation>,
         pct_redeemers_aged_over_30_days: u16,
@@ -124,8 +145,45 @@ pub mod viral_sync {
         )
     }
 
-    pub fn redeem_with_geo(ctx: Context<RedeemWithGeo>, lat_micro: i32, lng_micro: i32, signature: Vec<u8>) -> Result<()> {
-        instructions::geo_fencing::redeem_with_geo(ctx, lat_micro, lng_micro, signature)
+    pub fn initialize_merchant_reputation(ctx: Context<InitializeMerchantReputation>) -> Result<()> {
+        instructions::oracles::initialize_merchant_reputation(ctx)
+    }
+
+    pub fn initialize_commission_ledger(ctx: Context<InitializeCommissionLedger>) -> Result<()> {
+        instructions::claim_commission::initialize_commission_ledger(ctx)
+    }
+
+    pub fn initialize_geo_fence(
+        ctx: Context<InitializeGeoFence>,
+        lat_micro: i32,
+        lng_micro: i32,
+        radius_meters: u32,
+        attestation_server_count: u8,
+        attestation_servers: [Pubkey; 4],
+        allow_non_geo_redemption: bool,
+        non_geo_commission_penalty_bps: u16,
+    ) -> Result<()> {
+        instructions::geo_fencing::initialize_geo_fence(
+            ctx,
+            lat_micro,
+            lng_micro,
+            radius_meters,
+            attestation_server_count,
+            attestation_servers,
+            allow_non_geo_redemption,
+            non_geo_commission_penalty_bps,
+        )
+    }
+
+    pub fn redeem_with_geo(
+        ctx: Context<RedeemWithGeo>,
+        lat_micro: i32,
+        lng_micro: i32,
+        issued_at: i64,
+        nonce: u64,
+        bypass_geo: bool,
+    ) -> Result<()> {
+        instructions::geo_fencing::redeem_with_geo(ctx, lat_micro, lng_micro, issued_at, nonce, bypass_geo)
     }
 
     pub fn withdraw_bond(ctx: Context<WithdrawBond>, amount: u64) -> Result<()> {

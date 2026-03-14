@@ -4,7 +4,7 @@
  * Session keys are:
  * - Time-scoped (expire after configurable duration, default 24h)
  * - Instruction-scoped (only certain operations allowed)
- * - Stored in sessionStorage (cleared on tab close)
+ * - Stored in memory only for the current tab lifetime
  *
  * In production, session keys are registered on-chain via initSessionKey instruction.
  * This module handles the client-side key management.
@@ -15,7 +15,7 @@
 import { Keypair, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 
 export interface SessionKeyInfo {
-    /** The session keypair (stored in memory / sessionStorage) */
+    /** The session public key for the in-memory delegated keypair */
     publicKey: PublicKey;
     /** When this session key was created */
     createdAt: number;
@@ -28,40 +28,17 @@ export interface SessionKeyInfo {
 }
 
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
-const SESSION_STORAGE_KEY = 'vs-session-key';
-
 let currentKeypair: Keypair | null = null;
 let currentInfo: SessionKeyInfo | null = null;
 
 /**
  * Creates or retrieves the current session key.
- * Keys persist in sessionStorage for the current tab session.
+ * Keys remain in memory only and are recreated after a refresh.
  */
 export function getOrCreateSessionKey(): { keypair: Keypair; info: SessionKeyInfo } {
     // Check if we have a valid session key in memory
     if (currentKeypair && currentInfo && currentInfo.expiresAt > Date.now()) {
         return { keypair: currentKeypair, info: currentInfo };
-    }
-
-    // Try to restore from sessionStorage
-    const stored = typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_STORAGE_KEY) : null;
-    if (stored) {
-        try {
-            const parsed = JSON.parse(stored);
-            if (parsed.expiresAt > Date.now() && parsed.secretKey) {
-                currentKeypair = Keypair.fromSecretKey(new Uint8Array(parsed.secretKey));
-                currentInfo = {
-                    publicKey: currentKeypair.publicKey,
-                    createdAt: parsed.createdAt,
-                    expiresAt: parsed.expiresAt,
-                    allowedInstructions: parsed.allowedInstructions || [],
-                    registeredOnChain: parsed.registeredOnChain || false,
-                };
-                return { keypair: currentKeypair, info: currentInfo };
-            }
-        } catch {
-            sessionStorage.removeItem(SESSION_STORAGE_KEY);
-        }
     }
 
     // Create fresh session key
@@ -78,17 +55,6 @@ export function getOrCreateSessionKey(): { keypair: Keypair; info: SessionKeyInf
         ],
         registeredOnChain: false,
     };
-
-    // Store in sessionStorage (survives page refresh within same tab)
-    if (typeof window !== 'undefined') {
-        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-            secretKey: Array.from(currentKeypair.secretKey),
-            createdAt: currentInfo.createdAt,
-            expiresAt: currentInfo.expiresAt,
-            allowedInstructions: currentInfo.allowedInstructions,
-            registeredOnChain: false,
-        }));
-    }
 
     return { keypair: currentKeypair, info: currentInfo };
 }
@@ -120,13 +86,6 @@ export function signWithSessionKey(tx: Transaction | VersionedTransaction): Tran
 export function markSessionKeyRegistered(): void {
     if (currentInfo) {
         currentInfo.registeredOnChain = true;
-        // Update storage
-        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            parsed.registeredOnChain = true;
-            sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(parsed));
-        }
     }
 }
 
@@ -148,9 +107,6 @@ export function getSessionKeyInfo(): SessionKeyInfo | null {
 export function destroySessionKey(): void {
     currentKeypair = null;
     currentInfo = null;
-    if (typeof window !== 'undefined') {
-        sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    }
 }
 
 /**

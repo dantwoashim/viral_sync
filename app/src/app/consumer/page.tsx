@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import DataModeBadge from '@/components/DataModeBadge';
 import { Share2, ScanLine, Gift, Network, ArrowUpRight, Clock, Coins } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/lib/useWallet';
@@ -12,9 +13,9 @@ export default function ConsumerPage() {
     const ledger = useCommissionLedger(publicKey, null);
     const txs = useRecentTransactions(publicKey, 4);
 
-    const totalEarned = ledger.data ? formatTokenAmount(ledger.data.totalEarned) : '0';
-    const claimed = ledger.data ? formatTokenAmount(ledger.data.totalClaimed) : '0';
-    const pending = ledger.data ? formatTokenAmount(ledger.data.claimable) : '0';
+    const totalEarned = ledger.data ? formatTokenAmount(ledger.data.totalEarned) : '-';
+    const claimed = ledger.data ? formatTokenAmount(ledger.data.totalClaimed) : '-';
+    const pending = ledger.data ? formatTokenAmount(ledger.data.claimable) : '-';
 
     const actions = [
         { icon: Share2, label: 'Share', color: 'var(--crimson)', bg: 'var(--crimson-soft)', href: '/consumer/earn' },
@@ -27,7 +28,10 @@ export default function ConsumerPage() {
         <>
             <div className="page-top">
                 <h1>My Rewards</h1>
-                {publicKey && <div className="pill pill-gold">{shortenAddress(publicKey.toBase58())}</div>}
+                <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+                    <DataModeBadge states={[ledger, txs]} />
+                    {publicKey && <div className="pill pill-gold">{shortenAddress(publicKey.toBase58())}</div>}
+                </div>
             </div>
 
             <div className="page-scroll">

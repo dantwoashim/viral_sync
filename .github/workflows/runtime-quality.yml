@@ -1,0 +1,63 @@
+name: Runtime Quality Gate
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  runtime-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Audit app production dependencies
+        run: npm audit --omit=dev --workspace app
+
+      - name: Audit actions production dependencies
+        run: npm audit --omit=dev --workspace server/actions
+
+      - name: Audit relayer production dependencies
+        run: npm audit --omit=dev --workspace relayer
+
+      - name: Run runtime contract and integration tests
+        run: npm run test:anchor
+
+      - name: Build actions service
+        run: npm run build --workspace server/actions
+
+      - name: Build relayer
+        run: npm run build --workspace relayer
+
+      - name: Lint app
+        run: npm run lint --workspace app
+
+      - name: Build app
+        run: npm run build --workspace app
+
+      - name: Run browser smoke flow
+        run: npm run smoke:browser
+
+      - name: Upload browser artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-browser-smoke
+          path: output/playwright
+          if-no-files-found: ignore

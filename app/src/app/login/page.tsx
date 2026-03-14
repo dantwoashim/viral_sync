@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { useEffect, useRef, Suspense } from 'react';
 import { Zap, Store, Smartphone, CheckCircle, ArrowRight, LogIn, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { APP_MODE, DEMO_MODE_ENABLED } from '@/lib/solana';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
@@ -24,22 +25,21 @@ function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const pendingRole = useRef<'merchant' | 'consumer' | null>(null);
-    const [switchMode, setSwitchMode] = useState(false);
+    const switchRequested = searchParams.get('switch') === '1';
+    const switchMode = authenticated && (switchRequested || !role);
 
     // Detect if we got here via "Switch Role" (already authenticated)
     useEffect(() => {
         if (authenticated && !pendingRole.current) {
-            const fromSwitch = searchParams.get('switch') === '1';
-            if (fromSwitch || !role) {
+            if (switchRequested && role) {
                 // User wants to pick a new role - stay on this page
-                setSwitchMode(true);
                 setRole(null);
-            } else {
+            } else if (!switchRequested && role) {
                 // Normal visit while already logged in - redirect to dashboard
                 router.replace(role === 'merchant' ? '/' : '/consumer');
             }
         }
-    }, [authenticated, role, router, searchParams, setRole]);
+    }, [authenticated, role, router, setRole, switchRequested]);
 
     // When auth completes + we have a pending role, set it and redirect
     useEffect(() => {
@@ -47,7 +47,6 @@ function LoginContent() {
             const dest = pendingRole.current === 'merchant' ? '/' : '/consumer';
             setRole(pendingRole.current);
             pendingRole.current = null;
-            setSwitchMode(false);
             router.push(dest);
         }
     }, [authenticated, setRole, router]);
@@ -57,7 +56,6 @@ function LoginContent() {
         if (authenticated) {
             setRole('merchant');
             pendingRole.current = null;
-            setSwitchMode(false);
             router.push('/');
         } else {
             login();
@@ -69,7 +67,6 @@ function LoginContent() {
         if (authenticated) {
             setRole('consumer');
             pendingRole.current = null;
-            setSwitchMode(false);
             router.push('/consumer');
         } else {
             login();
@@ -94,7 +91,11 @@ function LoginContent() {
             <p className="login-subtitle">
                 {switchMode
                     ? 'Switch your role. Pick how you want to use Viral Sync.'
-                    : 'Smart referral tracking that grows your business. Choose how you want to get started.'}
+                    : APP_MODE === 'demo'
+                        ? 'Demo mode is active. Mock data is available and wallet login remains optional.'
+                        : DEMO_MODE_ENABLED
+                            ? 'Live mode uses wallet-backed access. A separate demo sandbox is available when explicitly enabled.'
+                            : 'Live mode is active. Wallet-backed access is required for every session.'}
             </p>
 
             {switchMode && (
@@ -105,7 +106,12 @@ function LoginContent() {
 
             <div className="login-cards">
                 {/* Merchant */}
-                <button className="login-card scroll-card" onClick={handleMerchant} style={{ textAlign: 'left', width: '100%' }}>
+                <button
+                    className="login-card scroll-card"
+                    onClick={handleMerchant}
+                    style={{ textAlign: 'left', width: '100%' }}
+                    data-testid="login-role-merchant"
+                >
                     <div className="login-card-icon" style={{ background: 'var(--crimson-soft)', color: 'var(--crimson)' }}>
                         <Store size={26} />
                     </div>
@@ -122,7 +128,12 @@ function LoginContent() {
                 </button>
 
                 {/* Consumer */}
-                <button className="login-card scroll-card" onClick={handleConsumer} style={{ textAlign: 'left', width: '100%' }}>
+                <button
+                    className="login-card scroll-card"
+                    onClick={handleConsumer}
+                    style={{ textAlign: 'left', width: '100%' }}
+                    data-testid="login-role-consumer"
+                >
                     <div className="login-card-icon" style={{ background: 'var(--jade-soft)', color: 'var(--jade)' }}>
                         <Smartphone size={26} />
                     </div>
@@ -130,7 +141,7 @@ function LoginContent() {
                     <p style={{ textAlign: 'center' }}>Share, earn, and redeem rewards effortlessly</p>
                     <ul className="login-card-features">
                         <li><CheckCircle size={13} color="var(--jade)" /> No fees on referrals</li>
-                        <li><CheckCircle size={13} color="var(--jade)" /> Simple email sign-in</li>
+                        <li><CheckCircle size={13} color="var(--jade)" /> Wallet-signed access</li>
                         <li><CheckCircle size={13} color="var(--jade)" /> Automatic reward tracking</li>
                     </ul>
                     <div className="login-card-cta" style={{ color: 'var(--jade)', justifyContent: 'center' }}>
@@ -141,4 +152,3 @@ function LoginContent() {
         </div>
     );
 }
-

@@ -5,15 +5,22 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
+import DataModeBadge from '@/components/DataModeBadge';
 import {
   Coins, TrendingUp, Users, Shield, Activity, Clock, Bell,
 } from 'lucide-react';
 import { useMerchantConfig, useViralOracle, useMerchantReputation, useRecentTransactions } from '@/lib/hooks';
 import { useWallet } from '@/lib/useWallet';
-import { formatTokenAmount, bpsToPercent, shortenAddress } from '@/lib/solana';
+import {
+  formatTokenAmount,
+  bpsToPercent,
+  normalizeReputationScore,
+  normalizeRiskScore,
+  shortenAddress,
+} from '@/lib/solana';
 
 export default function DashboardPage() {
-  const publicKey = useWallet();
+  const publicKey = useWallet(true);
   const config = useMerchantConfig(publicKey);
   const oracle = useViralOracle(publicKey);
   const rep = useMerchantReputation(publicKey);
@@ -21,8 +28,10 @@ export default function DashboardPage() {
 
   const kFactor = oracle.data ? (oracle.data.kFactor / 100).toFixed(2) : '-';
   const supply = config.data ? formatTokenAmount(config.data.currentSupply) : '-';
-  const commission = config.data ? bpsToPercent(config.data.commissionRateBps) + '%' : '-';
-  const reputation = rep.data ? rep.data.reputationScore.toString() : '-';
+  const commission = config.data ? `${bpsToPercent(config.data.commissionRateBps)}%` : '-';
+  const reputationScore = rep.data ? normalizeReputationScore(rep.data.reputationScore) : null;
+  const suspicionScore = rep.data ? normalizeRiskScore(rep.data.suspicionScore) : null;
+  const reputation = reputationScore !== null ? reputationScore.toString() : '-';
 
   const funnelData = oracle.data ? [
     { name: 'Share', rate: oracle.data.shareRate },
@@ -38,7 +47,7 @@ export default function DashboardPage() {
           {publicKey && <div className="page-top-sub">{shortenAddress(publicKey.toBase58())}</div>}
         </div>
         <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
-          <div className="pill pill-jade">● Live</div>
+          <DataModeBadge states={[config, oracle, rep]} />
           <Bell size={18} color="var(--text-2)" />
         </div>
       </div>
@@ -78,7 +87,7 @@ export default function DashboardPage() {
             <div className="stat-icon" style={{ background: 'var(--cloud-soft)', color: 'var(--cloud)' }}><Shield size={16} /></div>
             <div className="stat-label">Reputation</div>
             <div className="stat-value">{reputation}</div>
-            <div className="stat-sub">{rep.data ? (rep.data.reputationScore >= 80 ? 'Excellent' : 'Fair') : ''}</div>
+            <div className="stat-sub">{reputationScore !== null ? (reputationScore >= 80 ? 'Excellent' : 'Fair') : ''}</div>
           </div>
         </div>
 
@@ -148,16 +157,16 @@ export default function DashboardPage() {
               <div style={{ marginBottom: 'var(--s4)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
                   <span style={{ color: 'var(--text-2)' }}>Reputation</span>
-                  <span className="text-mono" style={{ fontWeight: 700 }}>{rep.data.reputationScore} / 100</span>
+                  <span className="text-mono" style={{ fontWeight: 700 }}>{reputationScore} / 100</span>
                 </div>
-                <div className="progress"><div className="progress-fill" style={{ width: `${rep.data.reputationScore}%`, background: 'var(--jade)' }} /></div>
+                <div className="progress"><div className="progress-fill" style={{ width: `${reputationScore}%`, background: 'var(--jade)' }} /></div>
               </div>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
                   <span style={{ color: 'var(--text-2)' }}>Suspicion</span>
-                  <span className="text-mono" style={{ fontWeight: 700 }}>{rep.data.suspicionScore} / 100</span>
+                  <span className="text-mono" style={{ fontWeight: 700 }}>{suspicionScore} / 100</span>
                 </div>
-                <div className="progress"><div className="progress-fill" style={{ width: `${rep.data.suspicionScore}%`, background: rep.data.suspicionScore > 50 ? 'var(--crimson)' : 'var(--jade)' }} /></div>
+                <div className="progress"><div className="progress-fill" style={{ width: `${suspicionScore}%`, background: (suspicionScore ?? 0) > 50 ? 'var(--crimson)' : 'var(--jade)' }} /></div>
               </div>
             </div>
           </div>

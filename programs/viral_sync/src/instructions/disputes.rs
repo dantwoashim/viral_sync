@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program};
 use crate::state::{
     dispute_record::{DisputeRecord, DisputeStatus},
     commission_ledger::CommissionLedger,
@@ -37,8 +37,9 @@ pub struct ResolveExpiredDispute<'info> {
 
 // Target Fix for Architecture documentation (D3) Auto Resolve
 pub fn resolve_expired_dispute(ctx: Context<ResolveExpiredDispute>) -> Result<()> {
-    let dispute = &mut ctx.accounts.dispute_record;
     let now = Clock::get()?.unix_timestamp;
+    let dispute_record_key = ctx.accounts.dispute_record.key();
+    let dispute = &mut ctx.accounts.dispute_record;
     
     require!(
         dispute.status == DisputeStatus::Pending,
@@ -50,8 +51,14 @@ pub fn resolve_expired_dispute(ctx: Context<ResolveExpiredDispute>) -> Result<()
         now > dispute.raised_at + DISPUTE_MERCHANT_RESPONSE_SECS,
         ViralSyncError::TokensExpired // e.g., DisputeStillWithinResponseWindow
     );
+    require!(dispute.watchdog == ctx.accounts.watchdog.key(), ViralSyncError::AccessDenied);
+    require!(
+        ctx.accounts.dispute_escrow.key() == dispute_record_key,
+        ViralSyncError::AccessDenied
+    );
     
     dispute.status = DisputeStatus::UpheldByTimeout;
+    dispute.resolved_at = Some(now);
     
     let commission_ledger = &mut ctx.accounts.commission_ledger;
     let disputed_amount = commission_ledger.frozen_amount;
@@ -65,9 +72,17 @@ pub fn resolve_expired_dispute(ctx: Context<ResolveExpiredDispute>) -> Result<()
     rep.timeout_disputes += 1;
     rep.reputation_score = rep.reputation_score.saturating_sub(500);
     
-    // Returning the Watchdog's active stake 
-    // **ctx.accounts.dispute_escrow.try_borrow_mut_lamports()? -= dispute.stake_lamports;
-    // **ctx.accounts.watchdog.try_borrow_mut_lamports()? += dispute.stake_lamports;
+    if dispute.stake_lamports > 0 {
+        let escrow_info = ctx.accounts.dispute_escrow.to_account_info();
+        let watchdog_info = ctx.accounts.watchdog.to_account_info();
+        let rent_floor = Rent::get()?.minimum_balance(escrow_info.data_len());
+        let available_lamports = (**escrow_info.lamports.borrow()).saturating_sub(rent_floor);
+        require!(available_lamports >= dispute.stake_lamports, ViralSyncError::InsufficientBalance);
+
+        **escrow_info.try_borrow_mut_lamports()? -= dispute.stake_lamports;
+        **watchdog_info.try_borrow_mut_lamports()? += dispute.stake_lamports;
+        dispute.stake_lamports = 0;
+    }
     
     emit!(DisputeAutoUpheld {
         merchant: dispute.merchant,
@@ -89,12 +104,29 @@ pub struct RaiseDispute<'info> {
     
     #[account(mut)]
     pub watchdog: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
 }
 
 pub fn raise_dispute(ctx: Context<RaiseDispute>, amount: u64) -> Result<()> {
+    require!(amount > 0, ViralSyncError::NothingToClaim);
+    require!(ctx.accounts.commission_ledger.claimable >= amount, ViralSyncError::InsufficientBalance);
+
+    let cpi_accounts = system_program::Transfer {
+        from: ctx.accounts.watchdog.to_account_info(),
+        to: ctx.accounts.dispute_record.to_account_info(),
+    };
+    system_program::transfer(
+        CpiContext::new(ctx.accounts.system_program.to_account_info(), cpi_accounts),
+        amount,
+    )?;
+
     let dispute = &mut ctx.accounts.dispute_record;
+    dispute.watchdog = ctx.accounts.watchdog.key();
     dispute.status = DisputeStatus::Pending;
     dispute.raised_at = Clock::get()?.unix_timestamp;
+    dispute.resolved_at = None;
+    dispute.stake_lamports = amount;
     
     let ledger = &mut ctx.accounts.commission_ledger;
     ledger.frozen = true;
