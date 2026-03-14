@@ -1,13 +1,14 @@
 'use client';
 
 import React from 'react';
+import DataModeBadge from '@/components/DataModeBadge';
 import { Network, Users, TrendingUp } from 'lucide-react';
 import { useNetworkGraph, useMerchantConfig } from '@/lib/hooks';
 import { useWallet } from '@/lib/useWallet';
 import { formatTokenAmount } from '@/lib/solana';
 
 export default function NetworkPage() {
-    const publicKey = useWallet();
+    const publicKey = useWallet(true);
     const config = useMerchantConfig(publicKey);
     const graph = useNetworkGraph(config.data?.mint ?? null);
 
@@ -21,7 +22,10 @@ export default function NetworkPage() {
         <>
             <div className="page-top">
                 <h1>Network</h1>
-                {nodes.length > 0 && <div className="pill pill-gold"><Users size={12} /> {nodes.length}</div>}
+                <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+                    <DataModeBadge states={[config, graph]} />
+                    {nodes.length > 0 && <div className="pill pill-gold"><Users size={12} /> {nodes.length}</div>}
+                </div>
             </div>
 
             <div className="page-scroll">

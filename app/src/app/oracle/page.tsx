@@ -1,17 +1,14 @@
 'use client';
 
 import React from 'react';
-import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-    CartesianGrid,
-} from 'recharts';
-import { Target, Zap, BarChart3, Eye } from 'lucide-react';
+import DataModeBadge from '@/components/DataModeBadge';
+import { Target, Zap, Eye } from 'lucide-react';
 import { useViralOracle, useMerchantConfig } from '@/lib/hooks';
 import { useWallet } from '@/lib/useWallet';
 import { bpsToPercent } from '@/lib/solana';
 
 export default function OraclePage() {
-    const publicKey = useWallet();
+    const publicKey = useWallet(true);
     const oracle = useViralOracle(publicKey);
     const config = useMerchantConfig(publicKey);
 
@@ -24,17 +21,14 @@ export default function OraclePage() {
         redeemed: oracle.data.firstRedeemRate,
     } : { shared: 0, claimed: 0, redeemed: 0 };
 
-    const funnelData = oracle.data ? [
-        { stage: 'Shared', rate: funnelPct.shared },
-        { stage: 'Claimed', rate: funnelPct.claimed },
-        { stage: 'Redeemed', rate: funnelPct.redeemed },
-    ] : [];
-
     return (
         <>
             <div className="page-top">
                 <h1>Viral Oracle</h1>
-                {oracle.data && <div className="pill pill-jade">● {oracle.data.dataPoints} pts</div>}
+                <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
+                    <DataModeBadge states={[oracle, config]} />
+                    {oracle.data && <div className="pill pill-jade">{oracle.data.dataPoints} pts</div>}
+                </div>
             </div>
 
             <div className="page-scroll">

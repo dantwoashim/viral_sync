@@ -9,8 +9,10 @@ import {
     BarChart3,
     TrendingUp,
     Network,
+    Scan,
     ShieldAlert,
     Settings,
+    User,
     Zap,
 } from 'lucide-react';
 
@@ -22,10 +24,21 @@ const merchantNav = [
     { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
+const consumerNav = [
+    { href: '/consumer', label: 'Overview', icon: BarChart3 },
+    { href: '/consumer/earn', label: 'Earn', icon: TrendingUp },
+    { href: '/consumer/scan', label: 'Scan & Redeem', icon: Scan },
+    { href: '/consumer/profile', label: 'Profile', icon: User },
+    { href: '/settings', label: 'Settings', icon: Settings },
+];
+
 export default function Sidebar() {
     const pathname = usePathname();
     const { theme, toggleTheme } = useTheme();
     const { displayName, role } = useAuth();
+    const isConsumerView = role === 'consumer' || pathname.startsWith('/consumer');
+    const navItems = isConsumerView ? consumerNav : merchantNav;
+    const sectionLabel = isConsumerView ? 'Consumer Workspace' : 'Merchant Dashboard';
 
     return (
         <aside className="sidebar">
@@ -36,9 +49,9 @@ export default function Sidebar() {
                 <span className="sidebar-logo-text">Viral Sync</span>
             </div>
 
-            <div className="sidebar-label">Merchant Dashboard</div>
+            <div className="sidebar-label">{sectionLabel}</div>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {merchantNav.map((item) => (
+                {navItems.map((item) => (
                     <Link
                         key={item.href}
                         href={item.href}
@@ -86,10 +99,10 @@ export default function Sidebar() {
                 </div>
                 <div>
                     <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {displayName || 'Merchant Co.'}
+                        {displayName || (isConsumerView ? 'Consumer' : 'Merchant Co.')}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                        {role === 'consumer' ? 'Consumer' : 'Premium Plan'}
+                        {isConsumerView ? 'Consumer Mode' : 'Premium Plan'}
                     </div>
                 </div>
             </div>

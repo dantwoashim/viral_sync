@@ -9,6 +9,7 @@
         "dev": "ts-node mainnet_cranks.ts"
     },
     "dependencies": {
+    "@viral-sync/shared": "file:../packages/shared",
         "@coral-xyz/anchor": "^0.30.1",
         "@solana/web3.js": "^1.95.3",
         "bs58": "^5.0.0",

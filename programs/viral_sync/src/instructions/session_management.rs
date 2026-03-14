@@ -11,9 +11,9 @@ pub struct CreateSessionKey<'info> {
         seeds = [b"session", token_generation.key().as_ref(), delegate.key().as_ref()],
         bump
     )]
-    pub session_key: Account<'info, SessionKey>,
-    
-    pub token_generation: Account<'info, TokenGeneration>,
+    pub session_key: Box<Account<'info, SessionKey>>,
+
+    pub token_generation: Box<Account<'info, TokenGeneration>>,
     
     /// CHECK: Ephemeral ephemeral local keypair public key
     pub delegate: UncheckedAccount<'info>,
@@ -29,7 +29,7 @@ pub fn create_session_key(
     expires_at: i64, 
     max_tokens_per_session: u64
 ) -> Result<()> {
-    let session = &mut ctx.accounts.session_key;
+    let session = &mut *ctx.accounts.session_key;
     let gen = &ctx.accounts.token_generation;
     
     // Ensure only the true owner can delegate power over their PDA

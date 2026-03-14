@@ -11,7 +11,7 @@ pub struct InitTokenGeneration<'info> {
         seeds = [b"gen_v4", mint.key().as_ref(), owner.key().as_ref()],
         bump
     )]
-    pub token_generation: Account<'info, TokenGeneration>,
+    pub token_generation: Box<Account<'info, TokenGeneration>>,
     
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -19,13 +19,14 @@ pub struct InitTokenGeneration<'info> {
     /// CHECK: The user receiving the PDA, does not need to sign
     pub owner: UncheckedAccount<'info>,
     
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
     
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<InitTokenGeneration>) -> Result<()> {
-    let gen = &mut ctx.accounts.token_generation;
+#[inline(never)]
+pub fn init_token_generation(ctx: Context<InitTokenGeneration>) -> Result<()> {
+    let gen = &mut *ctx.accounts.token_generation;
     
     gen.bump = ctx.bumps.token_generation;
     gen.version = 4;
@@ -61,6 +62,7 @@ pub fn handler(ctx: Context<InitTokenGeneration>) -> Result<()> {
     
     gen.poi_score = 0;
     gen.poi_updated_at = 0;
+    gen.redemption_required_mask = 0;
     
     Ok(())
 }

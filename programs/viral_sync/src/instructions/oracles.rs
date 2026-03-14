@@ -1,14 +1,96 @@
 use anchor_lang::prelude::*;
-use crate::state::{viral_oracle::ViralOracle, merchant_reputation::MerchantReputation};
+use crate::state::{
+    merchant_config::MerchantConfig,
+    merchant_reputation::MerchantReputation,
+    viral_oracle::ViralOracle,
+};
 use crate::errors::ViralSyncError;
+
+#[derive(Accounts)]
+pub struct InitializeViralOracle<'info> {
+    #[account(
+        init,
+        payer = merchant,
+        space = 8 + ViralOracle::LEN,
+        seeds = [b"viral_oracle", merchant.key().as_ref()],
+        bump
+    )]
+    pub viral_oracle: Account<'info, ViralOracle>,
+
+    #[account(has_one = merchant)]
+    pub merchant_config: Account<'info, MerchantConfig>,
+
+    #[account(mut)]
+    pub merchant: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+pub fn initialize_viral_oracle(ctx: Context<InitializeViralOracle>) -> Result<()> {
+    let oracle = &mut ctx.accounts.viral_oracle;
+    oracle.bump = ctx.bumps.viral_oracle;
+    oracle.merchant = ctx.accounts.merchant.key();
+    oracle.mint = ctx.accounts.merchant_config.mint;
+    oracle.k_factor = 0;
+    oracle.median_referrals_per_user = 0;
+    oracle.p90_referrals_per_user = 0;
+    oracle.p10_referrals_per_user = 0;
+    oracle.referral_concentration_index = 0;
+    oracle.share_rate = 0;
+    oracle.claim_rate = 0;
+    oracle.first_redeem_rate = 0;
+    oracle.avg_time_share_to_claim_secs = 0;
+    oracle.avg_time_claim_to_redeem_secs = 0;
+    oracle.p50_time_share_to_claim_secs = 0;
+    oracle.commission_per_new_customer_tokens = 0;
+    oracle.vs_google_ads_efficiency_bps = 0;
+    oracle.computed_at = 0;
+    oracle.data_points = 0;
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct InitializeMerchantReputation<'info> {
+    #[account(
+        init,
+        payer = merchant,
+        space = 8 + MerchantReputation::LEN,
+        seeds = [b"merchant_reputation", merchant.key().as_ref()],
+        bump
+    )]
+    pub reputation: Account<'info, MerchantReputation>,
+
+    #[account(has_one = merchant)]
+    pub merchant_config: Account<'info, MerchantConfig>,
+
+    #[account(mut)]
+    pub merchant: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+pub fn initialize_merchant_reputation(ctx: Context<InitializeMerchantReputation>) -> Result<()> {
+    let reputation = &mut ctx.accounts.reputation;
+    reputation.bump = ctx.bumps.reputation;
+    reputation.merchant = ctx.accounts.merchant.key();
+    reputation.reputation_score = 100;
+    reputation.timeout_disputes = 0;
+    reputation.pct_redeemers_aged_over_30_days = 0;
+    reputation.unique_attestation_servers_used = 0;
+    reputation.commission_concentration_bps = 0;
+    reputation.pct_redemptions_in_business_hours = 0;
+    reputation.avg_poi_score_top_referrers = 0;
+    reputation.suspicion_score = 0;
+    reputation.suspicion_computed_at = 0;
+    Ok(())
+}
 
 #[derive(Accounts)]
 pub struct ComputeViralOracle<'info> {
     #[account(mut)]
     pub viral_oracle: Account<'info, ViralOracle>,
-    
-    // In production, this would mandate a signature from the Helius/Supabase indexing authority PDA
-    // pub oracle_authority: Signer<'info>, 
+
+    pub merchant: Signer<'info>,
     pub crank: Signer<'info>,
 }
 
@@ -29,8 +111,17 @@ pub fn compute_viral_oracle(
     vs_google_ads_efficiency_bps: u32,
     data_points: u32
 ) -> Result<()> {
-    // Requires a merkle proof verification from the Helius backend (Omitted for MVP brevity)
-    
+    require!(ctx.accounts.viral_oracle.merchant == ctx.accounts.merchant.key(), ViralSyncError::AccessDenied);
+    require!(
+        share_rate <= 100
+            && claim_rate <= 100
+            && first_redeem_rate <= 100
+            && claim_rate <= share_rate
+            && first_redeem_rate <= claim_rate
+            && data_points > 0,
+        ViralSyncError::InvalidMetricRange
+    );
+
     let oracle = &mut ctx.accounts.viral_oracle;
     oracle.k_factor = k_factor;
     oracle.median_referrals_per_user = median_referrals_per_user;
@@ -56,8 +147,8 @@ pub fn compute_viral_oracle(
 pub struct ComputeMerchantReputation<'info> {
     #[account(mut)]
     pub reputation: Account<'info, MerchantReputation>,
-    
-    // pub oracle_authority: Signer<'info>,
+
+    pub merchant: Signer<'info>,
     pub crank: Signer<'info>,
 }
 
@@ -70,7 +161,15 @@ pub fn compute_merchant_reputation(
     avg_poi_score_top_referrers: u32,
     suspicion_score: u32,
 ) -> Result<()> {
-    
+    require!(ctx.accounts.reputation.merchant == ctx.accounts.merchant.key(), ViralSyncError::AccessDenied);
+    require!(
+        pct_redeemers_aged_over_30_days <= 100
+            && pct_redemptions_in_business_hours <= 100
+            && commission_concentration_bps <= 10_000
+            && suspicion_score <= 10_000,
+        ViralSyncError::InvalidMetricRange
+    );
+
     let rep = &mut ctx.accounts.reputation;
     rep.pct_redeemers_aged_over_30_days = pct_redeemers_aged_over_30_days;
     rep.unique_attestation_servers_used = unique_attestation_servers_used;
@@ -81,9 +180,10 @@ pub fn compute_merchant_reputation(
     
     rep.suspicion_computed_at = Clock::get()?.unix_timestamp;
     
-    // Base reputation calculation heavily penalizes timeout disputes and high suspicion
-    let penalty = (rep.timeout_disputes * 500).saturating_add(suspicion_score / 10);
-    rep.reputation_score = 10_000u32.saturating_sub(penalty);
+    let timeout_penalty = rep.timeout_disputes.saturating_mul(5);
+    let normalized_suspicion = (suspicion_score / 100).min(100);
+    let penalty = timeout_penalty.saturating_add(normalized_suspicion);
+    rep.reputation_score = 100u32.saturating_sub(penalty.min(100));
 
     Ok(())
 }

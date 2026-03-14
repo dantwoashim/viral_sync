@@ -35,10 +35,10 @@ The K-Factor metric (borrowed from epidemiology) tells merchants whether their p
 | Cost per click | $2-5 | $0 |
 | Cost per acquisition | $8-15 | Commission-only (merchant sets rate) |
 | Attribution depth | 1 click | Multi-generational (friend of friend of friend) |
-| Fraud prevention | Click fraud is rampant | Geo-verified, rate-limited, reputation-scored |
-| Setup time | Hours of campaign config | 5 minutes |
+| Fraud prevention | Click fraud is rampant | Time-bound geofence attestations, replay limits, and merchant reputation controls |
+| Setup time | Hours of campaign config | Minutes for a devnet pilot once token setup is complete |
 
-Merchants create reward tokens, set a commission rate (typically 8-12%), and let the system handle everything else. No monthly fees, no minimum spend. You only pay when results happen.
+Merchants create reward tokens, set a commission rate (typically 8-12%), and let the system handle the tracked referral flow. This repository is a devnet product build, not a hosted commercial service with billing included.
 
 ---
 
@@ -62,8 +62,8 @@ The app has two modes: **Merchant** and **Consumer**. You pick your role at logi
 
 ### Design Decisions
 - Light mode, desktop-first layout with sidebar navigation
-- Email-based authentication (simple sign-up, no crypto wallet setup required)
-- Mock data preloaded for demo purposes so the app looks alive on first visit
+- Wallet-signed authentication for live mode, with a separately labeled demo sandbox
+- Mock data is available only in explicit demo mode, never as a silent live fallback
 - Role-aware navigation so each user type only sees what is relevant to them
 
 ---
@@ -75,9 +75,9 @@ The app has two modes: **Merchant** and **Consumer**. You pick your role at logi
 ```
 Frontend (Next.js 16)  -->  Solana Devnet (Anchor Program)
      |                            |
-     +-- Auth (Email/Privy)       +-- Token-2022 with Transfer Hook
+     +-- Wallet-signed auth       +-- Token-2022 with Transfer Hook
      +-- Hooks (RPC reads)        +-- 19 instructions across 6 phases
-     +-- Mock data fallback       +-- PDA-based state (no database)
+     +-- Explicit live/demo mode  +-- PDA-based state plus relayer/action service state
 ```
 
 ### The Core Idea
@@ -95,7 +95,7 @@ Every merchant gets a custom Token-2022 token. When customers hold and share the
 |-------|------|
 | Smart contract | Rust, Anchor 0.30.1, Token-2022 Extensions |
 | Frontend | Next.js 16, React, Recharts, Lucide Icons |
-| Auth | Email-based (Privy for embedded wallets) |
+| Auth | Wallet-signed sessions for live mode, explicit demo mode for sandboxing |
 | Styling | Custom CSS design system |
 | Deployment | Vercel (frontend), Solana Devnet (program) |
 
@@ -125,7 +125,7 @@ viral-sync/
 │       ├── app/             # Pages (dashboard, oracle, network, pos, consumer)
 │       ├── components/      # Sidebar, layout shells
 │       └── lib/             # Auth, hooks, Solana utilities, mock data
-├── relayer/                 # Express.js fee sponsorship server
+├── relayer/                 # Express.js fee sponsorship server with allowlists, replay controls, and audit logging
 ├── clients/                 # POS + consumer client utilities
 ├── cranks/                  # Automated maintenance scripts
 └── tests/                   # Integration tests
@@ -154,25 +154,26 @@ Open [http://localhost:3000](http://localhost:3000)
 ### Build the Smart Contract
 
 ```bash
+cargo build
 anchor build
 ```
 
-Or use [Solana Playground](https://beta.solpg.io) to build and deploy from the browser.
+This repository now includes a local compatibility patch for Anchor 0.30.1 IDL generation on current toolchains, so `anchor build` is the verified local path in this repository.
 
 ---
 
 ## Demo
 
-The live demo at [viral-sync.vercel.app](https://viral-sync.vercel.app) uses preloaded mock data to show the full merchant and consumer experience. Sign in with any email to explore both roles.
+The live demo at [viral-sync.vercel.app](https://viral-sync.vercel.app) should explicitly identify whether it is running in `live` or `demo` mode. Demo mode can use preloaded mock data; live mode should only display real Solana state.
 
 ### About the Mock Data
 
-The frontend currently uses mock data to populate dashboards, activity feeds, and analytics. This is intentional for the demo stage. Two personas are built in:
+When demo mode is enabled, the frontend can populate dashboards, activity feeds, and analytics using sample data. Two personas are built in:
 
 - **BREW Coffee (Merchant)** - a coffee shop running a referral program with 2.45M tokens in circulation
 - **Sarah (Consumer)** - a customer who has earned 820 tokens by sharing referral links
 
-All React hooks (`useMerchantConfig`, `useViralOracle`, `useCommissionLedger`, etc.) first try to fetch real on-chain data from Solana devnet. If the accounts don't exist yet or the RPC call fails, they fall back to mock data. Once the on-chain program is initialized with real merchant accounts, the dashboard switches to live data automatically with no code changes needed.
+All React hooks (`useMerchantConfig`, `useViralOracle`, `useCommissionLedger`, etc.) fetch real on-chain data first. Mock data is only used when the app is explicitly configured for demo mode.
 
 ---
 

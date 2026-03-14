@@ -7,6 +7,9 @@ pub mod merchant_bond;
 pub mod merchant_reputation;
 pub mod viral_oracle;
 pub mod session_key;
+pub mod geo_attestation_nonce;
+pub mod merchant_closure_snapshot;
+pub mod bond_claim_marker;
 
 pub use merchant_config::*;
 pub use token_generation::*;
@@ -17,3 +20,6 @@ pub use merchant_bond::*;
 pub use merchant_reputation::*;
 pub use viral_oracle::*;
 pub use session_key::*;
+pub use geo_attestation_nonce::*;
+pub use merchant_closure_snapshot::*;
+pub use bond_claim_marker::*;

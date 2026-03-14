@@ -15,3 +15,4 @@ app/android/app/build
 app/android/.gradle
 app/android/build
 app/out
+output/

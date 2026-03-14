@@ -6,7 +6,7 @@ pub struct MerchantReputation {
     pub merchant: Pubkey,
     
     // Scoring & History
-    pub reputation_score: u32,       // Core score
+    pub reputation_score: u32,       // Canonical 0..100 score
     pub timeout_disputes: u32,       // Bad behavior tracking
     
     // Hard-to-game signals (via Helius indexer pipeline)
@@ -18,4 +18,8 @@ pub struct MerchantReputation {
     
     pub suspicion_score: u32,         // Flag mark for auto-disputes/warnings
     pub suspicion_computed_at: i64,   // Last Oracle pipeline update
+}
+
+impl MerchantReputation {
+    pub const LEN: usize = 1 + 32 + 4 + 4 + 2 + 1 + 2 + 2 + 4 + 4 + 8;
 }
