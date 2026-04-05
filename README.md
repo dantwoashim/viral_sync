@@ -1,186 +1,156 @@
 # Viral Sync
 
-Smart referral tracking for local businesses. Customers share, friends visit, everyone earns.
+Viral Sync is a referral and loyalty system for local merchants built on Solana. It tracks the path from share to claim to in-store redemption, attributes each conversion to the right referrer, and exposes that state through a merchant console and a consumer-facing application.
 
-Built on Solana. Deployed on devnet.
+This repository contains the full stack:
 
-**Live Demo:** [viral-sync.vercel.app](https://viral-sync.vercel.app)
+- an Anchor program for referral state, reward accounting, and settlement rules
+- a Next.js application with separate merchant and consumer experiences
+- a relayer for sponsored transactions
+- an actions server for runtime workflows
+- background workers and shared packages used by the application stack
 
----
+## Current Scope
 
-## Problem Statement
+Viral Sync is under active development. The repository is suitable for local development, devnet testing, and product work. It is not presented here as a turnkey production deployment.
 
-Small businesses spend a significant chunk of their revenue on digital ads with poor conversion rates. Google Ads charges $2-5 per click, and most of those clicks never turn into real customers.
+The current codebase includes:
 
-Meanwhile, the single most effective marketing channel, word-of-mouth, is completely invisible. When your best customer tells three friends about your restaurant and two of them show up, that customer gets nothing. There is no tracking, no attribution, and no way to reward the behavior you want most.
+- a public-facing web application with merchant and consumer modes
+- a launch loop for link creation, claims, merchant confirmation, and passbook views
+- a Solana program and supporting services under active development
+- workspace packages for shared runtime types and server coordination
 
-Existing referral tools (ReferralCandy, Yotpo, etc.) are expensive SaaS products designed for e-commerce, not local businesses. They require manual tracking, are easy to game, and the referral chains are shallow (one level deep at most).
+## Core Flow
 
----
+For merchants:
 
-## Potential Impact
+- define referral and reward behavior
+- issue trackable rewards
+- confirm in-store redemptions
+- inspect referral activity and campaign performance
 
-- **For businesses:** Replace ad spend with pay-for-performance referral programs. Only pay when someone actually walks in.
-- **For customers:** Get rewarded for recommendations they are already making. Earn commissions when friends and friends-of-friends redeem.
-- **For the market:** Word-of-mouth drives an estimated 13% of consumer sales ($6T globally). Viral Sync makes this measurable and attributable for the first time at the small business level.
+For consumers:
 
-The K-Factor metric (borrowed from epidemiology) tells merchants whether their program is actually viral. If K > 1.0, every referrer brings in more than one new customer, and growth is exponential, not linear.
+- receive and share referral links
+- claim offers
+- maintain a passbook of rewards and progress
+- redeem rewards through the merchant flow
 
----
+The product is organized around a simple loop:
 
-## Business Case
+1. A merchant creates or configures an offer.
+2. A consumer receives or opens a referral link.
+3. The consumer claims the offer.
+4. The merchant confirms the redemption.
+5. The passbook and merchant views update to reflect the result.
 
-| Metric | Google Ads | Viral Sync |
-|--------|-----------|------------|
-| Cost per click | $2-5 | $0 |
-| Cost per acquisition | $8-15 | Commission-only (merchant sets rate) |
-| Attribution depth | 1 click | Multi-generational (friend of friend of friend) |
-| Fraud prevention | Click fraud is rampant | Time-bound geofence attestations, replay limits, and merchant reputation controls |
-| Setup time | Hours of campaign config | Minutes for a devnet pilot once token setup is complete |
+## Architecture
 
-Merchants create reward tokens, set a commission rate (typically 8-12%), and let the system handle the tracked referral flow. This repository is a devnet product build, not a hosted commercial service with billing included.
+At a high level, the system is split into five layers:
 
----
-
-## UX
-
-The app has two modes: **Merchant** and **Consumer**. You pick your role at login.
-
-### Merchant View
-- **Dashboard** - token supply, funnel chart (share > claim > redeem), recent activity feed
-- **Viral Oracle** - K-Factor score, conversion rates, cost-per-customer vs traditional ads
-- **Network** - visual graph of the referral tree, showing depth and spread
-- **POS Terminal** - tablet-friendly screen for processing in-store redemptions via NFC or QR
-- **Disputes** - fraud detection flags, bond status, resolution history
-- **Settings** - commission rate, token expiry, account management
-
-### Consumer View
-- **Home** - reward balance, recent scans, quick stats
-- **Earn** - personal referral link with copy/share buttons, earnings breakdown
-- **Scan** - enter redemption codes or tap NFC at the POS
-- **Profile** - account overview, total earned, total claimed
-
-### Design Decisions
-- Light mode, desktop-first layout with sidebar navigation
-- Wallet-signed authentication for live mode, with a separately labeled demo sandbox
-- Mock data is available only in explicit demo mode, never as a silent live fallback
-- Role-aware navigation so each user type only sees what is relevant to them
-
----
-
-## Product Functionality / Technical Implementation
-
-### Architecture
-
-```
-Frontend (Next.js 16)  -->  Solana Devnet (Anchor Program)
-     |                            |
-     +-- Wallet-signed auth       +-- Token-2022 with Transfer Hook
-     +-- Hooks (RPC reads)        +-- 19 instructions across 6 phases
-     +-- Explicit live/demo mode  +-- PDA-based state plus relayer/action service state
+```text
+Consumer and merchant app (Next.js)
+        |
+        +-- launch APIs and runtime flows
+        |
+Relayer and action services
+        |
+Shared workspace package
+        |
+Anchor program on Solana
+        |
+Background workers and maintenance tasks
 ```
 
-### The Core Idea
+The public architecture note is in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-Every merchant gets a custom Token-2022 token. When customers hold and share these tokens, a Transfer Hook fires on every transfer and automatically:
+## Repository Layout
 
-1. **Classifies the token** - Gen-1 (direct from merchant) vs Gen-2 (passed through a referrer)
-2. **Records referral attribution** - who sent it to whom, timestamped
-3. **Computes commissions** - when someone redeems at the store, their referrer earns automatically
-4. **Updates analytics** - the Viral Oracle recalculates K-Factor and conversion metrics
-
-### Tech Stack
-
-| Layer | Tech |
-|-------|------|
-| Smart contract | Rust, Anchor 0.30.1, Token-2022 Extensions |
-| Frontend | Next.js 16, React, Recharts, Lucide Icons |
-| Auth | Wallet-signed sessions for live mode, explicit demo mode for sandboxing |
-| Styling | Custom CSS design system |
-| Deployment | Vercel (frontend), Solana Devnet (program) |
-
-### On-Chain Program
-
-**Program ID:** `D9ds2V6y4GFGKbo8wF8qQiF81dzhkiznmZsHepcSN6Ta`
-
-19 instructions organized into 6 phases:
-
-1. **Initialization** - token creation, merchant config, treasury setup
-2. **Transfer Hook** - fires on every transfer, classifies generations, buffers referrals
-3. **Redemption** - FIFO token consumption, commission calculation, ledger updates
-4. **Escrows** - time-locked shares, link-based claiming, expiry harvesting
-5. **Oracle + Reputation** - K-Factor computation, fraud scoring, merchant reputation
-6. **Disputes** - watchdog staking, timeout arbitration, bond slashing
-
-### Project Structure
-
+```text
+app/                 Next.js application
+programs/viral_sync/ Anchor program
+relayer/             Sponsored transaction service
+server/actions/      Runtime action service
+cranks/              Background workers and maintenance scripts
+packages/shared/     Shared runtime types and constants
+clients/             Client-side helpers
+tests/               Integration and workflow tests
 ```
-viral-sync/
-├── programs/viral_sync/     # Anchor smart contract (Rust)
-│   ├── src/instructions/    # 19 instruction handlers
-│   ├── src/state/           # Account structs (PDAs)
-│   └── src/lib.rs           # Program entrypoint
-├── app/                     # Next.js frontend
-│   └── src/
-│       ├── app/             # Pages (dashboard, oracle, network, pos, consumer)
-│       ├── components/      # Sidebar, layout shells
-│       └── lib/             # Auth, hooks, Solana utilities, mock data
-├── relayer/                 # Express.js fee sponsorship server with allowlists, replay controls, and audit logging
-├── clients/                 # POS + consumer client utilities
-├── cranks/                  # Automated maintenance scripts
-└── tests/                   # Integration tests
-```
-
----
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 18+
-- [Rust](https://rustup.rs/) 1.75+ (for smart contract development)
-- [Anchor](https://www.anchor-lang.com/docs/installation) 0.30+ (for smart contract development)
+- Node.js 18 or newer
+- Rust and Cargo
+- Anchor for Solana program development
 
-### Run the Frontend
+### Install Dependencies
+
+From the repository root:
+
+```bash
+npm install
+```
+
+### Run the Web App
 
 ```bash
 cd app
-npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+The application runs at `http://localhost:3000`.
 
-### Build the Smart Contract
+### Build the Web App
+
+```bash
+cd app
+npm run build
+```
+
+### Build the Solana Program
 
 ```bash
 cargo build
 anchor build
 ```
 
-This repository now includes a local compatibility patch for Anchor 0.30.1 IDL generation on current toolchains, so `anchor build` is the verified local path in this repository.
+### Build the Workspace
 
----
+```bash
+npm run build
+```
 
-## Demo
+## Environment
 
-The live demo at [viral-sync.vercel.app](https://viral-sync.vercel.app) should explicitly identify whether it is running in `live` or `demo` mode. Demo mode can use preloaded mock data; live mode should only display real Solana state.
+The application and services use standard environment variables for RPC endpoints, program IDs, relayer URLs, and runtime service URLs. Typical local development values include:
 
-### About the Mock Data
+- `NEXT_PUBLIC_SOLANA_RPC_URL`
+- `NEXT_PUBLIC_PROGRAM_ID`
+- `NEXT_PUBLIC_RELAYER_URL`
+- `NEXT_PUBLIC_ACTIONS_URL`
+- `NEXT_PUBLIC_PRIVY_APP_ID`
 
-When demo mode is enabled, the frontend can populate dashboards, activity feeds, and analytics using sample data. Two personas are built in:
+Review the application code in `app/src/lib` and the service packages for the exact variables each component expects.
 
-- **BREW Coffee (Merchant)** - a coffee shop running a referral program with 2.45M tokens in circulation
-- **Sarah (Consumer)** - a customer who has earned 820 tokens by sharing referral links
+## Development Notes
 
-All React hooks (`useMerchantConfig`, `useViralOracle`, `useCommissionLedger`, etc.) fetch real on-chain data first. Mock data is only used when the app is explicitly configured for demo mode.
+- The app is a workspace package and resolves shared runtime types from `packages/shared`.
+- The frontend includes merchant and consumer routes in the same codebase.
+- Internal planning notes and working documents are intentionally not included in the public tree.
 
----
+## Verification
 
-## Team
+For the application package:
 
-- **Prabin Ghimire** - Full-stack developer
+```bash
+cd app
+npm run lint
+npm run build
+```
 
 ## License
 
-MIT
+No license file is included in this repository at the moment.
