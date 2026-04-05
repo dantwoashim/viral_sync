@@ -1,46 +1,59 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
-import { BarChart3, TrendingUp, Scan, Wallet, Settings, Share2, User, Gift } from 'lucide-react';
-
-const merchantTabs = [
-    { href: '/', label: 'Home', icon: BarChart3 },
-    { href: '/oracle', label: 'Oracle', icon: TrendingUp },
-    { href: '/pos', label: 'POS', icon: Scan },
-    { href: '/network', label: 'Network', icon: Share2 },
-    { href: '/settings', label: 'More', icon: Settings },
-];
+import {
+  BookOpen,
+  ChartBar,
+  Compass,
+  House,
+  Megaphone,
+  QrCode,
+  Receipt,
+  ShareNetwork,
+  UserCircle,
+  UsersThree,
+} from '@phosphor-icons/react';
 
 const consumerTabs = [
-    { href: '/consumer', label: 'Home', icon: Wallet },
-    { href: '/consumer/earn', label: 'Earn', icon: Gift },
-    { href: '/consumer/scan', label: 'Scan', icon: Scan },
-    { href: '/consumer/profile', label: 'Profile', icon: User },
-    { href: '/settings', label: 'More', icon: Settings },
+  { href: '/', label: 'Home', icon: House },
+  { href: '/passbook', label: 'Passbook', icon: BookOpen },
+  { href: '/routes', label: 'Routes', icon: Compass },
+  { href: '/invite', label: 'Invite', icon: ShareNetwork },
+  { href: '/profile', label: 'Profile', icon: UserCircle },
+];
+
+const merchantTabs = [
+  { href: '/merchant/today', label: 'Today', icon: ChartBar },
+  { href: '/merchant/scan', label: 'Scan', icon: QrCode },
+  { href: '/merchant/campaigns', label: 'Campaigns', icon: Megaphone },
+  { href: '/merchant/customers', label: 'Customers', icon: UsersThree },
+  { href: '/merchant/ledger', label: 'Ledger', icon: Receipt },
 ];
 
 export default function BottomNav() {
-    const pathname = usePathname();
-    const { role } = useAuth();
+  const pathname = usePathname();
 
-    const tabs = role === 'consumer' ? consumerTabs : merchantTabs;
+  if (pathname === '/login') {
+    return null;
+  }
 
-    const isActive = (href: string) => {
-        if (href === '/' || href === '/consumer') return pathname === href;
-        return pathname.startsWith(href);
-    };
+  const tabs = pathname.startsWith('/merchant') ? merchantTabs : consumerTabs;
 
-    return (
-        <nav className="bottom-nav">
-            {tabs.map((tab) => (
-                <Link key={tab.href} href={tab.href} className={`nav-item ${isActive(tab.href) ? 'active' : ''}`}>
-                    <tab.icon size={22} strokeWidth={isActive(tab.href) ? 2.2 : 1.6} />
-                    <span>{tab.label}</span>
-                </Link>
-            ))}
-        </nav>
-    );
+  return (
+    <nav className="bottom-nav">
+      {tabs.map((tab) => {
+        const active = tab.href === '/'
+          ? pathname === '/'
+          : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+
+        return (
+          <Link key={tab.href} href={tab.href} className={`nav-item ${active ? 'active' : ''}`}>
+            <tab.icon size={22} weight={active ? 'fill' : 'regular'} />
+            <span>{tab.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
