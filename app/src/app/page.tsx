@@ -1,179 +1,210 @@
 'use client';
 
-import React from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts';
-import DataModeBadge from '@/components/DataModeBadge';
-import {
-  Coins, TrendingUp, Users, Shield, Activity, Clock, Bell,
-} from 'lucide-react';
-import { useMerchantConfig, useViralOracle, useMerchantReputation, useRecentTransactions } from '@/lib/hooks';
-import { useWallet } from '@/lib/useWallet';
-import {
-  formatTokenAmount,
-  bpsToPercent,
-  normalizeReputationScore,
-  normalizeRiskScore,
-  shortenAddress,
-} from '@/lib/solana';
+import Link from 'next/link';
+import { ArrowRight, SealCheck, Ticket, TrendUp } from '@phosphor-icons/react';
+import AnimatedStampRail from '@/components/launch/AnimatedStampRail';
+import SignalRibbon from '@/components/launch/SignalRibbon';
+import { useAuth } from '@/lib/auth';
+import { useConsumerSummary } from '@/lib/launch/hooks';
+import { consumerPassbook, consumerRoutes, consumerStamps } from '@/lib/nepalData';
 
-export default function DashboardPage() {
-  const publicKey = useWallet(true);
-  const config = useMerchantConfig(publicKey);
-  const oracle = useViralOracle(publicKey);
-  const rep = useMerchantReputation(publicKey);
-  const txs = useRecentTransactions(publicKey, 5);
-
-  const kFactor = oracle.data ? (oracle.data.kFactor / 100).toFixed(2) : '-';
-  const supply = config.data ? formatTokenAmount(config.data.currentSupply) : '-';
-  const commission = config.data ? `${bpsToPercent(config.data.commissionRateBps)}%` : '-';
-  const reputationScore = rep.data ? normalizeReputationScore(rep.data.reputationScore) : null;
-  const suspicionScore = rep.data ? normalizeRiskScore(rep.data.suspicionScore) : null;
-  const reputation = reputationScore !== null ? reputationScore.toString() : '-';
-
-  const funnelData = oracle.data ? [
-    { name: 'Share', rate: oracle.data.shareRate },
-    { name: 'Claim', rate: oracle.data.claimRate },
-    { name: 'Redeem', rate: oracle.data.firstRedeemRate },
-  ] : [];
+export default function ConsumerHomePage() {
+  const { displayName, sessionId } = useAuth();
+  const { data, loading } = useConsumerSummary(sessionId);
+  const progressCurrent = data?.progress.current ?? 0;
+  const progressTotal = data?.progress.total ?? 3;
+  const passbookRows = data?.passbook.length ? data.passbook : consumerPassbook.map((entry, index) => ({
+    id: `fallback-${index}`,
+    title: entry.title,
+    subtitle: entry.subtitle,
+    meta: entry.meta,
+    status: 'progress' as const,
+    createdAt: new Date().toISOString(),
+  }));
+  const headline = data?.offer.title ?? 'Bring 3 friends. All 4 unlock a warm momo set.';
+  const merchantName = data?.offer.merchantName ?? 'Nyano Chiya Ghar';
+  const district = data?.offer.district ?? 'Thamel';
+  const ribbonItems = [
+    `${merchantName} - live pass`,
+    `${progressCurrent}/${progressTotal} confirmed`,
+    `${data?.referral.openCount ?? 0} link opens`,
+    `${district} route active`,
+    'Merchant-funded reward',
+  ];
 
   return (
-    <>
-      <div className="page-top">
-        <div>
-          <h1>Viral Sync</h1>
-          {publicKey && <div className="page-top-sub">{shortenAddress(publicKey.toBase58())}</div>}
-        </div>
-        <div style={{ display: 'flex', gap: 'var(--s2)', alignItems: 'center' }}>
-          <DataModeBadge states={[config, oracle, rep]} />
-          <Bell size={18} color="var(--text-2)" />
-        </div>
-      </div>
-
-      <div className="page-scroll">
-        {/* Hero */}
-        <div className="scroll-card" style={{ marginBottom: 'var(--s4)' }}>
-          <div className="hero-stat">
-            <div className="hero-stat-label">Token Supply</div>
-            <div className="hero-stat-value">{supply}</div>
-            <div className="hero-stat-sub">
-              {config.loading ? 'Loading...' : config.data ? `K-Factor: ${kFactor}` : 'Sign in to view'}
-            </div>
+    <div className="surface">
+      <div className="surface-inner">
+        <div className="surface-header">
+          <div className="surface-title-block">
+            <div className="eyebrow">{district} Pilot</div>
+            <h1 className="surface-title">Your passbook should feel alive, not financial.</h1>
+            <p className="surface-subtitle">
+              {displayName || 'Guest'}, the launch loop starts with one reward ticket, one strong reason to share,
+              and one district route that makes local discovery feel social.
+            </p>
+          </div>
+          <div className="mode-pill">
+            <SealCheck size={18} weight="fill" />
+            Consumer Mode
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="stats-grid">
-          <div className="stat-card scroll-card">
-            <div className="stat-icon" style={{ background: 'var(--jade-soft)', color: 'var(--jade)' }}><Coins size={16} /></div>
-            <div className="stat-label">Supply</div>
-            <div className="stat-value">{supply}</div>
-          </div>
-          <div className="stat-card scroll-card">
-            <div className="stat-icon" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}><TrendingUp size={16} /></div>
-            <div className="stat-label">K-Factor</div>
-            <div className="stat-value">{kFactor}</div>
-            <div className="stat-sub">{oracle.data && oracle.data.kFactor >= 100 ? 'Viral' : 'Growing'}</div>
-          </div>
-          <div className="stat-card scroll-card">
-            <div className="stat-icon" style={{ background: 'var(--dawn-soft)', color: 'var(--dawn)' }}><Users size={16} /></div>
-            <div className="stat-label">Commission</div>
-            <div className="stat-value">{commission}</div>
-            <div className="stat-sub">{config.data ? `${config.data.tokenExpiryDays}d expiry` : ''}</div>
-          </div>
-          <div className="stat-card scroll-card">
-            <div className="stat-icon" style={{ background: 'var(--cloud-soft)', color: 'var(--cloud)' }}><Shield size={16} /></div>
-            <div className="stat-label">Reputation</div>
-            <div className="stat-value">{reputation}</div>
-            <div className="stat-sub">{reputationScore !== null ? (reputationScore >= 80 ? 'Excellent' : 'Fair') : ''}</div>
-          </div>
-        </div>
-
-        {/* Funnel */}
-        {funnelData.length > 0 && funnelData[0].rate > 0 && (
-          <div className="section">
-            <div className="chart-wrap scroll-card">
-              <h3>Conversion Funnel</h3>
-              <div className="chart-sub">Share → Claim → Redeem rates</div>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={funnelData} barSize={30}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                  <XAxis dataKey="name" tick={{ fill: 'var(--text-3)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'var(--text-3)', fontSize: 10 }} axisLine={false} tickLine={false} unit="%" />
-                  <Tooltip contentStyle={{ background: 'rgba(11,10,18,0.95)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12 }} />
-                  <defs>
-                    <linearGradient id="funnelG" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--jade)" />
-                      <stop offset="100%" stopColor="#2D7A60" />
-                    </linearGradient>
-                  </defs>
-                  <Bar dataKey="rate" fill="url(#funnelG)" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
-        {/* Activity */}
-        <div className="section">
-          <div className="section-header">
-            <span className="section-title"><Activity size={14} /> Recent Activity</span>
-          </div>
-          {txs.loading ? (
-            <div><div className="loading-pulse" style={{ height: 52, marginBottom: 4 }} /><div className="loading-pulse" style={{ height: 52, marginBottom: 4 }} /><div className="loading-pulse" style={{ height: 52 }} /></div>
-          ) : txs.data && txs.data.length > 0 ? (
-            <div className="list-card">
-              {txs.data.map((tx) => (
-                <div key={tx.signature} className="list-item">
-                  <div className="list-item-icon" style={{ background: 'var(--jade-soft)', color: 'var(--jade)' }}>
-                    <Activity size={16} />
-                  </div>
-                  <div className="list-item-content">
-                    <div className="list-item-title">{tx.type}</div>
-                    <div className="list-item-sub"><Clock size={9} /> {new Date((tx.timestamp ?? 0) * 1000).toLocaleTimeString()}</div>
-                  </div>
-                  <div className="list-item-right">
-                    <div className="list-item-amount">{tx.amount ? formatTokenAmount(tx.amount) : '-'}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-state-icon"><Activity size={24} color="var(--text-3)" /></div>
-              <h3>No activity yet</h3>
-              <p>Transactions will appear here once the referral program is active.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Protocol Health */}
-        {rep.data && (
-          <div className="section" style={{ marginBottom: 'var(--s8)' }}>
-            <div className="section-header"><span className="section-title"><Shield size={14} /> Protocol Health</span></div>
-            <div className="scroll-card" style={{ padding: 'var(--s4)' }}>
-              <div style={{ marginBottom: 'var(--s4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-2)' }}>Reputation</span>
-                  <span className="text-mono" style={{ fontWeight: 700 }}>{reputationScore} / 100</span>
-                </div>
-                <div className="progress"><div className="progress-fill" style={{ width: `${reputationScore}%`, background: 'var(--jade)' }} /></div>
-              </div>
+        <div className="poster-grid poster-hero">
+          <section className="ticket-sheet sheet-pad poster-ticket">
+            <div className="ticket-head">
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-2)' }}>Suspicion</span>
-                  <span className="text-mono" style={{ fontWeight: 700 }}>{suspicionScore} / 100</span>
+                <div className="eyebrow">Live reward ticket</div>
+                <div className="ticket-title">{headline}</div>
+              </div>
+              <Ticket size={34} weight="duotone" />
+            </div>
+
+            <p className="ticket-note" style={{ marginTop: 16 }}>
+              {merchantName} is pushing a group reward built for friends, classmates, and crews that arrive together.
+            </p>
+
+            <AnimatedStampRail
+              progressCurrent={progressCurrent}
+              progressTotal={progressTotal}
+              stamps={consumerStamps}
+            />
+
+            <div className="ticket-stats">
+              <div className="metric-line">
+                <div className="metric-label">
+                  <strong>Confirmed redemptions</strong>
+                  <span>Only merchant-approved visits advance the ticket.</span>
                 </div>
-                <div className="progress"><div className="progress-fill" style={{ width: `${suspicionScore}%`, background: (suspicionScore ?? 0) > 50 ? 'var(--crimson)' : 'var(--jade)' }} /></div>
+                <div className="metric-value">{progressCurrent}/{progressTotal}</div>
+              </div>
+              <div className="metric-line">
+                <div className="metric-label">
+                  <strong>Share link opens</strong>
+                  <span>Useful signal, but not the truth event.</span>
+                </div>
+                <div className="metric-value">{data?.referral.openCount ?? 0}</div>
               </div>
             </div>
-          </div>
-        )}
 
-        <div style={{ height: 'var(--s8)' }} />
+            <div className="cta-row" style={{ marginTop: 22 }}>
+              <Link href="/invite" className="primary-button">
+                Share ticket
+                <ArrowRight size={18} />
+              </Link>
+              <Link href="/redeem" className="secondary-button">
+                Redeem at the counter
+              </Link>
+            </div>
+          </section>
+
+          <div className="poster-side">
+            <section className="route-sheet sheet-pad atlas-sheet">
+              <div className="eyebrow">Next move</div>
+              <div style={{ fontSize: '1.55rem', fontWeight: 650, letterSpacing: '-0.04em', marginTop: 10 }}>
+                {data?.progress.remaining
+                  ? `${data.progress.remaining} more confirmed redemption${data.progress.remaining === 1 ? '' : 's'} unlock the full table reward.`
+                  : 'Your ticket is ready for the full group reward.'}
+              </div>
+              <p className="sheet-copy" style={{ marginTop: 12 }}>
+                The first screen should answer one thing immediately: what happens if I share right now?
+              </p>
+              <div className="metric-stack">
+                {passbookRows.slice(0, 2).map((entry) => (
+                  <div key={entry.id} className="metric-line">
+                    <div className="metric-label">
+                      <strong>{entry.title}</strong>
+                      <span>{entry.subtitle}</span>
+                    </div>
+                    <div className="metric-value">{entry.meta.split(' - ')[0].trim()}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="paper-sheet sheet-pad route-atlas">
+              <div className="eyebrow">Nearby route teaser</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 650, letterSpacing: '-0.04em', marginTop: 10 }}>
+                Tonight&apos;s district feels like a route, not a coupon wall.
+              </div>
+              <div className="route-points">
+                {consumerRoutes.slice(0, 2).map((route) => (
+                  <div key={route.title} className={`route-stop ${route.complete ? 'is-complete' : ''}`}>
+                    <div className="route-stop-copy">
+                      <div className="row-title">{route.title}</div>
+                      <div className="row-subtitle">{route.subtitle}</div>
+                    </div>
+                    <div className="row-meta">{route.meta}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <SignalRibbon items={ribbonItems} />
+
+        <div className="split-grid" style={{ marginTop: 18 }}>
+          <section className="list-sheet">
+            {loading ? (
+              <div style={{ padding: 22 }}>
+                <div className="loading-pulse" />
+                <div className="loading-pulse" style={{ marginTop: 10 }} />
+                <div className="loading-pulse" style={{ marginTop: 10 }} />
+              </div>
+            ) : (
+              passbookRows.map((entry) => (
+                <div key={entry.id} className="passbook-entry">
+                  <div className="row-copy">
+                    <div className="row-title">{entry.title}</div>
+                    <div className="row-subtitle">{entry.subtitle}</div>
+                  </div>
+                  <div className="row-meta">
+                    <div>{entry.meta}</div>
+                    <div className="tone-copper" style={{ marginTop: 6 }}>{entry.status}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
+
+          <section className="ink-sheet sheet-pad">
+            <div className="eyebrow">
+              <TrendUp size={18} />
+              Why this spreads
+            </div>
+            <div style={{ fontSize: '1.55rem', fontWeight: 650, letterSpacing: '-0.04em', marginTop: 10 }}>
+              A poster-like first screen is doing the job of marketing.
+            </div>
+            <p className="sheet-copy" style={{ marginTop: 12 }}>
+              The reward is visible, the next action is obvious, and the route hint makes the product feel bigger than one merchant.
+            </p>
+            <div className="metric-stack">
+              <div className="metric-line">
+                <div className="metric-label">
+                  <strong>Truth event</strong>
+                  <span>Merchant-confirmed redemption, not vanity impressions.</span>
+                </div>
+                <div className="metric-value">Counter</div>
+              </div>
+              <div className="metric-line">
+                <div className="metric-label">
+                  <strong>Reward truth</strong>
+                  <span>Merchant-funded, no platform cash liability.</span>
+                </div>
+                <div className="metric-value">Safe</div>
+              </div>
+              <div className="metric-line">
+                <div className="metric-label">
+                  <strong>Launch fit</strong>
+                  <span>PWA-first and walkable in a dense district.</span>
+                </div>
+                <div className="metric-value">Nepal</div>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
