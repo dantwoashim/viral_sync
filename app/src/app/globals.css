@@ -980,6 +980,31 @@ p {
   place-items: center;
 }
 
+.launch-qr {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.launch-qr-art,
+.launch-qr-art svg {
+  width: 100%;
+  height: 100%;
+}
+
+.launch-qr-art svg {
+  display: block;
+}
+
+.launch-qr-fallback {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.84rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 245, 234, 0.72);
+}
+
 .qr-grid {
   width: 100%;
   height: 100%;
@@ -1225,11 +1250,44 @@ p {
   background: rgba(255, 255, 255, 0.68);
 }
 
+.invite-qr-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.invite-qr-copy strong {
+  display: block;
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.invite-qr-copy span {
+  display: block;
+  margin-top: 8px;
+  line-height: 1.6;
+  opacity: 0.82;
+}
+
 .invite-copy-text {
   font-size: 1.2rem;
   line-height: 1.45;
   letter-spacing: -0.02em;
   color: var(--ink);
+}
+
+.invite-share-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .metric-strip {
@@ -1760,6 +1818,10 @@ p {
 
   .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .invite-qr-stage {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .metric-flag:nth-child(odd) {
