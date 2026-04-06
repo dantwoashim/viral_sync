@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "./src/index.cjs",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "default": "./src/index.cjs"
+      "import": "./src/index.ts",
+      "require": "./src/index.cjs",
+      "default": "./src/index.ts"
     }
   }
 }
