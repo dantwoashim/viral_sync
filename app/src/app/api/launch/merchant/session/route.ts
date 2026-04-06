@@ -7,7 +7,8 @@ import {
   isMerchantSessionConfigured,
   verifyMerchantAccessCode,
 } from '@/lib/launch/merchantAuth';
-import { badRequest, readJsonBody, readString } from '@/lib/launch/http';
+import { badRequest, readJsonBody } from '@/lib/launch/http';
+import { merchantSessionSchema } from '@/lib/launch/schemas';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,15 +34,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await readJsonBody(request);
-  const accessCode = readString(body.accessCode);
-  const operatorLabel = readString(body.operatorLabel);
-
-  if (!accessCode) {
-    return badRequest('accessCode is required.');
+  const parsed = merchantSessionSchema.safeParse(body);
+  if (!parsed.success) {
+    return badRequest(parsed.error.issues[0]?.message ?? 'Invalid merchant session request.');
   }
-  if (!operatorLabel) {
-    return badRequest('operatorLabel is required.');
-  }
+  const { accessCode, operatorLabel } = parsed.data;
   if (!verifyMerchantAccessCode(accessCode)) {
     return NextResponse.json({ error: 'Invalid merchant access code.' }, { status: 401 });
   }
