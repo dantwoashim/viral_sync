@@ -11,6 +11,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
     "@phosphor-icons/react": "^2.1.10",
+    "pg": "^8.16.3",
     "@solana/web3.js": "^1.98.4",
     "@viral-sync/shared": "file:../packages/shared",
     "framer-motion": "^12.34.3",
@@ -19,7 +20,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@capacitor/android": "^8.2.0",
