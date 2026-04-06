@@ -12,6 +12,7 @@ export type EventType =
 
 export type ClaimStatus = 'claimed' | 'code-generated' | 'redeemed' | 'blocked';
 export type RedeemCodeStatus = 'active' | 'redeemed' | 'expired' | 'revoked';
+export type ConsumerLoginMethod = 'guest' | 'email' | 'google' | null;
 
 export interface MerchantRecord {
   id: string;
@@ -200,6 +201,21 @@ export interface MerchantOperatorLoginResult extends MerchantOperatorSession {
   merchantName: string;
   operatorLabel: string;
   expiresAt: number;
+}
+
+export interface ConsumerSession {
+  authenticated: boolean;
+  sessionId?: string;
+  displayName?: string;
+  loginMethod?: ConsumerLoginMethod;
+  role?: 'consumer';
+  expiresAt?: number;
+  reason?: string;
+}
+
+export interface ConsumerSessionUpdateInput {
+  displayName: string;
+  loginMethod: ConsumerLoginMethod;
 }
 
 export interface OfferUpdateInput {
