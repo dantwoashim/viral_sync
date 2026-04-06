@@ -2,22 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { Clock, QrCode, SealCheck, Storefront, Ticket } from '@phosphor-icons/react';
+import LaunchQrCode from '@/components/launch/LaunchQrCode';
 import SignalRibbon from '@/components/launch/SignalRibbon';
 import { useAuth } from '@/lib/auth';
 import { createRedeemCode } from '@/lib/launch/client';
 import { useConsumerSummary } from '@/lib/launch/hooks';
-
-const qrPattern = [
-  1, 1, 1, 0, 1, 0, 1, 1, 1,
-  1, 0, 0, 1, 0, 1, 0, 0, 1,
-  1, 0, 1, 1, 1, 1, 1, 0, 1,
-  0, 1, 1, 0, 0, 1, 1, 1, 0,
-  1, 0, 1, 1, 0, 1, 0, 0, 1,
-  0, 1, 1, 1, 1, 0, 1, 0, 0,
-  1, 0, 0, 1, 0, 1, 1, 1, 1,
-  1, 1, 0, 0, 1, 0, 0, 1, 0,
-  1, 1, 1, 0, 1, 1, 0, 1, 1,
-];
 
 export default function RedeemPage() {
   const { sessionId } = useAuth();
@@ -30,7 +19,7 @@ export default function RedeemPage() {
     }
 
     let cancelled = false;
-    void createRedeemCode(sessionId)
+    void createRedeemCode()
       .then((result) => {
         if (!cancelled) {
           if (!result.ok) {
@@ -94,11 +83,10 @@ export default function RedeemPage() {
 
             <div className="code-stage" style={{ marginTop: 22 }}>
               <div className="qr-block">
-                <div className="qr-grid">
-                  {qrPattern.map((cell, index) => (
-                    <span key={`${cell}-${index}`} className={`qr-cell ${cell ? 'is-on' : ''}`} />
-                  ))}
-                </div>
+                <LaunchQrCode
+                  value={data?.activeRedeemCode ? `VS-REDEEM:${data.activeRedeemCode.code}` : null}
+                  label="Redeem code QR"
+                />
               </div>
               <div className="code-pill" data-testid="redeem-active-code">
                 <Clock size={18} />
@@ -179,7 +167,7 @@ export default function RedeemPage() {
                   <div className="metric-line">
                     <div className="metric-label">
                       <strong>Visual code block</strong>
-                      <span>This square is only a visual cue in the pilot. The live short code above is the actual counter artifact right now.</span>
+                      <span>This QR encodes the same short code shown above. Staff can key in the short code now and adopt scan support later without changing the reward flow.</span>
                     </div>
                     <div className="metric-value">
                       <Storefront size={18} />
