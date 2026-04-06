@@ -5,7 +5,6 @@
     "app",
     "relayer",
     "server/actions",
-    "cranks",
     "packages/*"
   ],
   "scripts": {

@@ -48,12 +48,15 @@ const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
 const DEFAULT_CLAIM_AMOUNT = BigInt(process.env.ACTION_DEFAULT_AMOUNT || '1000000000');
 const MAX_CLAIM_AMOUNT = BigInt(process.env.ACTION_MAX_AMOUNT || '1000000000000');
 const PORT = Number(process.env.PORT || 8080);
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const SESSION_CHALLENGE_TTL_MS = Number(process.env.ACTION_SESSION_CHALLENGE_TTL_MS || 5 * 60_000);
 const SESSION_DURATION_MS = Number(process.env.ACTION_SESSION_DURATION_MS || 24 * 60 * 60_000);
 const OPERATOR_CHALLENGE_TTL_MS = Number(process.env.ACTION_OPERATOR_CHALLENGE_TTL_MS || 5 * 60_000);
 const OPERATOR_SESSION_TTL_MS = Number(process.env.ACTION_OPERATOR_SESSION_TTL_MS || 8 * 60 * 60_000);
 const DEFAULT_SESSION_MAX_TOKENS = BigInt(process.env.ACTION_SESSION_MAX_TOKENS || '100000000000');
 const REDEMPTION_CODE_TTL_MS = Number(process.env.ACTION_REDEMPTION_CODE_TTL_MS || 2 * 60_000);
+const HTTP_RATE_LIMIT_WINDOW_MS = Number(process.env.ACTION_HTTP_RATE_LIMIT_WINDOW_MS || 60_000);
+const HTTP_RATE_LIMIT_MAX = Number(process.env.ACTION_HTTP_RATE_LIMIT_MAX || 60);
 const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 const ALLOW_ORIGINLESS_REQUESTS = process.env.ACTION_ALLOW_ORIGINLESS === 'true';
@@ -114,6 +117,14 @@ function parseOperatorAllowlist(input: string): Map<string, Set<string>> {
 
 const allowedMerchantOperators = parseOperatorAllowlist(process.env.ACTION_ALLOWED_OPERATORS || '');
 const envDisabledRuntimeActions = parseRuntimeDisabledActions(process.env.ACTION_DISABLED_ACTIONS || '');
+
+if (IS_PRODUCTION && DISABLE_SIGNATURE_VERIFY) {
+    throw new Error('ACTION_DISABLE_SIGNATURE_VERIFY must not be enabled in production.');
+}
+
+if (IS_PRODUCTION && ALLOW_ORIGINLESS_REQUESTS) {
+    throw new Error('ACTION_ALLOW_ORIGINLESS must not be enabled in production.');
+}
 
 interface SessionChallengeRecord {
     challengeId: string;
@@ -202,6 +213,7 @@ const redemptionChallenges = new Map<string, RedemptionChallengeRecord>(
     persistedState.redemptionChallenges.map((record) => [record.code, record])
 );
 const mutableDisabledRuntimeActions = new Set<RuntimeDisabledAction>(persistedState.disabledActions);
+const httpRateLimitMap = new Map<string, number[]>();
 let persistTimer: NodeJS.Timeout | null = null;
 
 function ensureParentDir(targetPath: string) {
@@ -336,6 +348,29 @@ function setCorsHeaders(req: Request, res: Response) {
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Encoding, Accept-Encoding');
+}
+
+function getClientIp(req: Request): string {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.ip || req.socket.remoteAddress || 'unknown';
+}
+
+function checkHttpRateLimit(req: Request): boolean {
+    const key = `${getClientIp(req)}:${req.path}`;
+    const now = Date.now();
+    const recent = (httpRateLimitMap.get(key) ?? []).filter((timestamp) => now - timestamp < HTTP_RATE_LIMIT_WINDOW_MS);
+
+    if (recent.length >= HTTP_RATE_LIMIT_MAX) {
+        httpRateLimitMap.set(key, recent);
+        return false;
+    }
+
+    recent.push(now);
+    httpRateLimitMap.set(key, recent);
+    return true;
 }
 
 function anchorDiscriminator(name: string): Buffer {
@@ -741,6 +776,20 @@ function jsonError(req: Request, res: Response, status: number, message: string)
     res.status(status).json({ error: message });
 }
 
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+        next();
+        return;
+    }
+
+    if (checkHttpRateLimit(req)) {
+        next();
+        return;
+    }
+
+    jsonError(req, res, 429, 'Too many requests. Slow down and try again.');
+});
+
 function readBearerToken(req: Request): string | null {
     const authorization = typeof req.headers.authorization === 'string'
         ? req.headers.authorization
@@ -798,23 +847,30 @@ function requireOperatorSession(req: Request, merchant: string): OperatorSession
     return session;
 }
 
+function readOnlyExposeRuntimeDetails(): boolean {
+    return process.env.ACTION_EXPOSE_RUNTIME_DETAILS === 'true';
+}
+
 function createHealthPayload(latestBlockhash?: string): RuntimeHealthPayload {
+    const exposeOperationalDetails = !IS_PRODUCTION || readOnlyExposeRuntimeDetails();
     return {
         status: 'ok',
         rpcUrl: RPC_URL,
         programId: PROGRAM_ID.toBase58(),
-        relayerFeePayer: RELAYER_FEE_PAYER?.toBase58(),
-        attestationPubkey: ATTESTATION_KEYPAIR?.publicKey.toBase58(),
+        relayerFeePayer: exposeOperationalDetails ? RELAYER_FEE_PAYER?.toBase58() : undefined,
+        attestationPubkey: exposeOperationalDetails ? ATTESTATION_KEYPAIR?.publicKey.toBase58() : undefined,
         allowedOrigins,
         disabledActions: getDisabledRuntimeActions(),
         latestBlockhash,
-        actionStatePath: STATE_PATH,
-        sessionCounts: {
-            sessionChallenges: sessionChallenges.size,
-            operatorChallenges: operatorChallenges.size,
-            operatorSessions: operatorSessions.size,
-            redemptionChallenges: redemptionChallenges.size,
-        },
+        actionStatePath: exposeOperationalDetails ? STATE_PATH : undefined,
+        sessionCounts: exposeOperationalDetails
+            ? {
+                sessionChallenges: sessionChallenges.size,
+                operatorChallenges: operatorChallenges.size,
+                operatorSessions: operatorSessions.size,
+                redemptionChallenges: redemptionChallenges.size,
+            }
+            : undefined,
     };
 }
 

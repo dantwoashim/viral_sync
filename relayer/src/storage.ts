@@ -51,6 +51,7 @@ class FileRelayPersistence implements RelayPersistence {
 
     private readonly auditLogEnabled: boolean;
     private readonly rateLimitMap: Map<string, number[]>;
+    private readonly rateLimitedClientsMap: Map<string, number>;
     private readonly replayProtection: Map<string, number>;
     private readonly merchantBudgets: Map<string, MerchantBudgetState>;
     private pausedActions: RelayerAction[];
@@ -65,6 +66,7 @@ class FileRelayPersistence implements RelayPersistence {
         this.rateLimitMap = new Map<string, number[]>(
             Object.entries(persistedState.rateLimitMap).map(([key, timestamps]) => [key, timestamps])
         );
+        this.rateLimitedClientsMap = new Map<string, number>();
         this.replayProtection = new Map<string, number>(
             Object.entries(persistedState.replayProtection).map(([hash, timestamp]) => [hash, timestamp])
         );
@@ -79,7 +81,7 @@ class FileRelayPersistence implements RelayPersistence {
     }
 
     get rateLimitedClients(): number {
-        return this.rateLimitMap.size;
+        return this.rateLimitedClientsMap.size;
     }
 
     get merchantBudgetsTracked(): number {
@@ -104,6 +106,7 @@ class FileRelayPersistence implements RelayPersistence {
         const recent = existing.filter((timestamp) => now - timestamp < windowMs);
         if (recent.length >= max) {
             this.rateLimitMap.set(key, recent);
+            this.rateLimitedClientsMap.set(key, now);
             this.schedulePersist();
             return false;
         }
@@ -154,9 +157,16 @@ class FileRelayPersistence implements RelayPersistence {
             const recent = timestamps.filter((timestamp) => now - timestamp < 60_000);
             if (recent.length === 0) {
                 this.rateLimitMap.delete(key);
+                this.rateLimitedClientsMap.delete(key);
                 continue;
             }
             this.rateLimitMap.set(key, recent);
+        }
+
+        for (const [key, timestamp] of this.rateLimitedClientsMap.entries()) {
+            if (now - timestamp >= 60_000) {
+                this.rateLimitedClientsMap.delete(key);
+            }
         }
 
         for (const [hash, timestamp] of this.replayProtection.entries()) {
@@ -231,6 +241,7 @@ class RedisPgRelayPersistence implements RelayPersistence {
 
     private readonly redis: RelayRedisClient;
     private readonly pg: PgClient;
+    private readonly rateLimitedBuckets = new Map<string, number>();
 
     constructor(redis: RelayRedisClient, pg: PgClient) {
         this.redis = redis;
@@ -250,8 +261,9 @@ class RedisPgRelayPersistence implements RelayPersistence {
         const namespacedKey = `viral-sync:relayer:rate:${hashKey(key)}:${bucket}`;
         const count = await this.redis.incr(namespacedKey);
         await this.redis.pExpire(namespacedKey, Math.max(windowMs * 2, 1_000));
-        if (count === 1) {
-            this.rateLimitedClients += 1;
+        if (count > max && !this.rateLimitedBuckets.has(namespacedKey)) {
+            this.rateLimitedBuckets.set(namespacedKey, Date.now() + Math.max(windowMs * 2, 1_000));
+            this.rateLimitedClients = this.rateLimitedBuckets.size;
         }
         return count <= max;
     }
@@ -302,7 +314,13 @@ class RedisPgRelayPersistence implements RelayPersistence {
     }
 
     async cleanup(): Promise<void> {
-        // Redis TTL handles replay/rate-limit expiry.
+        const now = Date.now();
+        for (const [key, expiresAt] of this.rateLimitedBuckets.entries()) {
+            if (expiresAt <= now) {
+                this.rateLimitedBuckets.delete(key);
+            }
+        }
+        this.rateLimitedClients = this.rateLimitedBuckets.size;
     }
 
     async close(): Promise<void> {

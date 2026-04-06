@@ -44,6 +44,7 @@ dotenv.config();
 const DEFAULT_PROGRAM_ID = process.env.PROGRAM_ID || 'D9ds2V6y4GFGKbo8wF8qQiF81dzhkiznmZsHepcSN6Ta';
 const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
 const PORT = Number(process.env.PORT || 3001);
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 const ASSOCIATED_TOKEN_PROGRAM_ID = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
 const RELAYER_SECRET = process.env.RELAYER_SECRET || '';
@@ -78,6 +79,10 @@ const envPausedActions = new Set<RelayerAction>(
         .filter(isRelayerAction)
 );
 const mutablePausedActions = new Set<RelayerAction>();
+
+if (IS_PRODUCTION && ALLOW_INSECURE_DEV_RELAY) {
+    throw new Error('ALLOW_INSECURE_DEV_RELAY must not be enabled in production.');
+}
 
 const allowedProgramIds = new Set<string>([
     DEFAULT_PROGRAM_ID,
@@ -292,6 +297,7 @@ async function rejectIfBlocked(context: RelayContext): Promise<boolean> {
 }
 
 function healthPayload(balance: number): RelayerHealthPayload {
+    const exposeOperationalDetails = !IS_PRODUCTION || process.env.RELAYER_EXPOSE_OPERATIONAL_DETAILS === 'true';
     return {
         status: relayEnabled ? 'ok' : 'degraded',
         relayEnabled,
@@ -300,14 +306,14 @@ function healthPayload(balance: number): RelayerHealthPayload {
         balanceSOL: balance / 1e9,
         rpcUrl: RPC_URL.replace(/\/\/.*:.*@/, '//***@'),
         uptime: process.uptime(),
-        allowedPrograms: Array.from(allowedProgramIds),
+        allowedPrograms: exposeOperationalDetails ? Array.from(allowedProgramIds) : [],
         replayEntries: persistence?.replayEntries ?? 0,
         rateLimitedClients: persistence?.rateLimitedClients ?? 0,
-        statePath: persistence?.statePath,
-        auditLogPath: persistence?.auditLogPath,
-        cacheBackend: persistence?.cacheBackend,
-        auditBackend: persistence?.auditBackend,
-        metrics: metricsPayload(),
+        statePath: exposeOperationalDetails ? persistence?.statePath : undefined,
+        auditLogPath: exposeOperationalDetails ? persistence?.auditLogPath : undefined,
+        cacheBackend: exposeOperationalDetails ? persistence?.cacheBackend : undefined,
+        auditBackend: exposeOperationalDetails ? persistence?.auditBackend : undefined,
+        metrics: exposeOperationalDetails ? metricsPayload() : undefined,
     };
 }
 

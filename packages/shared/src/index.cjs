@@ -7,6 +7,10 @@ const BPS_DENOMINATOR = 10_000;
 const REPUTATION_MAX_SCORE = 100;
 const REPUTATION_UI_MAX = 100;
 const LAMPORTS_PER_SOL = 1_000_000_000;
+const DEFAULT_SUPPORT_LINKS = {
+  repository: 'https://github.com/dantwoashim/viral_sync',
+  docs: 'https://github.com/dantwoashim/viral_sync#readme',
+};
 
 const V1_CLUSTER_PROGRAM_IDS = {
   localnet: 'H7XwjYP6veCfhSBsjn5C1dFPrd3CUifdU8iFkw4gAapr',
@@ -64,10 +68,14 @@ function buildOperatorChallengeMessage(payload) {
 }
 
 function formatLamportsAsSol(lamports, fractionDigits = 4) {
-  const value = typeof lamports === 'bigint'
+  const value = lamportsToSolValue(lamports);
+  return `${value.toFixed(fractionDigits)} SOL`;
+}
+
+function lamportsToSolValue(lamports) {
+  return typeof lamports === 'bigint'
     ? Number(lamports) / LAMPORTS_PER_SOL
     : lamports / LAMPORTS_PER_SOL;
-  return `${value.toFixed(fractionDigits)} SOL`;
 }
 
 function normalizeReputationScore(rawScore) {
@@ -87,6 +95,7 @@ module.exports = {
   REPUTATION_MAX_SCORE,
   REPUTATION_UI_MAX,
   LAMPORTS_PER_SOL,
+  DEFAULT_SUPPORT_LINKS,
   V1_CLUSTER_PROGRAM_IDS,
   RELAYER_ACTIONS,
   RUNTIME_DISABLED_ACTIONS,
@@ -95,5 +104,6 @@ module.exports = {
   buildSessionChallengeMessage,
   buildOperatorChallengeMessage,
   formatLamportsAsSol,
+  lamportsToSolValue,
   normalizeReputationScore,
 };
