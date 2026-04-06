@@ -182,7 +182,7 @@ export default function InvitePage() {
                 <Copy size={18} />
                 {copied ? 'Copied' : 'Copy message'}
               </button>
-              <a className="quiet-button" href={inviteUrl || '#'}>
+              <a className="quiet-button" data-testid="invite-open-preview" href={inviteUrl || '#'}>
                 Open preview
                 <ArrowRight size={18} />
               </a>

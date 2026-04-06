@@ -17,7 +17,7 @@ export default function LoginPage() {
             Consumer mode is the public entry. Merchant mode is the growth operating surface. Both live inside the same PWA so launch can happen without Play Store dependency.
           </p>
           <div className="cta-row" style={{ marginTop: 24 }}>
-            <button className="primary-button" onClick={login}>
+            <button className="primary-button" data-testid="login-name-passbook" onClick={login}>
               Name this passbook
             </button>
           </div>
@@ -28,14 +28,14 @@ export default function LoginPage() {
 
         <section className="paper-sheet login-sheet">
           <div className="field-stack">
-            <Link href="/" className="secondary-button" style={{ justifyContent: 'space-between' }}>
+            <Link href="/" className="secondary-button" data-testid="login-enter-consumer" style={{ justifyContent: 'space-between' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                 <House size={20} />
                 Enter consumer mode
               </span>
               <ArrowRight size={18} />
             </Link>
-            <Link href="/merchant/today" className="secondary-button" style={{ justifyContent: 'space-between' }}>
+            <Link href="/merchant/today" className="secondary-button" data-testid="login-enter-merchant" style={{ justifyContent: 'space-between' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                 <ChartBar size={20} />
                 Enter merchant mode

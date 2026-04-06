@@ -20,8 +20,15 @@ import {
   ReferralLinkRecord,
 } from '@/lib/launch/types';
 
-const DATA_DIR = path.join(process.cwd(), '.local');
-const LEDGER_PATH = path.join(DATA_DIR, 'launch-ledger.json');
+const configuredLedgerPath = process.env.VIRAL_SYNC_LEDGER_PATH;
+const DATA_DIR = process.env.VIRAL_SYNC_DATA_DIR
+  ? path.resolve(process.env.VIRAL_SYNC_DATA_DIR)
+  : configuredLedgerPath
+    ? path.dirname(path.resolve(configuredLedgerPath))
+    : path.join(process.cwd(), '.local');
+const LEDGER_PATH = configuredLedgerPath
+  ? path.resolve(configuredLedgerPath)
+  : path.join(DATA_DIR, 'launch-ledger.json');
 let persistChain: Promise<void> = Promise.resolve();
 
 export const PILOT_MERCHANT_ID = 'merchant-nyano-chiya-ghar';

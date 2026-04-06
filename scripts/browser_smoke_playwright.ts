@@ -1,15 +1,20 @@
+import http from 'http';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
-import { spawn, type ChildProcess } from 'child_process';
+import { spawn, spawnSync, type ChildProcess } from 'child_process';
 
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 
+const REPO_ROOT = process.cwd();
 const ARTIFACT_DIR = path.join(process.cwd(), 'output', 'playwright');
 const SUCCESS_SCREENSHOT = path.join(ARTIFACT_DIR, 'browser-smoke-success.png');
 const FAILURE_SCREENSHOT = path.join(ARTIFACT_DIR, 'browser-smoke-failure.png');
+const SKIP_APP_BUILD = process.env.VIRAL_SYNC_SKIP_APP_BUILD === 'true';
 
-interface StackReadyInfo {
-    appUrl: string;
+interface SpawnedProcess {
+    child: ChildProcess;
+    output: () => string;
 }
 
 function ensureArtifactDir() {
@@ -20,165 +25,259 @@ function wait(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function spawnStackProcess(): { child: ChildProcess; ready: Promise<StackReadyInfo> } {
-    const child = spawn(
-        process.execPath,
-        ['-r', 'ts-node/register/transpile-only', 'scripts/runtime_browser_stack.ts'],
-        {
-            cwd: process.cwd(),
-            env: process.env,
-            stdio: ['ignore', 'pipe', 'pipe'],
-        },
-    );
-
-    const ready = new Promise<StackReadyInfo>((resolve, reject) => {
-        let stdout = '';
-        let stderr = '';
-        let resolved = false;
-
-        const parseChunk = (chunk: Buffer | string) => {
-            const text = chunk.toString();
-            stdout += text;
-
-            const readyMatch = stdout.match(/App:\s+(http:\/\/[^\s]+\/login)/);
-            if (readyMatch && !resolved) {
-                resolved = true;
-                resolve({ appUrl: readyMatch[1] });
-            }
-        };
-
-        child.stdout?.on('data', parseChunk);
-        child.stderr?.on('data', (chunk) => {
-            stderr += chunk.toString();
-        });
-        child.once('exit', (code) => {
-            if (!resolved) {
-                reject(new Error(`Smoke stack exited before readiness (code ${code ?? 'unknown'}).\n${stdout}\n${stderr}`));
-            }
-        });
-
-        setTimeout(() => {
-            if (!resolved) {
-                reject(new Error(`Timed out waiting for smoke stack readiness.\n${stdout}\n${stderr}`));
-            }
-        }, 120_000);
-    });
-
-    return { child, ready };
+async function getFreePort(): Promise<number> {
+    const server = http.createServer();
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    if (!address || typeof address !== 'object') {
+        throw new Error('Failed to allocate a free port for the smoke app.');
+    }
+    return address.port;
 }
 
-async function stopChild(child: ChildProcess | null) {
-    if (!child || child.exitCode !== null) {
+function spawnNpm(workdir: string, args: string[], env: NodeJS.ProcessEnv): SpawnedProcess {
+    let stdout = '';
+    let stderr = '';
+    const child = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {
+        cwd: workdir,
+        env: {
+            ...process.env,
+            ...env,
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: process.platform === 'win32',
+    });
+
+    child.stdout?.on('data', (chunk) => {
+        stdout += chunk.toString();
+    });
+    child.stderr?.on('data', (chunk) => {
+        stderr += chunk.toString();
+    });
+
+    return {
+        child,
+        output: () => `${stdout}\n${stderr}`.trim(),
+    };
+}
+
+function runNpmSync(workdir: string, args: string[], env: NodeJS.ProcessEnv) {
+    const result = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, {
+        cwd: workdir,
+        env: {
+            ...process.env,
+            ...env,
+        },
+        stdio: 'inherit',
+        shell: process.platform === 'win32',
+    });
+
+    if (result.status !== 0) {
+        throw new Error(`npm ${args.join(' ')} failed with status ${result.status ?? 'unknown'}`);
+    }
+}
+
+async function stopChild(processRef: ChildProcess | null): Promise<void> {
+    if (!processRef || processRef.exitCode !== null) {
         return;
     }
 
-    child.kill('SIGTERM');
+    processRef.kill('SIGTERM');
     await Promise.race([
-        new Promise((resolve) => child.once('exit', resolve)),
+        new Promise((resolve) => processRef.once('exit', resolve)),
         wait(8_000),
     ]);
 
-    if (child.exitCode === null) {
-        child.kill('SIGKILL');
+    if (processRef.exitCode === null) {
+        processRef.kill('SIGKILL');
     }
 }
 
-async function waitForPath(page: Page, pathSuffix: string) {
-    await page.waitForURL((url) => url.pathname === pathSuffix, { timeout: 20_000 });
+async function waitForHttp(url: string, processRef: SpawnedProcess): Promise<void> {
+    const started = Date.now();
+    while (Date.now() - started < 45_000) {
+        if (processRef.child.exitCode !== null) {
+            throw new Error(`Smoke app exited early while waiting for ${url}.\n${processRef.output()}`);
+        }
+
+        try {
+            const response = await fetch(url, { signal: AbortSignal.timeout(2_000) });
+            if (response.ok) {
+                return;
+            }
+        } catch {
+            // wait for app startup
+        }
+
+        await wait(300);
+    }
+
+    throw new Error(`Timed out waiting for ${url}.\n${processRef.output()}`);
 }
 
-async function waitForStoredRole(page: Page, role: 'merchant' | 'consumer') {
+async function waitForButtonEnabled(page: Page, testId: string) {
     await page.waitForFunction(
-        (expectedRole) => window.localStorage.getItem('vs-user-role') === expectedRole,
-        role,
-        { timeout: 30_000 },
+        (id) => {
+            const element = document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+            return Boolean(element) && !element.hasAttribute('disabled');
+        },
+        testId,
+        { timeout: 20_000 },
     );
 }
 
-async function clickTestId(page: Page, testId: string) {
-    await page.getByTestId(testId).click();
-}
+async function waitForStableCode(locator: Locator): Promise<string> {
+    const started = Date.now();
+    await locator.waitFor({ state: 'visible', timeout: 20_000 });
 
-async function loginAsMerchant(page: Page, baseUrl: string) {
-    await page.goto(`${baseUrl}/login`, { waitUntil: 'networkidle' });
-    await clickTestId(page, 'login-role-merchant');
-    await page.getByTestId('login-modal').waitFor({ state: 'visible' });
-    await clickTestId(page, 'wallet-option-test-merchant');
-    await waitForStoredRole(page, 'merchant');
-}
-
-async function createPosCode(page: Page, baseUrl: string): Promise<string> {
-    await page.goto(`${baseUrl}/pos`, { waitUntil: 'networkidle' });
-    await page.getByTestId('pos-amount-input').fill('25000');
-    await clickTestId(page, 'pos-create-code-button');
-    await page.getByTestId('pos-active-code').waitFor({ state: 'visible', timeout: 20_000 });
-    const code = (await page.getByTestId('pos-active-code').textContent())?.trim();
-    if (!code) {
-        throw new Error('POS code was not rendered after creation.');
+    while (Date.now() - started < 20_000) {
+        const code = (await locator.textContent())?.trim() ?? '';
+        if (/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(code)) {
+            return code;
+        }
+        await wait(250);
     }
-    return code;
+
+    throw new Error('Timed out waiting for a live redemption code.');
 }
 
-async function signOut(page: Page, baseUrl: string) {
-    await page.goto(`${baseUrl}/settings`, { waitUntil: 'networkidle' });
-    await clickTestId(page, 'settings-sign-out');
-    await clickTestId(page, 'settings-sign-out-confirm');
-    await waitForPath(page, '/login');
+async function waitForPassbookIdentity(page: Page) {
+    await page.waitForFunction(() => {
+        const sessionRaw = window.localStorage.getItem('vs-nepal-session');
+        const deviceId = window.localStorage.getItem('vs-nepal-device');
+        return Boolean(sessionRaw && deviceId);
+    }, { timeout: 20_000 });
 }
 
-async function loginAsConsumer(page: Page, baseUrl: string) {
-    await page.goto(`${baseUrl}/login`, { waitUntil: 'networkidle' });
-    await clickTestId(page, 'login-role-consumer');
-    await page.getByTestId('login-modal').waitFor({ state: 'visible' });
-    await clickTestId(page, 'wallet-option-test-consumer');
-    await waitForStoredRole(page, 'consumer');
+async function openInvitePreview(page: Page, baseUrl: string): Promise<string> {
+    await page.goto(`${baseUrl}/invite`, { waitUntil: 'networkidle' });
+    await waitForPassbookIdentity(page);
+
+    const authState = await page.evaluate(() => {
+        const sessionRaw = window.localStorage.getItem('vs-nepal-session');
+        const deviceId = window.localStorage.getItem('vs-nepal-device');
+        const session = sessionRaw ? JSON.parse(sessionRaw) as {
+            sessionId: string;
+            displayName: string;
+        } : null;
+
+        return {
+            sessionId: session?.sessionId ?? null,
+            displayName: session?.displayName ?? 'Guest',
+            deviceId,
+        };
+    });
+
+    if (!authState.sessionId || !authState.deviceId) {
+        throw new Error('Invite smoke could not read the initialized passbook identity.');
+    }
+
+    const response = await fetch(`${baseUrl}/api/launch/referrals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            sessionId: authState.sessionId,
+            displayName: authState.displayName,
+            deviceFingerprint: authState.deviceId,
+        }),
+    });
+    const payload = await response.json() as { sharePath?: string; error?: string };
+    if (!response.ok || !payload.sharePath) {
+        throw new Error(payload.error ?? 'Invite smoke could not create a referral link.');
+    }
+
+    return `${baseUrl}${payload.sharePath}`;
 }
 
-async function redeemAsConsumer(page: Page, baseUrl: string, code: string) {
-    await page.goto(`${baseUrl}/consumer/scan`, { waitUntil: 'networkidle' });
-    await page.getByTestId('scan-code-input').fill(code);
-    await clickTestId(page, 'scan-start-button');
-    await page.getByTestId('scan-signature-link').waitFor({ state: 'visible', timeout: 25_000 });
+async function claimOffer(page: Page, previewUrl: string) {
+    await page.goto(previewUrl, { waitUntil: 'networkidle' });
+    await waitForButtonEnabled(page, 'offer-claim-button');
+    await page.getByTestId('offer-claim-button').click();
+    await page.waitForURL((url) => url.pathname === '/redeem', { timeout: 20_000 });
 }
 
-async function runSmoke(page: Page, baseUrl: string) {
-    await loginAsMerchant(page, baseUrl);
-    const code = await createPosCode(page, baseUrl);
-    await signOut(page, baseUrl);
-    await loginAsConsumer(page, baseUrl);
-    await redeemAsConsumer(page, baseUrl, code);
+async function confirmRedeemFlow(inviteePage: Page, merchantPage: Page, baseUrl: string) {
+    const code = await waitForStableCode(inviteePage.getByTestId('redeem-active-code'));
+
+    await merchantPage.goto(`${baseUrl}/merchant/scan`, { waitUntil: 'networkidle' });
+    await merchantPage.getByTestId('merchant-code-input').fill(code);
+    await merchantPage.getByTestId('merchant-confirm-button').click();
+    await merchantPage.waitForFunction(
+        (expectedCode) => {
+            const element = document.querySelector<HTMLElement>('[data-testid="merchant-confirm-message"]');
+            return Boolean(element?.textContent?.includes(expectedCode)) && element?.textContent?.includes('redeemed');
+        },
+        code,
+        { timeout: 20_000 },
+    );
+}
+
+async function closeContext(context: BrowserContext | null) {
+    await context?.close();
 }
 
 async function main() {
     ensureArtifactDir();
 
-    let stackChild: ChildProcess | null = null;
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'viral-sync-browser-smoke-'));
+    const ledgerPath = path.join(tempDir, 'launch-ledger.json');
+
+    let appProcess: SpawnedProcess | null = null;
     let browser: Browser | null = null;
-    let page: Page | null = null;
+    let referrerContext: BrowserContext | null = null;
+    let inviteeContext: BrowserContext | null = null;
+    let merchantContext: BrowserContext | null = null;
+    let activePage: Page | null = null;
 
     try {
-        const stack = spawnStackProcess();
-        stackChild = stack.child;
-        const { appUrl } = await stack.ready;
-        const baseUrl = appUrl.replace(/\/login$/, '');
+        const appPort = await getFreePort();
+        const baseUrl = `http://127.0.0.1:${appPort}`;
+        const sharedEnv = {
+            PORT: String(appPort),
+            VIRAL_SYNC_LEDGER_PATH: ledgerPath,
+        };
+
+        if (!SKIP_APP_BUILD) {
+            runNpmSync(REPO_ROOT, ['run', 'build', '--workspace', 'app'], sharedEnv);
+        }
+
+        appProcess = spawnNpm(
+            REPO_ROOT,
+            ['run', 'start', '--workspace', 'app', '--', '--hostname', '127.0.0.1', '--port', String(appPort)],
+            sharedEnv
+        );
+        await waitForHttp(`${baseUrl}/login`, appProcess);
 
         browser = await chromium.launch({ headless: true });
-        const context = await browser.newContext({
-            viewport: { width: 1440, height: 1100 },
-        });
-        page = await context.newPage();
+        referrerContext = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+        inviteeContext = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+        merchantContext = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
 
-        await runSmoke(page, baseUrl);
-        await page.screenshot({ path: SUCCESS_SCREENSHOT, fullPage: true });
+        const referrerPage = await referrerContext.newPage();
+        const inviteePage = await inviteeContext.newPage();
+        const merchantPage = await merchantContext.newPage();
+        activePage = merchantPage;
+
+        const previewUrl = await openInvitePreview(referrerPage, baseUrl);
+        await claimOffer(inviteePage, previewUrl);
+        await confirmRedeemFlow(inviteePage, merchantPage, baseUrl);
+
+        activePage = merchantPage;
+        await merchantPage.screenshot({ path: SUCCESS_SCREENSHOT, fullPage: true });
         console.log(`Browser smoke passed. Screenshot: ${SUCCESS_SCREENSHOT}`);
     } catch (error: unknown) {
-        if (page) {
-            await page.screenshot({ path: FAILURE_SCREENSHOT, fullPage: true }).catch(() => undefined);
+        if (activePage) {
+            await activePage.screenshot({ path: FAILURE_SCREENSHOT, fullPage: true }).catch(() => undefined);
         }
         throw error;
     } finally {
+        await closeContext(merchantContext);
+        await closeContext(inviteeContext);
+        await closeContext(referrerContext);
         await browser?.close();
-        await stopChild(stackChild);
+        await stopChild(appProcess?.child ?? null);
+        fs.rmSync(tempDir, { recursive: true, force: true });
     }
 }
 
