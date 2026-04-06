@@ -37,7 +37,7 @@ The web application is a Next.js project that serves both sides of the product:
 
 - merchant routes for operations, campaigns, confirmation, and ledger views
 - consumer routes for claiming, sharing, passbook tracking, and redemption
-- internal API routes that support the launch loop and local runtime workflows
+- internal API routes that support the launch loop and runtime workflows
 
 Key areas:
 
@@ -45,6 +45,15 @@ Key areas:
 - `app/src/components/` contains layout and UI building blocks
 - `app/src/lib/launch/` contains the typed launch engine used by the app routes and APIs
 - `app/src/lib/auth.tsx` manages the guest-first application identity layer
+
+The current launch path supports two persistence modes:
+
+- local file-backed state for development
+- Postgres-backed shared state when `VIRAL_SYNC_DATABASE_URL` is configured
+
+In production launch environments, the intended path is the Postgres-backed mode. The file-backed ledger is retained as a development fallback, not as an internet-facing deployment target.
+
+Consumer identity is backed by a signed application session, and merchant confirmation is backed by a separate operator session.
 
 ### 2. Anchor Program
 
@@ -94,13 +103,15 @@ The most important user-facing loop is:
 
 1. A merchant configures an offer or campaign.
 2. A consumer opens or receives a referral link.
-3. The consumer claims the offer.
-4. The merchant confirms the redemption.
-5. The consumer passbook and merchant views update to reflect the new state.
+3. The consumer claims the offer and can share a real invite QR artifact.
+4. The consumer receives a short redeem code that can also be encoded as QR.
+5. The merchant confirms the redemption.
+6. The consumer passbook and merchant views update to reflect the new state.
 
 The repository supports this loop in two forms:
 
 - a local launch engine used by the current application routes
+- a database-backed launch engine for shared application state
 - protocol and runtime layers intended for broader Solana-backed flows
 
 ## Build and Deployment Shape
