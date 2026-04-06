@@ -18,6 +18,9 @@ The current codebase includes:
 
 - a public-facing web application with merchant and consumer modes
 - a launch loop for link creation, claims, merchant confirmation, and passbook views
+- real QR-backed invite artifacts and short-code redemption handoff in the launch flow
+- signed consumer and merchant operator sessions in the application layer
+- optional shared launch persistence through Postgres via `VIRAL_SYNC_DATABASE_URL`
 - a Solana program and supporting services under active development
 - workspace packages for shared runtime types and server coordination
 
@@ -117,12 +120,6 @@ cargo build
 anchor build
 ```
 
-### Build the Workspace
-
-```bash
-npm run build
-```
-
 ## Environment
 
 The application and services use standard environment variables for RPC endpoints, program IDs, relayer URLs, and runtime service URLs. Typical local development values include:
@@ -131,7 +128,16 @@ The application and services use standard environment variables for RPC endpoint
 - `NEXT_PUBLIC_PROGRAM_ID`
 - `NEXT_PUBLIC_RELAYER_URL`
 - `NEXT_PUBLIC_ACTIONS_URL`
-- `NEXT_PUBLIC_PRIVY_APP_ID`
+- `VIRAL_SYNC_CONSUMER_SESSION_SECRET`
+- `VIRAL_SYNC_MERCHANT_SESSION_SECRET`
+- `VIRAL_SYNC_DATABASE_URL`
+
+For the current launch loop:
+
+- omit `VIRAL_SYNC_DATABASE_URL` to use local filesystem persistence for development
+- set `VIRAL_SYNC_DATABASE_URL` to move launch state into Postgres
+- treat `VIRAL_SYNC_DATABASE_URL` as required for any production launch environment
+- set the session secrets in any non-local environment
 
 Review the application code in `app/src/lib` and the service packages for the exact variables each component expects.
 
@@ -139,6 +145,7 @@ Review the application code in `app/src/lib` and the service packages for the ex
 
 - The app is a workspace package and resolves shared runtime types from `packages/shared`.
 - The frontend includes merchant and consumer routes in the same codebase.
+- The `cranks/` directory is kept in-tree but is not part of the active npm workspace build.
 - Internal planning notes and working documents are intentionally not included in the public tree.
 
 ## Verification
@@ -149,6 +156,12 @@ For the application package:
 cd app
 npm run lint
 npm run build
+```
+
+For a full launch-readiness check from the repository root:
+
+```bash
+npm run verify:launch
 ```
 
 ## License
