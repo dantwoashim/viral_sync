@@ -32,7 +32,7 @@ export default function ProfilePage() {
             <div className="eyebrow">Profile</div>
             <h1 className="surface-title">Guest-first identity, upgrade later.</h1>
             <p className="surface-subtitle">
-              The launch product avoids paid OTP and complex wallet flows. Identity starts lightweight, then upgrades only after the pilot proves itself.
+              The launch product avoids paid OTP and complex wallet flows. Identity starts lightweight, but it now lives in a signed server session instead of browser-only state.
             </p>
           </div>
         </div>
@@ -44,13 +44,13 @@ export default function ProfilePage() {
             <div className="eyebrow">Current passbook</div>
             <div className="profile-card-head">
               <UserCircle size={60} weight="duotone" />
-              <div>
-                <div className="profile-name">{displayName || 'Guest'}</div>
-                <div className="ticket-note" style={{ marginTop: 6 }}>
-                  Identity stays lightweight until the pilot earns a more expensive trust layer.
+                <div>
+                  <div className="profile-name">{displayName || 'Guest'}</div>
+                  <div className="ticket-note" style={{ marginTop: 6 }}>
+                  Identity stays lightweight until the product earns a more expensive trust layer.
+                  </div>
                 </div>
               </div>
-            </div>
 
             <div className="profile-fact-grid">
               <div className="profile-fact">
@@ -123,11 +123,11 @@ export default function ProfilePage() {
                   <div className="metric-value">Lean</div>
                 </div>
                 <div className="metric-line">
-                  <div className="metric-label">
-                    <strong>Enough trust</strong>
-                    <span>Session and device identity are enough for the first pilot because merchant confirmation closes the truth loop.</span>
-                  </div>
-                  <div className="metric-value">Pilot</div>
+                <div className="metric-label">
+                  <strong>Enough trust</strong>
+                    <span>Signed session identity plus device signals are enough for the first launch loop because merchant confirmation closes the truth loop.</span>
+                </div>
+                  <div className="metric-value">Signed</div>
                 </div>
                 <div className="metric-line">
                   <div className="metric-label">
