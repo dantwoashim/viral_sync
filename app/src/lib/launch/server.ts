@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import crypto from 'crypto';
 import path from 'path';
+import { Pool, type PoolClient } from 'pg';
 import {
   ClaimRecord,
   ClaimResult,
@@ -32,13 +33,29 @@ const DATA_DIR = process.env.VIRAL_SYNC_DATA_DIR
 const LEDGER_PATH = configuredLedgerPath
   ? path.resolve(configuredLedgerPath)
   : path.join(DATA_DIR, 'launch-ledger.json');
+const DATABASE_URL = process.env.VIRAL_SYNC_DATABASE_URL;
+const DATABASE_SSL = process.env.VIRAL_SYNC_DATABASE_SSL === 'true';
+const DATABASE_LOCK_KEY = 2886412;
+const dbPool = DATABASE_URL
+  ? new Pool({
+    connectionString: DATABASE_URL,
+    ssl: DATABASE_SSL ? { rejectUnauthorized: false } : undefined,
+  })
+  : null;
 let persistChain: Promise<void> = Promise.resolve();
+let schemaReadyPromise: Promise<void> | null = null;
 
 export const PILOT_MERCHANT_ID = 'merchant-nyano-chiya-ghar';
 export const PILOT_OFFER_ID = 'offer-thamel-four-friends';
 const REDEEM_CODE_TTL_MS = Number(process.env.VIRAL_SYNC_REDEEM_CODE_TTL_MS || 15 * 60 * 1000);
 const REDEEM_CODE_MAX_ATTEMPTS = Number(process.env.VIRAL_SYNC_REDEEM_CODE_MAX_ATTEMPTS || 5);
 const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+interface InternalLaunchLedger extends LaunchLedger {
+  __revision?: number;
+}
+
+class LaunchLedgerRevisionConflict extends Error {}
 
 function iso(date: Date) {
   return date.toISOString();
@@ -409,22 +426,429 @@ async function ensureLedger() {
   }
 }
 
-async function loadLedger() {
+async function withDatabaseClient<T>(work: (client: PoolClient) => Promise<T>) {
+  if (!dbPool) {
+    throw new Error('Launch database is not configured.');
+  }
+
+  const client = await dbPool.connect();
+  try {
+    return await work(client);
+  } finally {
+    client.release();
+  }
+}
+
+async function ensureDatabaseSchema() {
+  if (!dbPool) {
+    return;
+  }
+
+  if (!schemaReadyPromise) {
+    schemaReadyPromise = withDatabaseClient(async (client) => {
+      await client.query(`
+        create table if not exists launch_state_meta (
+          id smallint primary key,
+          revision bigint not null
+        );
+      `);
+      await client.query(`
+        insert into launch_state_meta (id, revision)
+        values (1, 0)
+        on conflict (id) do nothing;
+      `);
+      await client.query(`
+        create table if not exists launch_merchants (
+          id text primary key,
+          name text not null,
+          district text not null,
+          city text not null,
+          location_label text not null
+        );
+      `);
+      await client.query(`
+        create table if not exists launch_offers (
+          id text primary key,
+          merchant_id text not null,
+          slug text not null,
+          title text not null,
+          description text not null,
+          reward text not null,
+          referral_goal integer not null,
+          redemption_window_hours integer not null,
+          active boolean not null,
+          created_at text not null
+        );
+      `);
+      await client.query(`
+        create table if not exists launch_referral_links (
+          token text primary key,
+          offer_id text not null,
+          referrer_session_id text not null,
+          referrer_display_name text not null,
+          referrer_device_fingerprint text not null,
+          created_at text not null,
+          open_count integer not null
+        );
+      `);
+      await client.query(`
+        create table if not exists launch_claims (
+          id text primary key,
+          offer_id text not null,
+          referral_token text not null,
+          referrer_session_id text not null,
+          referrer_display_name text not null,
+          claimer_session_id text not null,
+          claimer_display_name text not null,
+          device_fingerprint text not null,
+          claimed_at text not null,
+          status text not null,
+          blocked_reason text,
+          redeemed_at text
+        );
+      `);
+      await client.query(`
+        create table if not exists launch_redeem_codes (
+          id text primary key,
+          claim_id text not null,
+          merchant_id text not null,
+          code text not null unique,
+          status text not null,
+          created_at text not null,
+          expires_at text not null,
+          attempt_count integer not null,
+          max_attempts integer not null,
+          redeemed_at text,
+          revoked_at text,
+          revoked_reason text
+        );
+      `);
+      await client.query(`
+        create table if not exists launch_events (
+          id text primary key,
+          type text not null,
+          created_at text not null,
+          merchant_id text,
+          offer_id text,
+          referral_token text,
+          claim_id text,
+          redeem_code_id text,
+          actor_session_id text,
+          payload jsonb
+        );
+      `);
+      await client.query('create index if not exists launch_claims_offer_id_idx on launch_claims (offer_id);');
+      await client.query('create index if not exists launch_claims_claimer_session_idx on launch_claims (claimer_session_id);');
+      await client.query('create index if not exists launch_referrals_offer_id_idx on launch_referral_links (offer_id);');
+      await client.query('create index if not exists launch_redeem_codes_claim_idx on launch_redeem_codes (claim_id);');
+    }).catch((error) => {
+      schemaReadyPromise = null;
+      throw error;
+    });
+  }
+
+  await schemaReadyPromise;
+}
+
+async function loadLedgerFromDatabase(): Promise<InternalLaunchLedger> {
+  await ensureDatabaseSchema();
+
+  const ledger = await withDatabaseClient(async (client) => {
+    const [meta, merchants, offers, referralLinks, claims, redeemCodes, events] = await Promise.all([
+      client.query<{ revision: string }>('select revision from launch_state_meta where id = 1'),
+      client.query('select * from launch_merchants order by id'),
+      client.query('select * from launch_offers order by created_at, id'),
+      client.query('select * from launch_referral_links order by created_at, token'),
+      client.query('select * from launch_claims order by claimed_at, id'),
+      client.query('select * from launch_redeem_codes order by created_at, id'),
+      client.query('select * from launch_events order by created_at, id'),
+    ]);
+
+    return {
+      merchants: merchants.rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        district: row.district,
+        city: row.city,
+        locationLabel: row.location_label,
+      })),
+      offers: offers.rows.map((row) => ({
+        id: row.id,
+        merchantId: row.merchant_id,
+        slug: row.slug,
+        title: row.title,
+        description: row.description,
+        reward: row.reward,
+        referralGoal: Number(row.referral_goal),
+        redemptionWindowHours: Number(row.redemption_window_hours),
+        active: Boolean(row.active),
+        createdAt: row.created_at,
+      })),
+      referralLinks: referralLinks.rows.map((row) => ({
+        token: row.token,
+        offerId: row.offer_id,
+        referrerSessionId: row.referrer_session_id,
+        referrerDisplayName: row.referrer_display_name,
+        referrerDeviceFingerprint: row.referrer_device_fingerprint,
+        createdAt: row.created_at,
+        openCount: Number(row.open_count),
+      })),
+      claims: claims.rows.map((row) => ({
+        id: row.id,
+        offerId: row.offer_id,
+        referralToken: row.referral_token,
+        referrerSessionId: row.referrer_session_id,
+        referrerDisplayName: row.referrer_display_name,
+        claimerSessionId: row.claimer_session_id,
+        claimerDisplayName: row.claimer_display_name,
+        deviceFingerprint: row.device_fingerprint,
+        claimedAt: row.claimed_at,
+        status: row.status,
+        blockedReason: row.blocked_reason ?? undefined,
+        redeemedAt: row.redeemed_at ?? undefined,
+      })),
+      redeemCodes: redeemCodes.rows.map((row) => ({
+        id: row.id,
+        claimId: row.claim_id,
+        merchantId: row.merchant_id,
+        code: row.code,
+        status: row.status,
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+        attemptCount: Number(row.attempt_count),
+        maxAttempts: Number(row.max_attempts),
+        redeemedAt: row.redeemed_at ?? undefined,
+        revokedAt: row.revoked_at ?? undefined,
+        revokedReason: row.revoked_reason ?? undefined,
+      })),
+      events: events.rows.map((row) => ({
+        id: row.id,
+        type: row.type,
+        createdAt: row.created_at,
+        merchantId: row.merchant_id ?? undefined,
+        offerId: row.offer_id ?? undefined,
+        referralToken: row.referral_token ?? undefined,
+        claimId: row.claim_id ?? undefined,
+        redeemCodeId: row.redeem_code_id ?? undefined,
+        actorSessionId: row.actor_session_id ?? undefined,
+        payload: row.payload ?? undefined,
+      })),
+      __revision: Number(meta.rows[0]?.revision ?? 0),
+    } satisfies InternalLaunchLedger;
+  });
+
+  if (ledger.merchants.length === 0) {
+    const seed = createSeedLedger() as InternalLaunchLedger;
+    seed.__revision = 0;
+
+    try {
+      await saveLedger(seed);
+    } catch (error) {
+      if (!(error instanceof LaunchLedgerRevisionConflict)) {
+        throw error;
+      }
+    }
+
+    return loadLedgerFromDatabase();
+  }
+
+  return ledger;
+}
+
+async function saveLedgerToDatabase(ledger: InternalLaunchLedger) {
+  await ensureDatabaseSchema();
+
+  await withDatabaseClient(async (client) => {
+    await client.query('begin');
+
+    try {
+      await client.query('select pg_advisory_xact_lock($1)', [DATABASE_LOCK_KEY]);
+      const metaResult = await client.query<{ revision: string }>(
+        'select revision from launch_state_meta where id = 1 for update'
+      );
+      const currentRevision = Number(metaResult.rows[0]?.revision ?? 0);
+      const expectedRevision = ledger.__revision ?? 0;
+
+      if (currentRevision !== expectedRevision) {
+        throw new LaunchLedgerRevisionConflict('Launch ledger changed before this save completed.');
+      }
+
+      await client.query('delete from launch_events');
+      await client.query('delete from launch_redeem_codes');
+      await client.query('delete from launch_claims');
+      await client.query('delete from launch_referral_links');
+      await client.query('delete from launch_offers');
+      await client.query('delete from launch_merchants');
+
+      for (const merchant of ledger.merchants) {
+        await client.query(
+          `insert into launch_merchants (id, name, district, city, location_label)
+           values ($1, $2, $3, $4, $5)`,
+          [merchant.id, merchant.name, merchant.district, merchant.city, merchant.locationLabel],
+        );
+      }
+
+      for (const offer of ledger.offers) {
+        await client.query(
+          `insert into launch_offers (
+            id, merchant_id, slug, title, description, reward, referral_goal, redemption_window_hours, active, created_at
+          ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            offer.id,
+            offer.merchantId,
+            offer.slug,
+            offer.title,
+            offer.description,
+            offer.reward,
+            offer.referralGoal,
+            offer.redemptionWindowHours,
+            offer.active,
+            offer.createdAt,
+          ],
+        );
+      }
+
+      for (const referral of ledger.referralLinks) {
+        await client.query(
+          `insert into launch_referral_links (
+            token, offer_id, referrer_session_id, referrer_display_name, referrer_device_fingerprint, created_at, open_count
+          ) values ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            referral.token,
+            referral.offerId,
+            referral.referrerSessionId,
+            referral.referrerDisplayName,
+            referral.referrerDeviceFingerprint,
+            referral.createdAt,
+            referral.openCount,
+          ],
+        );
+      }
+
+      for (const claim of ledger.claims) {
+        await client.query(
+          `insert into launch_claims (
+            id, offer_id, referral_token, referrer_session_id, referrer_display_name, claimer_session_id,
+            claimer_display_name, device_fingerprint, claimed_at, status, blocked_reason, redeemed_at
+          ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [
+            claim.id,
+            claim.offerId,
+            claim.referralToken,
+            claim.referrerSessionId,
+            claim.referrerDisplayName,
+            claim.claimerSessionId,
+            claim.claimerDisplayName,
+            claim.deviceFingerprint,
+            claim.claimedAt,
+            claim.status,
+            claim.blockedReason ?? null,
+            claim.redeemedAt ?? null,
+          ],
+        );
+      }
+
+      for (const code of ledger.redeemCodes) {
+        await client.query(
+          `insert into launch_redeem_codes (
+            id, claim_id, merchant_id, code, status, created_at, expires_at, attempt_count, max_attempts, redeemed_at, revoked_at, revoked_reason
+          ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [
+            code.id,
+            code.claimId,
+            code.merchantId,
+            code.code,
+            code.status,
+            code.createdAt,
+            code.expiresAt,
+            code.attemptCount,
+            code.maxAttempts,
+            code.redeemedAt ?? null,
+            code.revokedAt ?? null,
+            code.revokedReason ?? null,
+          ],
+        );
+      }
+
+      for (const event of ledger.events) {
+        await client.query(
+          `insert into launch_events (
+            id, type, created_at, merchant_id, offer_id, referral_token, claim_id, redeem_code_id, actor_session_id, payload
+          ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)`,
+          [
+            event.id,
+            event.type,
+            event.createdAt,
+            event.merchantId ?? null,
+            event.offerId ?? null,
+            event.referralToken ?? null,
+            event.claimId ?? null,
+            event.redeemCodeId ?? null,
+            event.actorSessionId ?? null,
+            event.payload ? JSON.stringify(event.payload) : null,
+          ],
+        );
+      }
+
+      await client.query('update launch_state_meta set revision = $2 where id = $1', [1, currentRevision + 1]);
+      await client.query('commit');
+      ledger.__revision = currentRevision + 1;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    }
+  });
+}
+
+async function loadLedger(): Promise<InternalLaunchLedger> {
+  if (dbPool) {
+    const ledger = await loadLedgerFromDatabase();
+    let changed = false;
+    ledger.referralLinks = ledger.referralLinks.map((referral) => {
+      const referrerDeviceFingerprint = referral.referrerDeviceFingerprint ?? referral.referrerSessionId;
+      if (referrerDeviceFingerprint !== referral.referrerDeviceFingerprint) {
+        changed = true;
+      }
+
+      return {
+        ...referral,
+        referrerDeviceFingerprint,
+      };
+    });
+
+    if (normalizeLedgerState(ledger)) {
+      changed = true;
+    }
+
+    if (changed) {
+      try {
+        await saveLedger(ledger);
+      } catch (error) {
+        if (error instanceof LaunchLedgerRevisionConflict) {
+          return loadLedger();
+        }
+        throw error;
+      }
+    }
+
+    return ledger;
+  }
+
   await ensureLedger();
   const raw = await fs.readFile(LEDGER_PATH, 'utf8');
   const normalized = raw.trim();
   let repaired = false;
-  let ledger: LaunchLedger;
+  let ledger: InternalLaunchLedger;
 
   try {
-    ledger = JSON.parse(normalized) as LaunchLedger;
+    ledger = JSON.parse(normalized) as InternalLaunchLedger;
   } catch (error) {
     const recovered = extractCompleteJsonDocument(normalized);
     if (!recovered) {
       throw error;
     }
 
-    ledger = JSON.parse(recovered) as LaunchLedger;
+    ledger = JSON.parse(recovered) as InternalLaunchLedger;
     repaired = recovered !== normalized;
   }
 
@@ -452,7 +876,12 @@ async function loadLedger() {
   return ledger;
 }
 
-async function saveLedger(ledger: LaunchLedger) {
+async function saveLedger(ledger: InternalLaunchLedger) {
+  if (dbPool) {
+    await saveLedgerToDatabase(ledger);
+    return;
+  }
+
   const snapshot = JSON.stringify(ledger, null, 2);
 
   persistChain = persistChain.catch(() => undefined).then(async () => {
@@ -463,6 +892,28 @@ async function saveLedger(ledger: LaunchLedger) {
   });
 
   await persistChain;
+}
+
+async function withLedgerMutation<T>(mutate: (ledger: InternalLaunchLedger) => Promise<T>) {
+  let lastConflict: LaunchLedgerRevisionConflict | null = null;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const ledger = await loadLedger();
+
+    try {
+      const result = await mutate(ledger);
+      await saveLedger(ledger);
+      return result;
+    } catch (error) {
+      if (error instanceof LaunchLedgerRevisionConflict) {
+        lastConflict = error;
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastConflict ?? new Error('Could not persist launch state after multiple retries.');
 }
 
 function getPilotMerchantAndOffer(ledger: LaunchLedger) {
@@ -617,44 +1068,43 @@ export async function getConsumerSummary(sessionId: string) {
 }
 
 export async function ensureReferralLink(params: { sessionId: string; displayName: string; deviceFingerprint: string; }) {
-  const ledger = await loadLedger();
-  const { offer } = getPilotMerchantAndOffer(ledger);
+  return withLedgerMutation(async (ledger) => {
+    const { offer } = getPilotMerchantAndOffer(ledger);
 
-  const existing = ledger.referralLinks.find((item) => item.offerId === offer.id && item.referrerSessionId === params.sessionId);
-  if (existing) {
-    const result: ReferralCreateResult = {
-      token: existing.token,
-      sharePath: buildSharePath(existing.token),
+    const existing = ledger.referralLinks.find((item) => item.offerId === offer.id && item.referrerSessionId === params.sessionId);
+    if (existing) {
+      return {
+        token: existing.token,
+        sharePath: buildSharePath(existing.token),
+      } satisfies ReferralCreateResult;
+    }
+
+    const referral: ReferralLinkRecord = {
+      token: randomToken(),
+      offerId: offer.id,
+      referrerSessionId: params.sessionId,
+      referrerDisplayName: params.displayName,
+      referrerDeviceFingerprint: params.deviceFingerprint,
+      createdAt: new Date().toISOString(),
+      openCount: 0,
     };
-    return result;
-  }
 
-  const referral: ReferralLinkRecord = {
-    token: randomToken(),
-    offerId: offer.id,
-    referrerSessionId: params.sessionId,
-    referrerDisplayName: params.displayName,
-    referrerDeviceFingerprint: params.deviceFingerprint,
-    createdAt: new Date().toISOString(),
-    openCount: 0,
-  };
+    ledger.referralLinks.push(referral);
+    ledger.events.push({
+      id: randomId('evt'),
+      type: 'referral_link_created',
+      createdAt: referral.createdAt,
+      merchantId: offer.merchantId,
+      offerId: offer.id,
+      referralToken: referral.token,
+      actorSessionId: referral.referrerSessionId,
+    });
 
-  ledger.referralLinks.push(referral);
-  ledger.events.push({
-    id: randomId('evt'),
-    type: 'referral_link_created',
-    createdAt: referral.createdAt,
-    merchantId: offer.merchantId,
-    offerId: offer.id,
-    referralToken: referral.token,
-    actorSessionId: referral.referrerSessionId,
+    return {
+      token: referral.token,
+      sharePath: buildSharePath(referral.token),
+    } satisfies ReferralCreateResult;
   });
-  await saveLedger(ledger);
-
-  return {
-    token: referral.token,
-    sharePath: buildSharePath(referral.token),
-  };
 }
 
 export async function getReferralDetail(token: string, viewerSessionId?: string) {
@@ -698,23 +1148,23 @@ export async function getReferralDetail(token: string, viewerSessionId?: string)
 }
 
 export async function recordReferralOpen(token: string) {
-  const ledger = await loadLedger();
-  const referral = ledger.referralLinks.find((item) => item.token === token);
-  if (!referral) {
-    return false;
-  }
+  return withLedgerMutation(async (ledger) => {
+    const referral = ledger.referralLinks.find((item) => item.token === token);
+    if (!referral) {
+      return false;
+    }
 
-  referral.openCount += 1;
-  ledger.events.push({
-    id: randomId('evt'),
-    type: 'referral_link_opened',
-    createdAt: new Date().toISOString(),
-    offerId: referral.offerId,
-    referralToken: referral.token,
-    actorSessionId: referral.referrerSessionId,
+    referral.openCount += 1;
+    ledger.events.push({
+      id: randomId('evt'),
+      type: 'referral_link_opened',
+      createdAt: new Date().toISOString(),
+      offerId: referral.offerId,
+      referralToken: referral.token,
+      actorSessionId: referral.referrerSessionId,
+    });
+    return true;
   });
-  await saveLedger(ledger);
-  return true;
 }
 
 export async function claimReferral(params: {
@@ -723,30 +1173,65 @@ export async function claimReferral(params: {
   claimerDisplayName: string;
   deviceFingerprint: string;
 }) {
-  const ledger = await loadLedger();
-  const referral = ledger.referralLinks.find((item) => item.token === params.token);
-  const { offer } = getPilotMerchantAndOffer(ledger);
+  return withLedgerMutation(async (ledger) => {
+    const referral = ledger.referralLinks.find((item) => item.token === params.token);
+    const { offer } = getPilotMerchantAndOffer(ledger);
 
-  if (!referral) {
-    return { ok: false, reason: 'This referral link does not exist anymore.' } satisfies ClaimResult;
-  }
+    if (!referral) {
+      return { ok: false, reason: 'This referral link does not exist anymore.' } satisfies ClaimResult;
+    }
 
-  let blockedReason: string | null = null;
-  if (params.claimerSessionId === referral.referrerSessionId || params.deviceFingerprint === referral.referrerDeviceFingerprint) {
-    blockedReason = 'Self-referral from the same device cluster is not allowed.';
-  }
+    let blockedReason: string | null = null;
+    if (params.claimerSessionId === referral.referrerSessionId || params.deviceFingerprint === referral.referrerDeviceFingerprint) {
+      blockedReason = 'Self-referral from the same device cluster is not allowed.';
+    }
 
-  const existingClaim = ledger.claims.find((claim) =>
-    claim.offerId === offer.id &&
-    claim.claimerSessionId === params.claimerSessionId &&
-    claim.status !== 'blocked');
+    const existingClaim = ledger.claims.find((claim) =>
+      claim.offerId === offer.id &&
+      claim.claimerSessionId === params.claimerSessionId &&
+      claim.status !== 'blocked');
 
-  if (!blockedReason && existingClaim) {
-    blockedReason = 'You already have an active reward window for this offer.';
-  }
+    if (!blockedReason && existingClaim) {
+      blockedReason = 'You already have an active reward window for this offer.';
+    }
 
-  if (blockedReason) {
-    const blockedClaim: ClaimRecord = {
+    if (blockedReason) {
+      const blockedClaim: ClaimRecord = {
+        id: randomId('claim'),
+        offerId: offer.id,
+        referralToken: referral.token,
+        referrerSessionId: referral.referrerSessionId,
+        referrerDisplayName: referral.referrerDisplayName,
+        claimerSessionId: params.claimerSessionId,
+        claimerDisplayName: params.claimerDisplayName,
+        deviceFingerprint: params.deviceFingerprint,
+        claimedAt: new Date().toISOString(),
+        status: 'blocked',
+        blockedReason,
+      };
+
+      ledger.claims.push(blockedClaim);
+      ledger.events.push({
+        id: randomId('evt'),
+        type: 'referral_blocked',
+        createdAt: blockedClaim.claimedAt,
+        merchantId: offer.merchantId,
+        offerId: offer.id,
+        referralToken: referral.token,
+        claimId: blockedClaim.id,
+        actorSessionId: params.claimerSessionId,
+        payload: { reason: blockedReason },
+      });
+
+      return {
+        ok: false,
+        claimId: blockedClaim.id,
+        status: blockedClaim.status,
+        reason: blockedReason,
+      } satisfies ClaimResult;
+    }
+
+    const claim: ClaimRecord = {
       id: randomId('claim'),
       offerId: offer.id,
       referralToken: referral.token,
@@ -756,255 +1241,214 @@ export async function claimReferral(params: {
       claimerDisplayName: params.claimerDisplayName,
       deviceFingerprint: params.deviceFingerprint,
       claimedAt: new Date().toISOString(),
-      status: 'blocked',
-      blockedReason,
+      status: 'claimed',
     };
 
-    ledger.claims.push(blockedClaim);
+    ledger.claims.push(claim);
     ledger.events.push({
       id: randomId('evt'),
-      type: 'referral_blocked',
-      createdAt: blockedClaim.claimedAt,
+      type: 'referral_claimed',
+      createdAt: claim.claimedAt,
       merchantId: offer.merchantId,
       offerId: offer.id,
       referralToken: referral.token,
-      claimId: blockedClaim.id,
+      claimId: claim.id,
       actorSessionId: params.claimerSessionId,
-      payload: { reason: blockedReason },
     });
-    await saveLedger(ledger);
 
     return {
-      ok: false,
-      claimId: blockedClaim.id,
-      status: blockedClaim.status,
-      reason: blockedReason,
+      ok: true,
+      claimId: claim.id,
+      status: claim.status,
     } satisfies ClaimResult;
-  }
-
-  const claim: ClaimRecord = {
-    id: randomId('claim'),
-    offerId: offer.id,
-    referralToken: referral.token,
-    referrerSessionId: referral.referrerSessionId,
-    referrerDisplayName: referral.referrerDisplayName,
-    claimerSessionId: params.claimerSessionId,
-    claimerDisplayName: params.claimerDisplayName,
-    deviceFingerprint: params.deviceFingerprint,
-    claimedAt: new Date().toISOString(),
-    status: 'claimed',
-  };
-
-  ledger.claims.push(claim);
-  ledger.events.push({
-    id: randomId('evt'),
-    type: 'referral_claimed',
-    createdAt: claim.claimedAt,
-    merchantId: offer.merchantId,
-    offerId: offer.id,
-    referralToken: referral.token,
-    claimId: claim.id,
-    actorSessionId: params.claimerSessionId,
   });
-  await saveLedger(ledger);
-
-  return {
-    ok: true,
-    claimId: claim.id,
-    status: claim.status,
-  } satisfies ClaimResult;
 }
 
 export async function generateRedeemCode(params: { sessionId: string; }) {
-  const ledger = await loadLedger();
-  const { merchant, offer } = getPilotMerchantAndOffer(ledger);
-  const claim = ledger.claims
-    .filter((item) => item.claimerSessionId === params.sessionId && item.offerId === offer.id && item.status !== 'blocked')
-    .sort((left, right) => right.claimedAt.localeCompare(left.claimedAt))[0];
+  return withLedgerMutation(async (ledger) => {
+    const { merchant, offer } = getPilotMerchantAndOffer(ledger);
+    const claim = ledger.claims
+      .filter((item) => item.claimerSessionId === params.sessionId && item.offerId === offer.id && item.status !== 'blocked')
+      .sort((left, right) => right.claimedAt.localeCompare(left.claimedAt))[0];
 
-  if (!claim) {
-    return { ok: false, reason: 'No eligible claimed visit exists on this passbook yet.' } satisfies RedeemCodeResult;
-  }
+    if (!claim) {
+      return { ok: false, reason: 'No eligible claimed visit exists on this passbook yet.' } satisfies RedeemCodeResult;
+    }
 
-  if (claim.status === 'redeemed') {
-    const redeemedCode = ledger.redeemCodes.find((item) => item.claimId === claim.id);
-    return {
-      ok: true,
-      code: redeemedCode?.code,
-      status: 'redeemed',
-      expiresAt: redeemedCode?.expiresAt,
-    } satisfies RedeemCodeResult;
-  }
-
-  const existingCode = ledger.redeemCodes
-    .filter((item) => item.claimId === claim.id && (item.status === 'active' || item.status === 'redeemed'))
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
-
-  if (existingCode) {
-    if (existingCode.status === 'active' && new Date(existingCode.expiresAt).getTime() <= Date.now()) {
-      expireCode(existingCode, claim);
-      await saveLedger(ledger);
-    } else {
+    if (claim.status === 'redeemed') {
+      const redeemedCode = ledger.redeemCodes.find((item) => item.claimId === claim.id);
       return {
         ok: true,
-        code: existingCode.code,
-        status: existingCode.status,
-        expiresAt: existingCode.expiresAt,
+        code: redeemedCode?.code,
+        status: 'redeemed',
+        expiresAt: redeemedCode?.expiresAt,
       } satisfies RedeemCodeResult;
     }
-  }
 
-  const existingCodes = new Set(ledger.redeemCodes.map((item) => item.code));
-  const createdAt = new Date().toISOString();
-  const code: RedeemCodeRecord = {
-    id: randomId('redeem'),
-    claimId: claim.id,
-    merchantId: merchant.id,
-    code: createRedeemCodeValue(existingCodes),
-    status: 'active',
-    createdAt,
-    expiresAt: computeCodeExpiry(createdAt),
-    attemptCount: 0,
-    maxAttempts: REDEEM_CODE_MAX_ATTEMPTS,
-  };
+    const existingCode = ledger.redeemCodes
+      .filter((item) => item.claimId === claim.id && (item.status === 'active' || item.status === 'redeemed'))
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
 
-  claim.status = 'code-generated';
-  ledger.redeemCodes.push(code);
-  ledger.events.push({
-    id: randomId('evt'),
-    type: 'merchant_code_generated',
-    createdAt: code.createdAt,
-    merchantId: merchant.id,
-    offerId: offer.id,
-    claimId: claim.id,
-    redeemCodeId: code.id,
-    actorSessionId: claim.claimerSessionId,
+    if (existingCode) {
+      if (existingCode.status === 'active' && new Date(existingCode.expiresAt).getTime() <= Date.now()) {
+        expireCode(existingCode, claim);
+      } else {
+        return {
+          ok: true,
+          code: existingCode.code,
+          status: existingCode.status,
+          expiresAt: existingCode.expiresAt,
+        } satisfies RedeemCodeResult;
+      }
+    }
+
+    const existingCodes = new Set(ledger.redeemCodes.map((item) => item.code));
+    const createdAt = new Date().toISOString();
+    const code: RedeemCodeRecord = {
+      id: randomId('redeem'),
+      claimId: claim.id,
+      merchantId: merchant.id,
+      code: createRedeemCodeValue(existingCodes),
+      status: 'active',
+      createdAt,
+      expiresAt: computeCodeExpiry(createdAt),
+      attemptCount: 0,
+      maxAttempts: REDEEM_CODE_MAX_ATTEMPTS,
+    };
+
+    claim.status = 'code-generated';
+    ledger.redeemCodes.push(code);
+    ledger.events.push({
+      id: randomId('evt'),
+      type: 'merchant_code_generated',
+      createdAt: code.createdAt,
+      merchantId: merchant.id,
+      offerId: offer.id,
+      claimId: claim.id,
+      redeemCodeId: code.id,
+      actorSessionId: claim.claimerSessionId,
+    });
+
+    return {
+      ok: true,
+      code: code.code,
+      status: code.status,
+      expiresAt: code.expiresAt,
+    } satisfies RedeemCodeResult;
   });
-  await saveLedger(ledger);
-
-  return {
-    ok: true,
-    code: code.code,
-    status: code.status,
-    expiresAt: code.expiresAt,
-  } satisfies RedeemCodeResult;
 }
 
 export async function confirmRedeemCode(params: { code: string; merchantId: string; operatorLabel: string; }) {
-  const ledger = await loadLedger();
-  const { merchant, offer } = getPilotMerchantAndOffer(ledger);
-  const code = ledger.redeemCodes.find((item) => item.code.toUpperCase() === params.code.toUpperCase());
+  return withLedgerMutation(async (ledger) => {
+    const { merchant, offer } = getPilotMerchantAndOffer(ledger);
+    const code = ledger.redeemCodes.find((item) => item.code.toUpperCase() === params.code.toUpperCase());
 
-  if (!code) {
-    return { ok: false, reason: 'This code is not recognized by the launch ledger.' } satisfies MerchantConfirmResult;
-  }
+    if (!code) {
+      return { ok: false, reason: 'This code is not recognized by the launch ledger.' } satisfies MerchantConfirmResult;
+    }
 
-  if (code.merchantId !== params.merchantId) {
-    const claim = ledger.claims.find((item) => item.id === code.claimId) ?? null;
-    const reason = consumeFailedConfirmation(code, 'This code does not belong to your merchant counter.', claim);
-    await saveLedger(ledger);
-    return { ok: false, code: code.code, status: code.status, reason, expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
-  }
+    if (code.merchantId !== params.merchantId) {
+      const claim = ledger.claims.find((item) => item.id === code.claimId) ?? null;
+      const reason = consumeFailedConfirmation(code, 'This code does not belong to your merchant counter.', claim);
+      return { ok: false, code: code.code, status: code.status, reason, expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
+    }
 
-  if (code.status === 'redeemed') {
-    return { ok: false, code: code.code, status: code.status, reason: 'This code was already confirmed.', expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
-  }
+    if (code.status === 'redeemed') {
+      return { ok: false, code: code.code, status: code.status, reason: 'This code was already confirmed.', expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
+    }
 
-  if (code.status === 'revoked') {
-    return { ok: false, code: code.code, status: code.status, reason: code.revokedReason ?? 'This code is no longer valid.' } satisfies MerchantConfirmResult;
-  }
+    if (code.status === 'revoked') {
+      return { ok: false, code: code.code, status: code.status, reason: code.revokedReason ?? 'This code is no longer valid.' } satisfies MerchantConfirmResult;
+    }
 
-  if (new Date(code.expiresAt).getTime() <= Date.now()) {
-    const claim = ledger.claims.find((item) => item.id === code.claimId) ?? null;
-    expireCode(code, claim);
-    await saveLedger(ledger);
-    return { ok: false, code: code.code, status: code.status, reason: 'This code expired before counter confirmation.', expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
-  }
+    if (new Date(code.expiresAt).getTime() <= Date.now()) {
+      const claim = ledger.claims.find((item) => item.id === code.claimId) ?? null;
+      expireCode(code, claim);
+      return { ok: false, code: code.code, status: code.status, reason: 'This code expired before counter confirmation.', expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
+    }
 
-  const claim = ledger.claims.find((item) => item.id === code.claimId);
-  if (!claim) {
-    return { ok: false, reason: 'The linked claim is missing.' } satisfies MerchantConfirmResult;
-  }
+    const claim = ledger.claims.find((item) => item.id === code.claimId);
+    if (!claim) {
+      return { ok: false, reason: 'The linked claim is missing.' } satisfies MerchantConfirmResult;
+    }
 
-  code.status = 'redeemed';
-  code.redeemedAt = new Date().toISOString();
-  claim.status = 'redeemed';
-  claim.redeemedAt = code.redeemedAt;
+    code.status = 'redeemed';
+    code.redeemedAt = new Date().toISOString();
+    claim.status = 'redeemed';
+    claim.redeemedAt = code.redeemedAt;
 
-  ledger.events.push({
-    id: randomId('evt'),
-    type: 'redemption_confirmed',
-    createdAt: code.redeemedAt,
-    merchantId: merchant.id,
-    offerId: offer.id,
-    claimId: claim.id,
-    redeemCodeId: code.id,
-    actorSessionId: claim.claimerSessionId,
-    payload: {
-      operatorLabel: params.operatorLabel,
-      merchantId: params.merchantId,
-    },
-  });
-
-  const redeemedForReferrer = countRedeemedClaimsForReferral(ledger, claim.referralToken);
-  if (redeemedForReferrer >= offer.referralGoal) {
     ledger.events.push({
       id: randomId('evt'),
-      type: 'reward_granted',
+      type: 'redemption_confirmed',
       createdAt: code.redeemedAt,
       merchantId: merchant.id,
       offerId: offer.id,
       claimId: claim.id,
-      actorSessionId: claim.referrerSessionId,
+      redeemCodeId: code.id,
+      actorSessionId: claim.claimerSessionId,
+      payload: {
+        operatorLabel: params.operatorLabel,
+        merchantId: params.merchantId,
+      },
     });
-  }
 
-  await saveLedger(ledger);
+    const redeemedForReferrer = countRedeemedClaimsForReferral(ledger, claim.referralToken);
+    if (redeemedForReferrer >= offer.referralGoal) {
+      ledger.events.push({
+        id: randomId('evt'),
+        type: 'reward_granted',
+        createdAt: code.redeemedAt,
+        merchantId: merchant.id,
+        offerId: offer.id,
+        claimId: claim.id,
+        actorSessionId: claim.referrerSessionId,
+      });
+    }
 
-  return { ok: true, code: code.code, status: code.status, expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
+    return { ok: true, code: code.code, status: code.status, expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
+  });
 }
 
 export async function updatePilotOffer(params: OfferUpdateInput): Promise<OfferUpdateResult> {
-  const ledger = await loadLedger();
-  const { merchant, offer } = getPilotMerchantAndOffer(ledger);
+  return withLedgerMutation(async (ledger) => {
+    const { merchant, offer } = getPilotMerchantAndOffer(ledger);
 
-  const title = params.title.trim();
-  const description = params.description.trim();
-  const reward = params.reward.trim();
-  if (!title || !description || !reward) {
-    return { ok: false, reason: 'Title, description, and reward are required.' };
-  }
+    const title = params.title.trim();
+    const description = params.description.trim();
+    const reward = params.reward.trim();
+    if (!title || !description || !reward) {
+      return { ok: false, reason: 'Title, description, and reward are required.' };
+    }
 
-  if (!Number.isInteger(params.referralGoal) || params.referralGoal < 1 || params.referralGoal > 12) {
-    return { ok: false, reason: 'referralGoal must be an integer between 1 and 12.' };
-  }
-  if (!Number.isInteger(params.redemptionWindowHours) || params.redemptionWindowHours < 1 || params.redemptionWindowHours > 168) {
-    return { ok: false, reason: 'redemptionWindowHours must be an integer between 1 and 168.' };
-  }
+    if (!Number.isInteger(params.referralGoal) || params.referralGoal < 1 || params.referralGoal > 12) {
+      return { ok: false, reason: 'referralGoal must be an integer between 1 and 12.' };
+    }
+    if (!Number.isInteger(params.redemptionWindowHours) || params.redemptionWindowHours < 1 || params.redemptionWindowHours > 168) {
+      return { ok: false, reason: 'redemptionWindowHours must be an integer between 1 and 168.' };
+    }
 
-  offer.title = title;
-  offer.description = description;
-  offer.reward = reward;
-  offer.referralGoal = params.referralGoal;
-  offer.redemptionWindowHours = params.redemptionWindowHours;
+    offer.title = title;
+    offer.description = description;
+    offer.reward = reward;
+    offer.referralGoal = params.referralGoal;
+    offer.redemptionWindowHours = params.redemptionWindowHours;
 
-  ledger.events.push({
-    id: randomId('evt'),
-    type: 'offer_updated',
-    createdAt: new Date().toISOString(),
-    merchantId: merchant.id,
-    offerId: offer.id,
-    payload: {
-      updated: true,
-    },
+    ledger.events.push({
+      id: randomId('evt'),
+      type: 'offer_updated',
+      createdAt: new Date().toISOString(),
+      merchantId: merchant.id,
+      offerId: offer.id,
+      payload: {
+        updated: true,
+      },
+    });
+
+    return {
+      ok: true,
+      offer: toOfferView(offer, merchant.name, merchant.district),
+    };
   });
-
-  await saveLedger(ledger);
-
-  return {
-    ok: true,
-    offer: toOfferView(offer, merchant.name, merchant.district),
-  };
 }
 
 export async function getMerchantSummary() {
