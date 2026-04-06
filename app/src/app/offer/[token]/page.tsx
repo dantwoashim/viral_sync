@@ -20,7 +20,7 @@ import type { ReferralDetail } from '@/lib/launch/types';
 export default function OfferReferralPage() {
   const params = useParams<{ token: string }>();
   const router = useRouter();
-  const { deviceId, sessionId, displayName } = useAuth();
+  const { deviceId, sessionId } = useAuth();
   const token = params.token;
   const [detail, setDetail] = useState<ReferralDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function OfferReferralPage() {
 
       setLoading(true);
       try {
-        const next = await fetchReferralDetail(token, sessionId ?? undefined);
+        const next = await fetchReferralDetail(token);
         if (cancelled) {
           return;
         }
@@ -67,8 +67,6 @@ export default function OfferReferralPage() {
     }
 
     const result = await claimReferralLink(token, {
-      sessionId,
-      displayName: displayName || 'Guest',
       deviceFingerprint: deviceId,
     });
 
@@ -112,7 +110,7 @@ export default function OfferReferralPage() {
               <Ticket size={34} weight="duotone" />
             </div>
             <p className="ticket-note" style={{ marginTop: 16 }}>
-              {detail?.offer.merchantName ?? 'Merchant'} · {detail?.offer.reward ?? 'Reward loading'}
+              {detail?.offer.merchantName ?? 'Merchant'} - {detail?.offer.reward ?? 'Reward loading'}
             </p>
 
             <div className="offer-facts">

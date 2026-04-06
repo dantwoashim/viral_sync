@@ -44,7 +44,7 @@ export default function PassbookPage() {
               {data?.offer.title ?? 'Your current reward line'}
             </div>
             <p className="ticket-note" style={{ marginTop: 16 }}>
-              {data?.offer.reward ?? 'Loading reward'} · {data?.offer.merchantName ?? 'Merchant'}
+              {data?.offer.reward ?? 'Loading reward'} - {data?.offer.merchantName ?? 'Merchant'}
             </p>
 
             <div className="passbook-facts">
