@@ -12,7 +12,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "test:anchor": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
     "smoke:browser-stack": "ts-node --transpile-only scripts/runtime_browser_stack.ts",
-    "smoke:browser": "ts-node --transpile-only scripts/browser_smoke_playwright.ts"
+    "smoke:browser": "ts-node --transpile-only scripts/browser_smoke_playwright.ts",
+    "verify:launch": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace server/actions && npm run build --workspace relayer && npm run smoke:browser && npm run test:anchor && cargo check --manifest-path programs/viral_sync/Cargo.toml"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.30.1",
