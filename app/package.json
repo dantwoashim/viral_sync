@@ -9,30 +9,27 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@capacitor/android": "^8.1.0",
-    "@capacitor/cli": "^8.1.0",
-    "@capacitor/core": "^8.1.0",
     "@coral-xyz/anchor": "^0.32.1",
     "@phosphor-icons/react": "^2.1.10",
-    "@privy-io/react-auth": "^3.14.1",
-    "@privy-io/server-auth": "^1.32.5",
-    "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
     "@viral-sync/shared": "file:../packages/shared",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
-    "next": "16.1.6",
+    "next": "16.2.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.2.2",
     "typescript": "^5"
   }
 }
