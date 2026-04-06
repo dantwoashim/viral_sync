@@ -10,6 +10,7 @@ import {
   Ticket,
   UsersThree,
 } from '@phosphor-icons/react';
+import LaunchQrCode from '@/components/launch/LaunchQrCode';
 import SignalRibbon from '@/components/launch/SignalRibbon';
 import { useAuth } from '@/lib/auth';
 import { ensureConsumerReferral } from '@/lib/launch/client';
@@ -28,7 +29,7 @@ export default function InvitePage() {
     }
 
     let cancelled = false;
-    void ensureConsumerReferral(sessionId, displayName || 'Guest', deviceId)
+    void ensureConsumerReferral(deviceId)
       .then((result) => {
         if (!cancelled) {
           setSharePath(result.sharePath);
@@ -45,7 +46,7 @@ export default function InvitePage() {
     return () => {
       cancelled = true;
     };
-  }, [deviceId, displayName, refresh, sessionId]);
+  }, [deviceId, refresh, sessionId]);
 
   const inviteUrl = useMemo(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -53,6 +54,22 @@ export default function InvitePage() {
   }, [sharePath]);
 
   const shareCopy = `${displayName || 'A friend'} invited you to ${data?.offer.merchantName ?? 'Nyano Chiya Ghar'}. Bring 3 friends. All 4 unlock the copper ticket tonight. ${inviteUrl}`;
+  const encodedInviteUrl = useMemo(() => encodeURIComponent(inviteUrl), [inviteUrl]);
+  const encodedShareCopy = useMemo(() => encodeURIComponent(shareCopy), [shareCopy]);
+  const shareChannels = useMemo(() => ([
+    {
+      label: 'WhatsApp',
+      href: `https://wa.me/?text=${encodedShareCopy}`,
+    },
+    {
+      label: 'Viber',
+      href: `viber://forward?text=${encodedShareCopy}`,
+    },
+    {
+      label: 'Telegram',
+      href: `https://t.me/share/url?url=${encodedInviteUrl}&text=${encodeURIComponent(`${displayName || 'A friend'} invited you`)}`,
+    },
+  ]), [displayName, encodedInviteUrl, encodedShareCopy]);
   const ribbonItems = [
     `${data?.offer.merchantName ?? 'Nyano Chiya Ghar'} share card`,
     `${data?.progress.current ?? 0} confirmed`,
@@ -92,7 +109,8 @@ export default function InvitePage() {
             <div className="eyebrow">Invite</div>
             <h1 className="surface-title">The share screen is the engine, not a side feature.</h1>
             <p className="surface-subtitle">
-              Sharing has to feel inevitable. The user needs to see the real reward, the real stakes, and the cleanest path to get friends moving.
+              Sharing has to feel inevitable. The user needs to see the real reward, the real stakes,
+              and the cleanest path to get friends moving.
             </p>
           </div>
         </div>
@@ -112,12 +130,23 @@ export default function InvitePage() {
               {data?.offer.merchantName ?? 'Nyano Chiya Ghar'} - {data?.offer.district ?? 'Thamel'} - unlock after {data?.offer.referralGoal ?? 3} confirmed invited redemptions
             </p>
 
+            <div className="invite-qr-stage">
+              <LaunchQrCode value={inviteUrl || null} label="Invite QR code" />
+              <div className="invite-qr-copy">
+                <strong>Real scan artifact</strong>
+                <span>
+                  This QR resolves to the same invite link. Use it on a cashier display, table tent,
+                  or direct phone-to-phone handoff when copying a link is too slow.
+                </span>
+              </div>
+            </div>
+
             <div className="offer-facts">
               <div className="offer-fact">
                 <ShareNetwork size={18} />
                 <div>
                   <strong>What friends see</strong>
-                  <span>A live ticket instead of a vague “join this app” message.</span>
+                  <span>A live ticket instead of a vague join-this-app message.</span>
                 </div>
               </div>
               <div className="offer-fact">
@@ -186,6 +215,20 @@ export default function InvitePage() {
                 Open preview
                 <ArrowRight size={18} />
               </a>
+            </div>
+
+            <div className="invite-share-links">
+              {shareChannels.map((channel) => (
+                <a
+                  key={channel.label}
+                  className="vs-link-chip"
+                  href={channel.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {channel.label}
+                </a>
+              ))}
             </div>
 
             <div className="metric-stack" style={{ marginTop: 28 }}>
