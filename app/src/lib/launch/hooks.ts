@@ -32,7 +32,7 @@ export function useConsumerSummary(sessionId: string | null): QueryState<Consume
 
     setLoading(true);
     try {
-      const next = await fetchConsumerSummary(sessionId);
+      const next = await fetchConsumerSummary();
       setData(next);
       setError(null);
     } catch (caught) {

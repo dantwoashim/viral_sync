@@ -2,6 +2,8 @@
 
 import type {
   ClaimResult,
+  ConsumerSession,
+  ConsumerSessionUpdateInput,
   ConsumerSummary,
   MerchantOperatorLoginResult,
   MerchantOperatorSession,
@@ -29,11 +31,32 @@ async function parseJson<T>(response: Response) {
   return payload as T;
 }
 
-export async function fetchConsumerSummary(sessionId: string) {
-  const response = await fetch(`/api/launch/consumer/summary?sessionId=${encodeURIComponent(sessionId)}`, {
+export async function fetchConsumerSummary() {
+  const response = await fetch('/api/launch/consumer/summary', {
     cache: 'no-store',
   });
   return parseJson<ConsumerSummary>(response);
+}
+
+export async function fetchConsumerSession() {
+  const response = await fetch('/api/launch/session', { cache: 'no-store' });
+  return parseJson<ConsumerSession>(response);
+}
+
+export async function updateConsumerSession(payload: ConsumerSessionUpdateInput) {
+  const response = await fetch('/api/launch/session', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<ConsumerSession>(response);
+}
+
+export async function rotateConsumerSession() {
+  const response = await fetch('/api/launch/session', {
+    method: 'DELETE',
+  });
+  return parseJson<ConsumerSession>(response);
 }
 
 export async function fetchMerchantSummary() {
@@ -72,18 +95,17 @@ export async function destroyMerchantOperatorSession() {
   return parseJson<{ authenticated: false }>(response);
 }
 
-export async function ensureConsumerReferral(sessionId: string, displayName: string, deviceFingerprint: string) {
+export async function ensureConsumerReferral(deviceFingerprint: string) {
   const response = await fetch('/api/launch/referrals', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, displayName, deviceFingerprint }),
+    body: JSON.stringify({ deviceFingerprint }),
   });
   return parseJson<ReferralCreateResult>(response);
 }
 
-export async function fetchReferralDetail(token: string, sessionId?: string) {
-  const suffix = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
-  const response = await fetch(`/api/launch/referrals/${encodeURIComponent(token)}${suffix}`, {
+export async function fetchReferralDetail(token: string) {
+  const response = await fetch(`/api/launch/referrals/${encodeURIComponent(token)}`, {
     cache: 'no-store',
   });
   return parseJson<ReferralDetail>(response);
@@ -97,8 +119,6 @@ export async function recordReferralOpen(token: string) {
 }
 
 export async function claimReferralLink(token: string, payload: {
-  sessionId: string;
-  displayName: string;
   deviceFingerprint: string;
 }) {
   const response = await fetch(`/api/launch/referrals/${encodeURIComponent(token)}/claim`, {
@@ -114,11 +134,11 @@ export async function claimReferralLink(token: string, payload: {
   return result;
 }
 
-export async function createRedeemCode(sessionId: string) {
+export async function createRedeemCode() {
   const response = await fetch('/api/launch/redeem-code', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId }),
+    body: JSON.stringify({}),
   });
 
   const result = await response.json() as RedeemCodeResult & { error?: string };
