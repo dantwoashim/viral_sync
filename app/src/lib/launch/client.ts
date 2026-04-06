@@ -3,8 +3,12 @@
 import type {
   ClaimResult,
   ConsumerSummary,
+  MerchantOperatorLoginResult,
+  MerchantOperatorSession,
   MerchantConfirmResult,
   MerchantSummary,
+  OfferUpdateInput,
+  OfferUpdateResult,
   RedeemCodeResult,
   ReferralCreateResult,
   ReferralDetail,
@@ -35,6 +39,37 @@ export async function fetchConsumerSummary(sessionId: string) {
 export async function fetchMerchantSummary() {
   const response = await fetch('/api/launch/merchant/summary', { cache: 'no-store' });
   return parseJson<MerchantSummary>(response);
+}
+
+export async function fetchMerchantOperatorSession() {
+  const response = await fetch('/api/launch/merchant/session', { cache: 'no-store' });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as { authenticated?: boolean; reason?: string; error?: string };
+    return {
+      authenticated: false,
+      reason: payload.reason ?? payload.error,
+    } as MerchantOperatorSession & { reason?: string };
+  }
+  return parseJson<MerchantOperatorSession>(response);
+}
+
+export async function createMerchantOperatorSession(payload: {
+  operatorLabel: string;
+  accessCode: string;
+}) {
+  const response = await fetch('/api/launch/merchant/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJson<MerchantOperatorLoginResult>(response);
+}
+
+export async function destroyMerchantOperatorSession() {
+  const response = await fetch('/api/launch/merchant/session', {
+    method: 'DELETE',
+  });
+  return parseJson<{ authenticated: false }>(response);
 }
 
 export async function ensureConsumerReferral(sessionId: string, displayName: string, deviceFingerprint: string) {
@@ -101,6 +136,20 @@ export async function confirmMerchantCode(code: string) {
   });
 
   const result = await response.json() as MerchantConfirmResult & { error?: string };
+  if (!response.ok && !result.ok) {
+    return result;
+  }
+  return result;
+}
+
+export async function updateMerchantOffer(payload: OfferUpdateInput) {
+  const response = await fetch('/api/launch/merchant/offer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json() as OfferUpdateResult & { error?: string };
   if (!response.ok && !result.ok) {
     return result;
   }

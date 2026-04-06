@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateRedeemCode } from '@/lib/launch/server';
+import { badRequest, readJsonBody, readString } from '@/lib/launch/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+  const body = await readJsonBody(request);
+  const sessionId = readString(body.sessionId);
 
   if (!sessionId) {
-    return NextResponse.json({ error: 'sessionId is required.' }, { status: 400 });
+    return badRequest('sessionId is required.');
   }
 
   const result = await generateRedeemCode({ sessionId });

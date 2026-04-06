@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Clock, QrCode, SealCheck, Storefront, Ticket } from '@phosphor-icons/react';
 import SignalRibbon from '@/components/launch/SignalRibbon';
 import { useAuth } from '@/lib/auth';
@@ -52,7 +52,16 @@ export default function RedeemPage() {
     };
   }, [data, refresh, sessionId]);
 
-  const redeemCode = useMemo(() => data?.activeRedeemCode?.code ?? '--- ---', [data?.activeRedeemCode?.code]);
+  const redeemCode = data?.activeRedeemCode?.code ?? '--- ---';
+  const redeemExpiry = data?.activeRedeemCode?.expiresAt
+    ? new Date(data.activeRedeemCode.expiresAt).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+    : 'Pending';
+  const attemptsRemaining = data?.activeRedeemCode
+    ? Math.max(data.activeRedeemCode.maxAttempts - data.activeRedeemCode.attemptCount, 0)
+    : null;
   const ribbonItems = [
     `${data?.offer.merchantName ?? 'Merchant'} counter handoff`,
     data?.activeRedeemCode ? `Live code ${redeemCode}` : 'Preparing live code',
@@ -116,10 +125,17 @@ export default function RedeemPage() {
               </div>
               <div className="metric-line">
                 <div className="metric-label">
-                  <strong>Launch rule</strong>
-                  <span>Show the screen, let staff verify once, and do not turn this into a token-transfer ceremony.</span>
+                  <strong>Code expiry</strong>
+                  <span>Live codes are short-lived and should be opened only when you are physically at the counter.</span>
                 </div>
-                <div className="metric-value">Counter</div>
+                <div className="metric-value">{redeemExpiry}</div>
+              </div>
+              <div className="metric-line">
+                <div className="metric-label">
+                  <strong>Attempt window</strong>
+                  <span>Staff should resolve the code cleanly. Repeated bad confirmations will invalidate it.</span>
+                </div>
+                <div className="metric-value">{attemptsRemaining ?? '-'}</div>
               </div>
             </div>
           </section>
@@ -162,8 +178,8 @@ export default function RedeemPage() {
                 <div className="metric-stack" style={{ marginTop: 24 }}>
                   <div className="metric-line">
                     <div className="metric-label">
-                      <strong>Merchant mode</strong>
-                      <span>The cashier only needs the code and the customer present at the counter.</span>
+                      <strong>Visual code block</strong>
+                      <span>This square is only a visual cue in the pilot. The live short code above is the actual counter artifact right now.</span>
                     </div>
                     <div className="metric-value">
                       <Storefront size={18} />

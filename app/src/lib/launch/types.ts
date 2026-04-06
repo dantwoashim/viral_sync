@@ -1,5 +1,6 @@
 export type EventType =
   | 'offer_created'
+  | 'offer_updated'
   | 'referral_link_created'
   | 'referral_link_opened'
   | 'referral_claimed'
@@ -10,7 +11,7 @@ export type EventType =
   | 'reward_redeemed';
 
 export type ClaimStatus = 'claimed' | 'code-generated' | 'redeemed' | 'blocked';
-export type RedeemCodeStatus = 'active' | 'redeemed' | 'expired';
+export type RedeemCodeStatus = 'active' | 'redeemed' | 'expired' | 'revoked';
 
 export interface MerchantRecord {
   id: string;
@@ -65,7 +66,12 @@ export interface RedeemCodeRecord {
   code: string;
   status: RedeemCodeStatus;
   createdAt: string;
+  expiresAt: string;
+  attemptCount: number;
+  maxAttempts: number;
   redeemedAt?: string;
+  revokedAt?: string;
+  revokedReason?: string;
 }
 
 export interface EventRecord {
@@ -133,6 +139,9 @@ export interface ConsumerSummary {
     code: string;
     status: RedeemCodeStatus;
     createdAt: string;
+    expiresAt: string;
+    attemptCount: number;
+    maxAttempts: number;
   } | null;
   passbook: ConsumerPassbookRow[];
 }
@@ -176,6 +185,37 @@ export interface MerchantSummary {
   alerts: string[];
 }
 
+export interface MerchantOperatorSession {
+  authenticated: boolean;
+  merchantId?: string;
+  merchantName?: string;
+  operatorLabel?: string;
+  expiresAt?: number;
+  reason?: string;
+}
+
+export interface MerchantOperatorLoginResult extends MerchantOperatorSession {
+  authenticated: true;
+  merchantId: string;
+  merchantName: string;
+  operatorLabel: string;
+  expiresAt: number;
+}
+
+export interface OfferUpdateInput {
+  title: string;
+  description: string;
+  reward: string;
+  referralGoal: number;
+  redemptionWindowHours: number;
+}
+
+export interface OfferUpdateResult {
+  ok: boolean;
+  offer?: OfferView;
+  reason?: string;
+}
+
 export interface ReferralCreateResult {
   token: string;
   sharePath: string;
@@ -193,6 +233,7 @@ export interface RedeemCodeResult {
   code?: string;
   status?: RedeemCodeStatus;
   reason?: string;
+  expiresAt?: string;
 }
 
 export interface MerchantConfirmResult {
@@ -200,4 +241,5 @@ export interface MerchantConfirmResult {
   status?: RedeemCodeStatus;
   code?: string;
   reason?: string;
+  expiresAt?: string;
 }

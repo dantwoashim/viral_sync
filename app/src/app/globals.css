@@ -1,4 +1,6 @@
 :root {
+  --font-sans: "Noto Sans Devanagari", "Segoe UI", "Helvetica Neue", Arial;
+  --font-mono: "IBM Plex Mono", "Consolas", "SFMono-Regular", monospace;
   --paper: #f4efe6;
   --paper-warm: #efe7da;
   --mist: #e4ddd1;
@@ -1602,6 +1604,19 @@ p {
   color: var(--ink-soft);
 }
 
+.merchant-session-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: var(--shadow-soft);
+}
+
 .bottom-nav {
   position: fixed;
   left: 0;
@@ -1764,6 +1779,11 @@ p {
   .sheet-pad,
   .login-sheet {
     padding: 22px;
+  }
+
+  .merchant-session-banner {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .surface-header {

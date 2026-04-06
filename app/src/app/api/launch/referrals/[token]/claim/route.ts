@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { claimReferral } from '@/lib/launch/server';
+import { badRequest, readJsonBody, readString } from '@/lib/launch/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,13 +10,13 @@ export async function POST(
   context: { params: Promise<{ token: string }> },
 ) {
   const { token } = await context.params;
-  const body = await request.json();
-  const claimerSessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
-  const claimerDisplayName = typeof body?.displayName === 'string' ? body.displayName : 'Guest';
-  const deviceFingerprint = typeof body?.deviceFingerprint === 'string' ? body.deviceFingerprint : claimerSessionId;
+  const body = await readJsonBody(request);
+  const claimerSessionId = readString(body.sessionId);
+  const claimerDisplayName = readString(body.displayName, 'Guest');
+  const deviceFingerprint = readString(body.deviceFingerprint, claimerSessionId);
 
   if (!claimerSessionId) {
-    return NextResponse.json({ error: 'sessionId is required.' }, { status: 400 });
+    return badRequest('sessionId is required.');
   }
 
   const result = await claimReferral({
