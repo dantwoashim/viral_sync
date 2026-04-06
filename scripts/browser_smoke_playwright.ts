@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import { spawn, spawnSync, type ChildProcess } from 'child_process';
 
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright';
 
 const REPO_ROOT = process.cwd();
 const ARTIFACT_DIR = path.join(process.cwd(), 'output', 'playwright');
@@ -201,6 +201,10 @@ async function confirmRedeemFlow(inviteePage: Page, merchantPage: Page, baseUrl:
     const code = await waitForStableCode(inviteePage.getByTestId('redeem-active-code'));
 
     await merchantPage.goto(`${baseUrl}/merchant/scan`, { waitUntil: 'networkidle' });
+    await merchantPage.getByTestId('merchant-operator-name').fill('Pilot Counter');
+    await merchantPage.getByTestId('merchant-access-code').fill('pilot-counter');
+    await merchantPage.getByTestId('merchant-access-submit').click();
+    await merchantPage.waitForSelector('[data-testid="merchant-code-input"]', { timeout: 20_000 });
     await merchantPage.getByTestId('merchant-code-input').fill(code);
     await merchantPage.getByTestId('merchant-confirm-button').click();
     await merchantPage.waitForFunction(
@@ -236,6 +240,8 @@ async function main() {
         const sharedEnv = {
             PORT: String(appPort),
             VIRAL_SYNC_LEDGER_PATH: ledgerPath,
+            VIRAL_SYNC_MERCHANT_ACCESS_CODE: 'pilot-counter',
+            VIRAL_SYNC_MERCHANT_SESSION_SECRET: 'browser-smoke-secret',
         };
 
         if (!SKIP_APP_BUILD) {

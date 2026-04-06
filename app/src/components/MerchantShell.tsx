@@ -2,52 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
 import {
-  BookOpen,
   ChartBar,
-  Compass,
   House,
-  Megaphone,
-  QrCode,
-  Receipt,
-  ShareNetwork,
   Storefront,
-  UserCircle,
-  UsersThree,
 } from '@phosphor-icons/react';
 import BottomNav from '@/components/BottomNav';
+import MerchantAccessGate from '@/components/MerchantAccessGate';
 import { useAuth } from '@/lib/auth';
-
-const consumerTabs = [
-  { href: '/', label: 'Home', icon: House },
-  { href: '/passbook', label: 'Passbook', icon: BookOpen },
-  { href: '/routes', label: 'Routes', icon: Compass },
-  { href: '/invite', label: 'Invite', icon: ShareNetwork },
-  { href: '/profile', label: 'Profile', icon: UserCircle },
-];
-
-const merchantTabs = [
-  { href: '/merchant/today', label: 'Today', icon: ChartBar },
-  { href: '/merchant/scan', label: 'Scan', icon: QrCode },
-  { href: '/merchant/campaigns', label: 'Campaigns', icon: Megaphone },
-  { href: '/merchant/customers', label: 'Customers', icon: UsersThree },
-  { href: '/merchant/ledger', label: 'Ledger', icon: Receipt },
-];
+import { consumerTabs, merchantTabs } from '@/lib/navigation';
 
 export default function MerchantShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { displayName, setRole } = useAuth();
+  const { displayName } = useAuth();
 
   const hideChrome = pathname === '/login';
   const mode = pathname.startsWith('/merchant') ? 'merchant' : 'consumer';
   const tabs = mode === 'merchant' ? merchantTabs : consumerTabs;
-
-  useEffect(() => {
-    if (!hideChrome) {
-      setRole(mode);
-    }
-  }, [hideChrome, mode, setRole]);
 
   if (hideChrome) {
     return <>{children}</>;
@@ -121,7 +92,9 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
           </div>
         </div>
 
-        <div className="vs-content">{children}</div>
+        <div className="vs-content">
+          {mode === 'merchant' ? <MerchantAccessGate>{children}</MerchantAccessGate> : children}
+        </div>
       </div>
 
       <BottomNav />

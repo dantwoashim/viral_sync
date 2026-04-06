@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import crypto from 'crypto';
 import path from 'path';
 import {
   ClaimRecord,
@@ -12,6 +13,8 @@ import {
   MerchantRow,
   MerchantSummary,
   OfferRecord,
+  OfferUpdateInput,
+  OfferUpdateResult,
   OfferView,
   RedeemCodeRecord,
   RedeemCodeResult,
@@ -33,6 +36,9 @@ let persistChain: Promise<void> = Promise.resolve();
 
 export const PILOT_MERCHANT_ID = 'merchant-nyano-chiya-ghar';
 export const PILOT_OFFER_ID = 'offer-thamel-four-friends';
+const REDEEM_CODE_TTL_MS = Number(process.env.VIRAL_SYNC_REDEEM_CODE_TTL_MS || 15 * 60 * 1000);
+const REDEEM_CODE_MAX_ATTEMPTS = Number(process.env.VIRAL_SYNC_REDEEM_CODE_MAX_ATTEMPTS || 5);
+const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 function iso(date: Date) {
   return date.toISOString();
@@ -50,9 +56,93 @@ function buildSharePath(token: string) {
   return `/offer/${token}`;
 }
 
-function codeFromClaimId(claimId: string) {
-  const raw = claimId.replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase().padStart(6, '0');
-  return `${raw.slice(0, 3)}-${raw.slice(3, 6)}`;
+function createRedeemCodeValue(existingCodes: Set<string>) {
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const bytes = crypto.randomBytes(6);
+    const raw = Array.from(bytes, (value) => CODE_ALPHABET[value % CODE_ALPHABET.length]).join('');
+    const code = `${raw.slice(0, 3)}-${raw.slice(3, 6)}`;
+    if (!existingCodes.has(code)) {
+      return code;
+    }
+  }
+
+  throw new Error('Could not allocate a unique redeem code.');
+}
+
+function computeCodeExpiry(createdAt: string) {
+  return new Date(new Date(createdAt).getTime() + REDEEM_CODE_TTL_MS).toISOString();
+}
+
+function ensureCodeShape(code: RedeemCodeRecord): RedeemCodeRecord {
+  return {
+    ...code,
+    expiresAt: code.expiresAt ?? computeCodeExpiry(code.createdAt),
+    attemptCount: Number.isFinite(code.attemptCount) ? code.attemptCount : 0,
+    maxAttempts: Number.isFinite(code.maxAttempts) && code.maxAttempts > 0
+      ? code.maxAttempts
+      : REDEEM_CODE_MAX_ATTEMPTS,
+  };
+}
+
+function releaseClaimForNewCode(claim?: ClaimRecord | null) {
+  if (claim?.status === 'code-generated') {
+    claim.status = 'claimed';
+  }
+}
+
+function expireCode(code: RedeemCodeRecord, claim?: ClaimRecord | null) {
+  if (code.status === 'active') {
+    code.status = 'expired';
+  }
+  releaseClaimForNewCode(claim ?? null);
+}
+
+function revokeCode(code: RedeemCodeRecord, reason: string, claim?: ClaimRecord | null) {
+  code.status = 'revoked';
+  code.revokedAt = new Date().toISOString();
+  code.revokedReason = reason;
+  releaseClaimForNewCode(claim ?? null);
+}
+
+function consumeFailedConfirmation(code: RedeemCodeRecord, reason: string, claim?: ClaimRecord | null) {
+  code.attemptCount += 1;
+  if (code.attemptCount >= code.maxAttempts) {
+    revokeCode(code, 'Maximum confirmation attempts exceeded.', claim);
+    return 'Maximum confirmation attempts exceeded.';
+  }
+
+  return reason;
+}
+
+function normalizeLedgerState(ledger: LaunchLedger) {
+  const now = Date.now();
+  let changed = false;
+
+  ledger.redeemCodes = ledger.redeemCodes.map((code) => {
+    const normalized = ensureCodeShape(code);
+    if (
+      normalized.expiresAt !== code.expiresAt
+      || normalized.attemptCount !== code.attemptCount
+      || normalized.maxAttempts !== code.maxAttempts
+    ) {
+      changed = true;
+    }
+    return normalized;
+  });
+
+  ledger.redeemCodes.forEach((code) => {
+    if (code.status !== 'active') {
+      return;
+    }
+
+    if (new Date(code.expiresAt).getTime() <= now) {
+      const claim = ledger.claims.find((item) => item.id === code.claimId) ?? null;
+      expireCode(code, claim);
+      changed = true;
+    }
+  });
+
+  return changed;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -204,6 +294,9 @@ function createSeedLedger(): LaunchLedger {
     code: 'MIN-A01',
     status: 'active',
     createdAt: iso(thirtyMinutesAgo),
+    expiresAt: iso(new Date(now.getTime() + 15 * 60 * 1000)),
+    attemptCount: 0,
+    maxAttempts: REDEEM_CODE_MAX_ATTEMPTS,
   };
 
   const code2: RedeemCodeRecord = {
@@ -213,6 +306,9 @@ function createSeedLedger(): LaunchLedger {
     code: 'RIT-101',
     status: 'redeemed',
     createdAt: iso(sixtyMinutesAgo),
+    expiresAt: computeCodeExpiry(iso(sixtyMinutesAgo)),
+    attemptCount: 1,
+    maxAttempts: REDEEM_CODE_MAX_ATTEMPTS,
     redeemedAt: iso(sixtyMinutesAgo),
   };
 
@@ -345,6 +441,10 @@ async function loadLedger() {
     };
   });
 
+  if (normalizeLedgerState(ledger)) {
+    changed = true;
+  }
+
   if (changed) {
     await saveLedger(ledger);
   }
@@ -476,7 +576,7 @@ export async function getConsumerSummary(sessionId: string) {
     .sort((left, right) => right.claimedAt.localeCompare(left.claimedAt))[0] ?? null;
   const activeRedeemCode = activeClaim
     ? ledger.redeemCodes
-      .filter((code) => code.claimId === activeClaim.id)
+      .filter((code) => code.claimId === activeClaim.id && (code.status === 'active' || code.status === 'redeemed'))
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null
     : null;
 
@@ -505,6 +605,9 @@ export async function getConsumerSummary(sessionId: string) {
         code: activeRedeemCode.code,
         status: activeRedeemCode.status,
         createdAt: activeRedeemCode.createdAt,
+        expiresAt: activeRedeemCode.expiresAt,
+        attemptCount: activeRedeemCode.attemptCount,
+        maxAttempts: activeRedeemCode.maxAttempts,
       }
       : null,
     passbook: derivePassbookRows(ledger, sessionId, offerView),
@@ -729,28 +832,40 @@ export async function generateRedeemCode(params: { sessionId: string; }) {
       ok: true,
       code: redeemedCode?.code,
       status: 'redeemed',
+      expiresAt: redeemedCode?.expiresAt,
     } satisfies RedeemCodeResult;
   }
 
   const existingCode = ledger.redeemCodes
-    .filter((item) => item.claimId === claim.id && item.status !== 'expired')
+    .filter((item) => item.claimId === claim.id && (item.status === 'active' || item.status === 'redeemed'))
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
 
   if (existingCode) {
-    return {
-      ok: true,
-      code: existingCode.code,
-      status: existingCode.status,
-    } satisfies RedeemCodeResult;
+    if (existingCode.status === 'active' && new Date(existingCode.expiresAt).getTime() <= Date.now()) {
+      expireCode(existingCode, claim);
+      await saveLedger(ledger);
+    } else {
+      return {
+        ok: true,
+        code: existingCode.code,
+        status: existingCode.status,
+        expiresAt: existingCode.expiresAt,
+      } satisfies RedeemCodeResult;
+    }
   }
 
+  const existingCodes = new Set(ledger.redeemCodes.map((item) => item.code));
+  const createdAt = new Date().toISOString();
   const code: RedeemCodeRecord = {
     id: randomId('redeem'),
     claimId: claim.id,
     merchantId: merchant.id,
-    code: codeFromClaimId(claim.id),
+    code: createRedeemCodeValue(existingCodes),
     status: 'active',
-    createdAt: new Date().toISOString(),
+    createdAt,
+    expiresAt: computeCodeExpiry(createdAt),
+    attemptCount: 0,
+    maxAttempts: REDEEM_CODE_MAX_ATTEMPTS,
   };
 
   claim.status = 'code-generated';
@@ -771,10 +886,11 @@ export async function generateRedeemCode(params: { sessionId: string; }) {
     ok: true,
     code: code.code,
     status: code.status,
+    expiresAt: code.expiresAt,
   } satisfies RedeemCodeResult;
 }
 
-export async function confirmRedeemCode(params: { code: string; }) {
+export async function confirmRedeemCode(params: { code: string; merchantId: string; operatorLabel: string; }) {
   const ledger = await loadLedger();
   const { merchant, offer } = getPilotMerchantAndOffer(ledger);
   const code = ledger.redeemCodes.find((item) => item.code.toUpperCase() === params.code.toUpperCase());
@@ -783,8 +899,26 @@ export async function confirmRedeemCode(params: { code: string; }) {
     return { ok: false, reason: 'This code is not recognized by the launch ledger.' } satisfies MerchantConfirmResult;
   }
 
+  if (code.merchantId !== params.merchantId) {
+    const claim = ledger.claims.find((item) => item.id === code.claimId) ?? null;
+    const reason = consumeFailedConfirmation(code, 'This code does not belong to your merchant counter.', claim);
+    await saveLedger(ledger);
+    return { ok: false, code: code.code, status: code.status, reason, expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
+  }
+
   if (code.status === 'redeemed') {
-    return { ok: true, code: code.code, status: code.status } satisfies MerchantConfirmResult;
+    return { ok: false, code: code.code, status: code.status, reason: 'This code was already confirmed.', expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
+  }
+
+  if (code.status === 'revoked') {
+    return { ok: false, code: code.code, status: code.status, reason: code.revokedReason ?? 'This code is no longer valid.' } satisfies MerchantConfirmResult;
+  }
+
+  if (new Date(code.expiresAt).getTime() <= Date.now()) {
+    const claim = ledger.claims.find((item) => item.id === code.claimId) ?? null;
+    expireCode(code, claim);
+    await saveLedger(ledger);
+    return { ok: false, code: code.code, status: code.status, reason: 'This code expired before counter confirmation.', expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
   }
 
   const claim = ledger.claims.find((item) => item.id === code.claimId);
@@ -806,6 +940,10 @@ export async function confirmRedeemCode(params: { code: string; }) {
     claimId: claim.id,
     redeemCodeId: code.id,
     actorSessionId: claim.claimerSessionId,
+    payload: {
+      operatorLabel: params.operatorLabel,
+      merchantId: params.merchantId,
+    },
   });
 
   const redeemedForReferrer = countRedeemedClaimsForReferral(ledger, claim.referralToken);
@@ -823,7 +961,50 @@ export async function confirmRedeemCode(params: { code: string; }) {
 
   await saveLedger(ledger);
 
-  return { ok: true, code: code.code, status: code.status } satisfies MerchantConfirmResult;
+  return { ok: true, code: code.code, status: code.status, expiresAt: code.expiresAt } satisfies MerchantConfirmResult;
+}
+
+export async function updatePilotOffer(params: OfferUpdateInput): Promise<OfferUpdateResult> {
+  const ledger = await loadLedger();
+  const { merchant, offer } = getPilotMerchantAndOffer(ledger);
+
+  const title = params.title.trim();
+  const description = params.description.trim();
+  const reward = params.reward.trim();
+  if (!title || !description || !reward) {
+    return { ok: false, reason: 'Title, description, and reward are required.' };
+  }
+
+  if (!Number.isInteger(params.referralGoal) || params.referralGoal < 1 || params.referralGoal > 12) {
+    return { ok: false, reason: 'referralGoal must be an integer between 1 and 12.' };
+  }
+  if (!Number.isInteger(params.redemptionWindowHours) || params.redemptionWindowHours < 1 || params.redemptionWindowHours > 168) {
+    return { ok: false, reason: 'redemptionWindowHours must be an integer between 1 and 168.' };
+  }
+
+  offer.title = title;
+  offer.description = description;
+  offer.reward = reward;
+  offer.referralGoal = params.referralGoal;
+  offer.redemptionWindowHours = params.redemptionWindowHours;
+
+  ledger.events.push({
+    id: randomId('evt'),
+    type: 'offer_updated',
+    createdAt: new Date().toISOString(),
+    merchantId: merchant.id,
+    offerId: offer.id,
+    payload: {
+      updated: true,
+    },
+  });
+
+  await saveLedger(ledger);
+
+  return {
+    ok: true,
+    offer: toOfferView(offer, merchant.name, merchant.district),
+  };
 }
 
 export async function getMerchantSummary() {

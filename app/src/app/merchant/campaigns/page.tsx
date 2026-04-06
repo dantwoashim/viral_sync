@@ -1,14 +1,32 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Broadcast, Coins, Timer, UsersThree } from '@phosphor-icons/react';
 import SignalRibbon from '@/components/launch/SignalRibbon';
-import { merchantCampaignDefaults } from '@/lib/nepalData';
+import { updateMerchantOffer } from '@/lib/launch/client';
+import { useMerchantSummary } from '@/lib/launch/hooks';
 
 export default function MerchantCampaignsPage() {
-  const [reward, setReward] = useState(merchantCampaignDefaults.reward);
-  const [threshold, setThreshold] = useState(merchantCampaignDefaults.threshold);
-  const [windowLabel, setWindowLabel] = useState(merchantCampaignDefaults.window);
+  const { data, error, refresh } = useMerchantSummary();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [reward, setReward] = useState('');
+  const [threshold, setThreshold] = useState('3');
+  const [windowLabel, setWindowLabel] = useState('72');
+  const [message, setMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!data?.offer) {
+      return;
+    }
+
+    setTitle(data.offer.title);
+    setDescription(data.offer.description);
+    setReward(data.offer.reward);
+    setThreshold(String(data.offer.referralGoal));
+    setWindowLabel(String(data.offer.redemptionWindowHours));
+  }, [data?.offer]);
 
   const { estimate, effectiveClaims, cadence } = useMemo(() => {
     const claimCount = Number.parseInt(threshold, 10);
@@ -55,7 +73,11 @@ export default function MerchantCampaignsPage() {
             <div className="field-stack" style={{ marginTop: 22 }}>
               <div className="field">
                 <label htmlFor="campaign-title">Campaign title</label>
-                <input id="campaign-title" defaultValue={merchantCampaignDefaults.title} />
+                <input id="campaign-title" value={title} onChange={(event) => setTitle(event.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="campaign-description">Offer description</label>
+                <textarea id="campaign-description" value={description} onChange={(event) => setDescription(event.target.value)} />
               </div>
               <div className="field">
                 <label htmlFor="campaign-reward">Reward</label>
@@ -71,7 +93,41 @@ export default function MerchantCampaignsPage() {
                   <input id="campaign-window" value={windowLabel} onChange={(event) => setWindowLabel(event.target.value)} />
                 </div>
               </div>
-              <div className="field-helper">{merchantCampaignDefaults.budgetHint}</div>
+              <div className="field-helper">
+                Pilot discipline: keep the reward bounded and staff-explainable, because merchant-funded growth breaks the moment the offer cost becomes fuzzy.
+              </div>
+              <div className="cta-row">
+                <button
+                  className="primary-button"
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      const result = await updateMerchantOffer({
+                        title,
+                        description,
+                        reward,
+                        referralGoal: Number.parseInt(threshold, 10),
+                        redemptionWindowHours: Number.parseInt(windowLabel, 10),
+                      });
+
+                      if (!result.ok) {
+                        setMessage(result.reason ?? 'Campaign update failed.');
+                        return;
+                      }
+
+                      setMessage('Pilot offer updated.');
+                      await refresh();
+                    } catch (caught) {
+                      setMessage(caught instanceof Error ? caught.message : 'Campaign update failed.');
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save live offer'}
+                </button>
+              </div>
+              {(message || error) && <div className="empty-line">{message ?? error}</div>}
             </div>
 
             <div className="campaign-sequence">
@@ -103,10 +159,13 @@ export default function MerchantCampaignsPage() {
             <section className="ticket-sheet sheet-pad">
               <div className="eyebrow">Live offer preview</div>
               <div className="ticket-title" style={{ marginTop: 10 }}>
-                {effectiveClaims + 1} friends unlock a real table reward.
+                {title || `${effectiveClaims + 1} friends unlock a real table reward.`}
               </div>
               <p className="ticket-note" style={{ marginTop: 16 }}>
                 {reward}
+              </p>
+              <p className="ticket-note" style={{ marginTop: 12 }}>
+                {description}
               </p>
               <div className="metric-stack">
                 <div className="metric-line">

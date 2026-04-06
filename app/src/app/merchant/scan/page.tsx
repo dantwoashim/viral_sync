@@ -9,7 +9,7 @@ import { confirmMerchantCode } from '@/lib/launch/client';
 export default function MerchantScanPage() {
   const [redeemCode, setRedeemCode] = useState('');
   const [status, setStatus] = useState<'idle' | 'confirmed' | 'blocked'>('idle');
-  const [message, setMessage] = useState('Manual merchant confirmation is required for every reward in the launch layer.');
+  const [message, setMessage] = useState('Only an authenticated operator session can confirm a live counter redemption.');
   const ribbonItems = [
     'Counter truth desk',
     status === 'confirmed' ? 'Last code confirmed' : status === 'blocked' ? 'Last code blocked' : 'Waiting for customer code',
@@ -39,9 +39,9 @@ export default function MerchantScanPage() {
         <div className="surface-header">
           <div className="surface-title-block">
             <div className="eyebrow">Scan Desk</div>
-            <h1 className="surface-title">This screen should be almost impossible to misuse.</h1>
+            <h1 className="surface-title">Counter confirmation should be fast, obvious, and tightly scoped.</h1>
             <p className="surface-subtitle">
-              The cashier only needs one task here: confirm a valid redemption fast, under pressure, with clear feedback in low-light conditions.
+              This is a single-purpose operator tool: verify one live code for one merchant, under pressure, with clear feedback.
             </p>
           </div>
         </div>
@@ -55,14 +55,14 @@ export default function MerchantScanPage() {
               <div className="metric-line">
                 <div className="metric-label">
                   <strong>Desk rule</strong>
-                  <span>A code becomes true only when the staff member at the counter confirms it here.</span>
+                  <span>A code becomes true only when an authenticated counter operator confirms a live customer visit here.</span>
                 </div>
                 <div className="metric-value">Truth</div>
               </div>
               <div className="metric-line">
                 <div className="metric-label">
                   <strong>Feedback mode</strong>
-                  <span>The screen should make it obvious whether the cashier can move on or stop and review.</span>
+                  <span>The interface should tell staff immediately whether to move the line or stop and review the case.</span>
                 </div>
                 <div className="metric-value">{status === 'confirmed' ? 'Go' : status === 'blocked' ? 'Stop' : 'Wait'}</div>
               </div>
@@ -86,7 +86,7 @@ export default function MerchantScanPage() {
                   placeholder="ABC-123"
                 />
                 <div className="field-helper">
-                  Launch rule: a code is only true after the staff member watching the counter confirms it here.
+                  Launch rule: a code is only true after the authenticated operator watching the counter confirms it here.
                 </div>
               </div>
 
