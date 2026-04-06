@@ -2,16 +2,14 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { PublicKey } from '@solana/web3.js';
+import {
+  fetchConsumerSession,
+  rotateConsumerSession,
+  updateConsumerSession,
+} from '@/lib/launch/client';
+import type { ConsumerLoginMethod } from '@/lib/launch/types';
 
 export type UserRole = 'consumer' | 'merchant' | null;
-type LoginMethod = 'guest' | 'email' | 'google' | null;
-
-interface StoredSession {
-  sessionId: string;
-  displayName: string;
-  loginMethod: LoginMethod;
-  role: UserRole;
-}
 
 export interface AuthState {
   loading: boolean;
@@ -20,7 +18,7 @@ export interface AuthState {
   displayName: string;
   deviceId: string;
   avatarUrl: string | null;
-  loginMethod: LoginMethod;
+  loginMethod: ConsumerLoginMethod;
   role: UserRole;
   login: () => void;
   logout: () => void;
@@ -29,7 +27,13 @@ export interface AuthState {
   sessionId: string | null;
 }
 
-const STORAGE_KEY = 'vs-nepal-session';
+interface ConsumerAuthSession {
+  sessionId: string;
+  displayName: string;
+  loginMethod: ConsumerLoginMethod;
+  role: UserRole;
+}
+
 const DEVICE_KEY = 'vs-nepal-device';
 
 const defaultAuth: AuthState = {
@@ -50,37 +54,6 @@ const defaultAuth: AuthState = {
 
 const AuthContext = createContext<AuthState>(defaultAuth);
 
-function readSession(): StoredSession | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    return JSON.parse(raw) as StoredSession;
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
-    return null;
-  }
-}
-
-function writeSession(session: StoredSession) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-}
-
-function buildGuestSession(role: UserRole = null): StoredSession {
-  const seed = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()
-    : Math.random().toString(36).slice(2, 8).toUpperCase();
-
-  return {
-    sessionId: `vs-${Date.now().toString(36)}-${seed.toLowerCase()}`,
-    displayName: `Guest ${seed.slice(0, 3)}`,
-    loginMethod: 'guest',
-    role,
-  };
-}
-
 function getOrCreateDeviceId() {
   try {
     const existing = localStorage.getItem(DEVICE_KEY);
@@ -100,49 +73,75 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [showModal, setShowModal] = useState(false);
-  const [session, setSession] = useState<StoredSession | null>(null);
-  const [deviceId, setDeviceId] = useState('device-guest');
+  const [session, setSession] = useState<ConsumerAuthSession | null>(null);
+  const [deviceId] = useState(() => (typeof window !== 'undefined' ? getOrCreateDeviceId() : 'device-guest'));
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const saved = readSession();
-    const nextSession = saved ?? buildGuestSession();
-    const nextDeviceId = getOrCreateDeviceId();
-    writeSession(nextSession);
-    queueMicrotask(() => {
-      setSession(nextSession);
-      setDeviceId(nextDeviceId);
-      setHydrated(true);
-    });
-  }, []);
+    let cancelled = false;
 
-  const persistSession = useCallback((updater: (current: StoredSession) => StoredSession) => {
-    setSession((current) => {
-      const next = updater(current ?? buildGuestSession());
-      writeSession(next);
-      return next;
-    });
+    void fetchConsumerSession()
+      .then((next) => {
+        if (cancelled) {
+          return;
+        }
+        if (!next.authenticated || !next.sessionId || !next.displayName) {
+          throw new Error(next.reason ?? 'Consumer session is not available.');
+        }
+
+        setSession({
+          sessionId: next.sessionId,
+          displayName: next.displayName,
+          loginMethod: next.loginMethod ?? 'guest',
+          role: next.role ?? 'consumer',
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSession(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setHydrated(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(() => setShowModal(true), []);
 
   const logout = useCallback(() => {
-    const nextGuest = buildGuestSession();
-    writeSession(nextGuest);
-    setSession(nextGuest);
-    setShowModal(false);
+    void rotateConsumerSession()
+      .then((next) => {
+        if (!next.authenticated || !next.sessionId || !next.displayName) {
+          throw new Error(next.reason ?? 'Consumer session reset failed.');
+        }
+
+        setSession({
+          sessionId: next.sessionId,
+          displayName: next.displayName,
+          loginMethod: next.loginMethod ?? 'guest',
+          role: next.role ?? 'consumer',
+        });
+        setShowModal(false);
+      })
+      .catch(() => {
+        setSession(null);
+      });
   }, []);
 
   const setRole = useCallback((role: UserRole) => {
-    persistSession((current) => ({
-      ...current,
-      role,
-    }));
-  }, [persistSession]);
+    void role;
+    // Consumer role is session-backed now; path does not mutate authority.
+  }, []);
 
   const value = useMemo<AuthState>(() => ({
     loading: !hydrated,
-    authenticated: hydrated,
+    authenticated: hydrated && Boolean(session?.sessionId),
     walletAddress: null,
     displayName: session?.displayName ?? '',
     deviceId,
@@ -164,12 +163,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           session={session}
           onClose={() => setShowModal(false)}
           onSave={(displayName, loginMethod) => {
-            persistSession((current) => ({
-              ...current,
-              displayName,
-              loginMethod,
-            }));
-            setShowModal(false);
+            void updateConsumerSession({ displayName, loginMethod })
+              .then((next) => {
+                if (!next.authenticated || !next.sessionId || !next.displayName) {
+                  throw new Error(next.reason ?? 'Consumer session update failed.');
+                }
+
+                setSession({
+                  sessionId: next.sessionId,
+                  displayName: next.displayName,
+                  loginMethod: next.loginMethod ?? loginMethod,
+                  role: next.role ?? 'consumer',
+                });
+                setShowModal(false);
+              })
+              .catch(() => undefined);
           }}
         />
       )}
@@ -182,9 +190,9 @@ function IdentitySheet({
   onClose,
   onSave,
 }: {
-  session: StoredSession;
+  session: ConsumerAuthSession;
   onClose: () => void;
-  onSave: (displayName: string, loginMethod: LoginMethod) => void;
+  onSave: (displayName: string, loginMethod: ConsumerLoginMethod) => void;
 }) {
   const [displayName, setDisplayName] = useState(session.displayName);
 
@@ -194,8 +202,8 @@ function IdentitySheet({
         <div className="eyebrow">Passbook identity</div>
         <h3>Name this passbook</h3>
         <p>
-          The Nepal launch starts guest-first. You can move around the product without OTP cost,
-          then attach a stronger identity later when the pilot earns the right to add more.
+          Identity is now backed by a signed server session instead of browser-only state.
+          You can still start as a guest, then upgrade the label later if the launch needs it.
         </p>
 
         <div className="field-stack" style={{ marginTop: 18 }}>
