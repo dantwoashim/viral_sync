@@ -80,6 +80,7 @@ export default function MerchantScanPage() {
                 <label htmlFor="merchant-redeem-code">Customer code</label>
                 <input
                   id="merchant-redeem-code"
+                  data-testid="merchant-code-input"
                   value={redeemCode}
                   onChange={(event) => setRedeemCode(event.target.value)}
                   placeholder="ABC-123"
@@ -90,7 +91,7 @@ export default function MerchantScanPage() {
               </div>
 
               <div className="cta-row">
-                <button className="primary-button" onClick={handleConfirm}>
+                <button className="primary-button" data-testid="merchant-confirm-button" onClick={handleConfirm}>
                   Confirm redemption
                 </button>
                 <button
@@ -149,7 +150,7 @@ export default function MerchantScanPage() {
                 </div>
               </div>
 
-              <div className="empty-line">{message}</div>
+              <div className="empty-line" data-testid="merchant-confirm-message">{message}</div>
             </div>
           </section>
         </div>

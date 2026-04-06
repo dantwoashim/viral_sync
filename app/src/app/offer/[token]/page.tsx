@@ -220,7 +220,12 @@ export default function OfferReferralPage() {
                 </div>
 
                 <div className="cta-row" style={{ marginTop: 24 }}>
-                  <button className="primary-button" onClick={handleClaim} disabled={!detail?.viewer.canClaim}>
+                  <button
+                    className="primary-button"
+                    data-testid="offer-claim-button"
+                    onClick={handleClaim}
+                    disabled={!detail?.viewer.canClaim || !sessionId}
+                  >
                     Claim this visit
                     <ArrowRight size={18} />
                   </button>

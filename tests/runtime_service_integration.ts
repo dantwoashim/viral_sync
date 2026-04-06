@@ -303,7 +303,7 @@ function wait(ms: number) {
 
 async function waitForHealth(url: string): Promise<void> {
   const started = Date.now();
-  while (Date.now() - started < 20_000) {
+  while (Date.now() - started < 45_000) {
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(1500) });
       if (response.ok) {
@@ -432,6 +432,8 @@ describe('runtime service integration', function () {
         ACTION_STATE_PATH: path.join(tempDir, 'actions-state.json'),
       },
     );
+    await waitForHealth(`http://127.0.0.1:${actionPort}/v1/health`);
+
     relayerProcess = spawnTypeScriptService(
       ['relayer/src/index.ts'],
       {
@@ -446,8 +448,6 @@ describe('runtime service integration', function () {
         RELAYER_DEFAULT_MERCHANT_BUDGET_LAMPORTS: '100000',
       },
     );
-
-    await waitForHealth(`http://127.0.0.1:${actionPort}/v1/health`);
     await waitForHealth(`http://127.0.0.1:${relayerPort}/v1/health`);
 
     const challengeResponse = await fetch(`http://127.0.0.1:${actionPort}/v1/operators/challenge`, {

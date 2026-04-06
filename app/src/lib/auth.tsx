@@ -31,12 +31,6 @@ export interface AuthState {
 
 const STORAGE_KEY = 'vs-nepal-session';
 const DEVICE_KEY = 'vs-nepal-device';
-const placeholderSession: StoredSession = {
-  sessionId: 'vs-guest',
-  displayName: 'Guest',
-  loginMethod: 'guest',
-  role: null,
-};
 
 const defaultAuth: AuthState = {
   loading: true,
@@ -106,8 +100,9 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [showModal, setShowModal] = useState(false);
-  const [session, setSession] = useState<StoredSession>(placeholderSession);
+  const [session, setSession] = useState<StoredSession | null>(null);
   const [deviceId, setDeviceId] = useState('device-guest');
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const saved = readSession();
@@ -117,12 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queueMicrotask(() => {
       setSession(nextSession);
       setDeviceId(nextDeviceId);
+      setHydrated(true);
     });
   }, []);
 
   const persistSession = useCallback((updater: (current: StoredSession) => StoredSession) => {
     setSession((current) => {
-      const next = updater(current);
+      const next = updater(current ?? buildGuestSession());
       writeSession(next);
       return next;
     });
@@ -145,25 +141,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [persistSession]);
 
   const value = useMemo<AuthState>(() => ({
-    loading: false,
-    authenticated: true,
+    loading: !hydrated,
+    authenticated: hydrated,
     walletAddress: null,
-    displayName: session.displayName,
+    displayName: session?.displayName ?? '',
     deviceId,
     avatarUrl: null,
-    loginMethod: session.loginMethod,
-    role: session.role,
+    loginMethod: session?.loginMethod ?? null,
+    role: session?.role ?? null,
     login,
     logout,
     setRole,
-    hasSessionKey: Boolean(session.sessionId),
-    sessionId: session.sessionId,
-  }), [deviceId, login, logout, session, setRole]);
+    hasSessionKey: Boolean(session?.sessionId),
+    sessionId: session?.sessionId ?? null,
+  }), [deviceId, hydrated, login, logout, session, setRole]);
 
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {showModal && (
+      {showModal && session && (
         <IdentitySheet
           session={session}
           onClose={() => setShowModal(false)}

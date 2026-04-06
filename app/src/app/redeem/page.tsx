@@ -91,7 +91,7 @@ export default function RedeemPage() {
                   ))}
                 </div>
               </div>
-              <div className="code-pill">
+              <div className="code-pill" data-testid="redeem-active-code">
                 <Clock size={18} />
                 {redeemCode}
               </div>
