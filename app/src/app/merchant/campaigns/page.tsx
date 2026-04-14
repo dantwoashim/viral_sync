@@ -5,8 +5,10 @@ import { Broadcast, Coins, Timer, UsersThree } from '@phosphor-icons/react';
 import SignalRibbon from '@/components/launch/SignalRibbon';
 import { updateMerchantOffer } from '@/lib/launch/client';
 import { useMerchantSummary } from '@/lib/launch/hooks';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
 
 export default function MerchantCampaignsPage() {
+  const online = useOnlineStatus();
   const { data, error, refresh } = useMerchantSummary();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -99,7 +101,13 @@ export default function MerchantCampaignsPage() {
               <div className="cta-row">
                 <button
                   className="primary-button"
+                  disabled={!online}
                   onClick={async () => {
+                    if (!online) {
+                      setMessage('Campaign edits are paused while the connection is offline.');
+                      return;
+                    }
+
                     setSaving(true);
                     try {
                       const result = await updateMerchantOffer({
@@ -127,6 +135,7 @@ export default function MerchantCampaignsPage() {
                   {saving ? 'Saving...' : 'Save live offer'}
                 </button>
               </div>
+              {!online && <div className="empty-line">You are offline. Cached campaign data is still visible, but edits are paused until the connection returns.</div>}
               {(message || error) && <div className="empty-line">{message ?? error}</div>}
             </div>
 

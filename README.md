@@ -19,6 +19,7 @@ The current codebase includes:
 - a public-facing web application with merchant and consumer modes
 - a launch loop for link creation, claims, merchant confirmation, and passbook views
 - real QR-backed invite artifacts and short-code redemption handoff in the launch flow
+- installable PWA behavior with shell-level online status and cached summary fallbacks
 - signed consumer and merchant operator sessions in the application layer
 - optional shared launch persistence through Postgres via `VIRAL_SYNC_DATABASE_URL`
 - a Solana program and supporting services under active development
