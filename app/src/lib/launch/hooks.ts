@@ -10,6 +10,9 @@ import {
 } from '@/lib/launch/client';
 import type { ConsumerSummary, MerchantOperatorSession, MerchantSummary } from '@/lib/launch/types';
 
+const CONSUMER_SUMMARY_CACHE_PREFIX = 'vs-launch-consumer-summary:';
+const MERCHANT_SUMMARY_CACHE_KEY = 'vs-launch-merchant-summary';
+
 interface QueryState<T> {
   data: T | null;
   loading: boolean;
@@ -17,10 +20,52 @@ interface QueryState<T> {
   refresh: () => Promise<void>;
 }
 
+function readCachedQuery<T>(key: string): T | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedQuery<T>(key: string, value: T) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Best-effort cache only.
+  }
+}
+
 export function useConsumerSummary(sessionId: string | null): QueryState<ConsumerSummary> {
-  const [data, setData] = useState<ConsumerSummary | null>(null);
-  const [loading, setLoading] = useState<boolean>(Boolean(sessionId));
+  const cacheKey = sessionId ? `${CONSUMER_SUMMARY_CACHE_PREFIX}${sessionId}` : null;
+  const [data, setData] = useState<ConsumerSummary | null>(() => (cacheKey ? readCachedQuery<ConsumerSummary>(cacheKey) : null));
+  const [loading, setLoading] = useState<boolean>(Boolean(sessionId) && !data);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!cacheKey) {
+      return;
+    }
+
+    const cached = readCachedQuery<ConsumerSummary>(cacheKey);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+    }
+  }, [cacheKey]);
 
   const refresh = useCallback(async () => {
     if (!sessionId) {
@@ -35,12 +80,21 @@ export function useConsumerSummary(sessionId: string | null): QueryState<Consume
       const next = await fetchConsumerSummary();
       setData(next);
       setError(null);
+      if (cacheKey) {
+        writeCachedQuery(cacheKey, next);
+      }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Failed to load consumer summary.');
+      const cached = cacheKey ? readCachedQuery<ConsumerSummary>(cacheKey) : null;
+      if (cached) {
+        setData(cached);
+        setError('Showing cached passbook data while the network is unavailable.');
+      } else {
+        setError(caught instanceof Error ? caught.message : 'Failed to load consumer summary.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [cacheKey, sessionId]);
 
   useEffect(() => {
     void refresh();
@@ -50,9 +104,17 @@ export function useConsumerSummary(sessionId: string | null): QueryState<Consume
 }
 
 export function useMerchantSummary(): QueryState<MerchantSummary> {
-  const [data, setData] = useState<MerchantSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<MerchantSummary | null>(() => readCachedQuery<MerchantSummary>(MERCHANT_SUMMARY_CACHE_KEY));
+  const [loading, setLoading] = useState(!data);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cached = readCachedQuery<MerchantSummary>(MERCHANT_SUMMARY_CACHE_KEY);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -60,8 +122,15 @@ export function useMerchantSummary(): QueryState<MerchantSummary> {
       const next = await fetchMerchantSummary();
       setData(next);
       setError(null);
+      writeCachedQuery(MERCHANT_SUMMARY_CACHE_KEY, next);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Failed to load merchant summary.');
+      const cached = readCachedQuery<MerchantSummary>(MERCHANT_SUMMARY_CACHE_KEY);
+      if (cached) {
+        setData(cached);
+        setError('Showing cached merchant data while the network is unavailable.');
+      } else {
+        setError(caught instanceof Error ? caught.message : 'Failed to load merchant summary.');
+      }
     } finally {
       setLoading(false);
     }
