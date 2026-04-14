@@ -44,13 +44,13 @@ export default function ProfilePage() {
             <div className="eyebrow">Current passbook</div>
             <div className="profile-card-head">
               <UserCircle size={60} weight="duotone" />
-                <div>
-                  <div className="profile-name">{displayName || 'Guest'}</div>
-                  <div className="ticket-note" style={{ marginTop: 6 }}>
+              <div>
+                <div className="profile-name">{displayName || 'Guest'}</div>
+                <div className="ticket-note" style={{ marginTop: 6 }}>
                   Identity stays lightweight until the product earns a more expensive trust layer.
-                  </div>
                 </div>
               </div>
+            </div>
 
             <div className="profile-fact-grid">
               <div className="profile-fact">
@@ -123,10 +123,10 @@ export default function ProfilePage() {
                   <div className="metric-value">Lean</div>
                 </div>
                 <div className="metric-line">
-                <div className="metric-label">
-                  <strong>Enough trust</strong>
+                  <div className="metric-label">
+                    <strong>Enough trust</strong>
                     <span>Signed session identity plus device signals are enough for the first launch loop because merchant confirmation closes the truth loop.</span>
-                </div>
+                  </div>
                   <div className="metric-value">Signed</div>
                 </div>
                 <div className="metric-line">

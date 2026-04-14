@@ -114,6 +114,8 @@ The repository supports this loop in two forms:
 - a database-backed launch engine for shared application state
 - protocol and runtime layers intended for broader Solana-backed flows
 
+The app shell also keeps a lightweight client-side cache of the most recent consumer and merchant summaries so the interface can stay readable under poor connectivity. Writes still require the live API path.
+
 ## Build and Deployment Shape
 
 The repository is a JavaScript workspace with additional Rust/Anchor components.

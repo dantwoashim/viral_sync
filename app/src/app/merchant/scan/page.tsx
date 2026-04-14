@@ -5,8 +5,10 @@ import { Receipt, SealCheck, WarningCircle } from '@phosphor-icons/react';
 import CounterStatusPanel from '@/components/launch/CounterStatusPanel';
 import SignalRibbon from '@/components/launch/SignalRibbon';
 import { confirmMerchantCode } from '@/lib/launch/client';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
 
 export default function MerchantScanPage() {
+  const online = useOnlineStatus();
   const [redeemCode, setRedeemCode] = useState('');
   const [status, setStatus] = useState<'idle' | 'confirmed' | 'blocked'>('idle');
   const [message, setMessage] = useState('Only an authenticated operator session can confirm a live counter redemption.');
@@ -18,6 +20,12 @@ export default function MerchantScanPage() {
   ];
 
   const handleConfirm = async () => {
+    if (!online) {
+      setStatus('blocked');
+      setMessage('Counter confirmation is offline right now. Reconnect before settling a live reward.');
+      return;
+    }
+
     if (!redeemCode.trim()) {
       return;
     }
@@ -86,12 +94,19 @@ export default function MerchantScanPage() {
                   placeholder="ABC-123"
                 />
                 <div className="field-helper">
-                  Launch rule: a code is only true after the authenticated operator watching the counter confirms it here.
+                  {online
+                    ? 'Launch rule: a code is only true after the authenticated operator watching the counter confirms it here.'
+                    : 'Offline mode is read-only. Wait for the connection to return before confirming a live code.'}
                 </div>
               </div>
 
               <div className="cta-row">
-                <button className="primary-button" data-testid="merchant-confirm-button" onClick={handleConfirm}>
+                <button
+                  className="primary-button"
+                  data-testid="merchant-confirm-button"
+                  onClick={handleConfirm}
+                  disabled={!online}
+                >
                   Confirm redemption
                 </button>
                 <button
