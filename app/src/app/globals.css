@@ -170,6 +170,8 @@ p {
 .vs-top-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
 }
 
@@ -185,6 +187,23 @@ p {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.launch-shell-status {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vs-chip.is-online {
+  border-color: rgba(54, 117, 83, 0.22);
+  background: rgba(226, 244, 232, 0.78);
+}
+
+.vs-chip.is-offline {
+  border-color: rgba(176, 85, 48, 0.22);
+  background: rgba(253, 236, 226, 0.86);
 }
 
 .vs-link-chip {
