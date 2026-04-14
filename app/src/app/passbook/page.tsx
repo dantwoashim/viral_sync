@@ -85,8 +85,6 @@ export default function PassbookPage() {
                 <div className="loading-pulse" style={{ marginTop: 10 }} />
                 <div className="loading-pulse" style={{ marginTop: 10 }} />
               </div>
-            ) : error ? (
-              <div className="empty-state">{error}</div>
             ) : (
               <>
                 <div className="ledger-head">
@@ -115,6 +113,11 @@ export default function PassbookPage() {
                     </div>
                   </div>
                 ))}
+                {error && (
+                  <div className="empty-line" style={{ margin: '0 22px 22px' }}>
+                    {error}
+                  </div>
+                )}
               </>
             )}
           </section>

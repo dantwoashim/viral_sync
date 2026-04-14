@@ -10,7 +10,7 @@ import { consumerPassbook, consumerRoutes, consumerStamps } from '@/lib/nepalDat
 
 export default function ConsumerHomePage() {
   const { displayName, sessionId } = useAuth();
-  const { data, loading } = useConsumerSummary(sessionId);
+  const { data, loading, error } = useConsumerSummary(sessionId);
   const progressCurrent = data?.progress.current ?? 0;
   const progressTotal = data?.progress.total ?? 3;
   const passbookRows = data?.passbook.length ? data.passbook : consumerPassbook.map((entry, index) => ({
@@ -143,6 +143,12 @@ export default function ConsumerHomePage() {
         </div>
 
         <SignalRibbon items={ribbonItems} />
+
+        {error && (
+          <div className="empty-line" style={{ marginTop: 18 }}>
+            {error}
+          </div>
+        )}
 
         <div className="split-grid" style={{ marginTop: 18 }}>
           <section className="list-sheet">
