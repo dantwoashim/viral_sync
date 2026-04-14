@@ -8,6 +8,7 @@ import {
   Storefront,
 } from '@phosphor-icons/react';
 import BottomNav from '@/components/BottomNav';
+import LaunchShellStatus from '@/components/launch/LaunchShellStatus';
 import MerchantAccessGate from '@/components/MerchantAccessGate';
 import { useAuth } from '@/lib/auth';
 import { consumerTabs, merchantTabs } from '@/lib/navigation';
@@ -82,6 +83,7 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
           </div>
 
           <div className="vs-top-actions">
+            <LaunchShellStatus />
             <div className="vs-chip">
               <span>{displayName || 'Guest'}</span>
             </div>
