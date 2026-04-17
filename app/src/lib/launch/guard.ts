@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
+import { getLaunchEnvErrors, isProductionRuntime, isSmokeTestMode } from '@/lib/launch/config';
 import { isConsumerSessionConfigured } from '@/lib/launch/consumerAuth';
 import { isMerchantSessionConfigured } from '@/lib/launch/merchantAuth';
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const ALLOW_FILE_LEDGER_IN_PRODUCTION = process.env.VIRAL_SYNC_ALLOW_FILE_LEDGER_IN_PRODUCTION === 'true';
-
 function launchPersistenceError() {
-  if (IS_PRODUCTION && !ALLOW_FILE_LEDGER_IN_PRODUCTION && !process.env.VIRAL_SYNC_DATABASE_URL) {
+  if (isProductionRuntime() && !isSmokeTestMode() && !process.env.VIRAL_SYNC_DATABASE_URL) {
     return 'VIRAL_SYNC_DATABASE_URL is required for production launch environments.';
   }
 
@@ -14,6 +12,11 @@ function launchPersistenceError() {
 }
 
 export function requireLaunchPersistenceReadiness() {
+  const envErrors = getLaunchEnvErrors();
+  if (envErrors.length > 0) {
+    return NextResponse.json({ error: envErrors[0]?.message ?? 'Launch environment is not configured correctly.' }, { status: 503 });
+  }
+
   const persistenceIssue = launchPersistenceError();
   if (persistenceIssue) {
     return NextResponse.json({ error: persistenceIssue }, { status: 503 });

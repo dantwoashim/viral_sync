@@ -239,7 +239,7 @@ async function main() {
         const sharedEnv = {
             PORT: String(appPort),
             VIRAL_SYNC_LEDGER_PATH: ledgerPath,
-            VIRAL_SYNC_ALLOW_FILE_LEDGER_IN_PRODUCTION: 'true',
+            VIRAL_SYNC_SMOKE_TEST_MODE: 'true',
             VIRAL_SYNC_MERCHANT_ACCESS_CODE: 'pilot-counter',
             VIRAL_SYNC_MERCHANT_SESSION_SECRET: 'browser-smoke-secret',
             VIRAL_SYNC_CONSUMER_SESSION_SECRET: 'browser-smoke-consumer-secret',
