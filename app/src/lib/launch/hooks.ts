@@ -5,13 +5,15 @@ import {
   createMerchantOperatorSession,
   destroyMerchantOperatorSession,
   fetchConsumerSummary,
+  fetchMerchantAccessOptions,
   fetchMerchantOperatorSession,
   fetchMerchantSummary,
 } from '@/lib/launch/client';
-import type { ConsumerSummary, MerchantOperatorSession, MerchantSummary } from '@/lib/launch/types';
+import type { ConsumerSummary, MerchantAccessOption, MerchantOperatorSession, MerchantSummary } from '@/lib/launch/types';
 
 const CONSUMER_SUMMARY_CACHE_PREFIX = 'vs-launch-consumer-summary:';
 const MERCHANT_SUMMARY_CACHE_KEY = 'vs-launch-merchant-summary';
+const MERCHANT_ACCESS_OPTIONS_KEY = 'vs-launch-merchant-access-options';
 
 interface QueryState<T> {
   data: T | null;
@@ -166,7 +168,7 @@ export function useMerchantOperatorSession() {
     void refresh();
   }, [refresh]);
 
-  const login = useCallback(async (payload: { operatorLabel: string; accessCode: string }) => {
+  const login = useCallback(async (payload: { merchantSlug: string; operatorLabel: string; accessCode: string }) => {
     setLoading(true);
     try {
       const next = await createMerchantOperatorSession(payload);
@@ -197,4 +199,44 @@ export function useMerchantOperatorSession() {
     login,
     logout,
   };
+}
+
+export function useMerchantAccessOptions(): QueryState<MerchantAccessOption[]> {
+  const [data, setData] = useState<MerchantAccessOption[] | null>(() => readCachedQuery<MerchantAccessOption[]>(MERCHANT_ACCESS_OPTIONS_KEY));
+  const [loading, setLoading] = useState(!data);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cached = readCachedQuery<MerchantAccessOption[]>(MERCHANT_ACCESS_OPTIONS_KEY);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const next = await fetchMerchantAccessOptions();
+      setData(next);
+      setError(null);
+      writeCachedQuery(MERCHANT_ACCESS_OPTIONS_KEY, next);
+    } catch (caught) {
+      const cached = readCachedQuery<MerchantAccessOption[]>(MERCHANT_ACCESS_OPTIONS_KEY);
+      if (cached) {
+        setData(cached);
+        setError('Showing cached merchant access options while the network is unavailable.');
+      } else {
+        setError(caught instanceof Error ? caught.message : 'Failed to load merchant access options.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return { data, loading, error, refresh };
 }

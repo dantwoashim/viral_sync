@@ -3,15 +3,16 @@ import type { NextRequest, NextResponse } from 'next/server';
 import type { MerchantOperatorLoginResult, MerchantOperatorSession } from '@/lib/launch/types';
 
 const MERCHANT_SESSION_COOKIE = 'vs-merchant-session';
-const DEFAULT_MERCHANT_ID = process.env.VIRAL_SYNC_MERCHANT_ID || 'merchant-nyano-chiya-ghar';
-const DEFAULT_MERCHANT_NAME = process.env.VIRAL_SYNC_MERCHANT_NAME || 'Nyano Chiya Ghar';
 const SESSION_TTL_MS = Number(process.env.VIRAL_SYNC_MERCHANT_SESSION_TTL_MS || 8 * 60 * 60 * 1000);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 interface MerchantSessionPayload {
+  operatorId: string;
   merchantId: string;
+  merchantSlug: string;
   merchantName: string;
   operatorLabel: string;
+  role: NonNullable<MerchantOperatorSession['role']>;
   issuedAt: number;
   expiresAt: number;
 }
@@ -22,18 +23,6 @@ function base64UrlEncode(input: string) {
 
 function base64UrlDecode(input: string) {
   return Buffer.from(input, 'base64url').toString('utf8');
-}
-
-function merchantAccessCode() {
-  if (process.env.VIRAL_SYNC_MERCHANT_ACCESS_CODE) {
-    return process.env.VIRAL_SYNC_MERCHANT_ACCESS_CODE;
-  }
-
-  if (!IS_PRODUCTION) {
-    return 'pilot-counter';
-  }
-
-  return null;
 }
 
 function merchantSessionSecret() {
@@ -89,7 +78,7 @@ function parseSessionToken(token: string): MerchantSessionPayload | null {
 
   try {
     const parsed = JSON.parse(base64UrlDecode(payload)) as MerchantSessionPayload;
-    if (!parsed.merchantId || !parsed.operatorLabel || !parsed.expiresAt) {
+    if (!parsed.operatorId || !parsed.merchantId || !parsed.merchantSlug || !parsed.operatorLabel || !parsed.role || !parsed.expiresAt) {
       return null;
     }
     if (parsed.expiresAt <= Date.now()) {
@@ -102,45 +91,38 @@ function parseSessionToken(token: string): MerchantSessionPayload | null {
 }
 
 export function isMerchantSessionConfigured() {
-  return Boolean(merchantAccessCode() && merchantSessionSecret());
+  return Boolean(merchantSessionSecret());
 }
 
-export function verifyMerchantAccessCode(candidate: string) {
-  const configured = merchantAccessCode();
-  if (!configured) {
-    return false;
-  }
-
-  const left = Buffer.from(candidate.trim(), 'utf8');
-  const right = Buffer.from(configured, 'utf8');
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(left, right);
-}
-
-export function createMerchantSession(operatorLabel: string): MerchantOperatorLoginResult | null {
-  const trimmed = operatorLabel.trim();
-  if (!trimmed) {
-    return null;
-  }
-
+export function createMerchantSession(identity: {
+  operatorId: string;
+  merchantId: string;
+  merchantSlug: string;
+  merchantName: string;
+  operatorLabel: string;
+  role: NonNullable<MerchantOperatorSession['role']>;
+}): MerchantOperatorLoginResult {
   const issuedAt = Date.now();
   return {
     authenticated: true,
-    merchantId: DEFAULT_MERCHANT_ID,
-    merchantName: DEFAULT_MERCHANT_NAME,
-    operatorLabel: trimmed,
+    operatorId: identity.operatorId,
+    merchantId: identity.merchantId,
+    merchantSlug: identity.merchantSlug,
+    merchantName: identity.merchantName,
+    operatorLabel: identity.operatorLabel,
+    role: identity.role,
     expiresAt: issuedAt + SESSION_TTL_MS,
   };
 }
 
 export function attachMerchantSession(response: NextResponse, session: MerchantOperatorLoginResult) {
   const serialized = serializeSession({
+    operatorId: session.operatorId,
     merchantId: session.merchantId,
+    merchantSlug: session.merchantSlug,
     merchantName: session.merchantName,
     operatorLabel: session.operatorLabel,
+    role: session.role,
     issuedAt: Date.now(),
     expiresAt: session.expiresAt,
   });
@@ -186,9 +168,12 @@ export function getMerchantSession(request: NextRequest): MerchantOperatorSessio
 
   return {
     authenticated: true,
+    operatorId: parsed.operatorId,
     merchantId: parsed.merchantId,
+    merchantSlug: parsed.merchantSlug,
     merchantName: parsed.merchantName,
     operatorLabel: parsed.operatorLabel,
+    role: parsed.role,
     expiresAt: parsed.expiresAt,
   };
 }

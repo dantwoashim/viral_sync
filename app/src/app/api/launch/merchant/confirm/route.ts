@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     code: parsed.data.code.toUpperCase(),
     merchantId: session.merchantId,
     operatorLabel: session.operatorLabel,
+    operatorId: session.operatorId,
   });
   return NextResponse.json(result, { status: result.ok ? 200 : 409 });
 }
