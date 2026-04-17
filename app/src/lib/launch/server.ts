@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import crypto from 'crypto';
 import path from 'path';
 import { Pool, type PoolClient } from 'pg';
+import { getDatabaseSslConfig } from '@/lib/launch/config';
 import {
   ClaimRecord,
   ClaimResult,
@@ -34,12 +35,11 @@ const LEDGER_PATH = configuredLedgerPath
   ? path.resolve(configuredLedgerPath)
   : path.join(DATA_DIR, 'launch-ledger.json');
 const DATABASE_URL = process.env.VIRAL_SYNC_DATABASE_URL;
-const DATABASE_SSL = process.env.VIRAL_SYNC_DATABASE_SSL === 'true';
 const DATABASE_LOCK_KEY = 2886412;
 const dbPool = DATABASE_URL
   ? new Pool({
     connectionString: DATABASE_URL,
-    ssl: DATABASE_SSL ? { rejectUnauthorized: false } : undefined,
+    ssl: getDatabaseSslConfig(),
   })
   : null;
 let persistChain: Promise<void> = Promise.resolve();
