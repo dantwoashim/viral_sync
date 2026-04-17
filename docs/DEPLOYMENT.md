@@ -17,7 +17,6 @@ This is the supported deployment shape for the current repository.
 - `VIRAL_SYNC_DATABASE_URL`
 - `VIRAL_SYNC_CONSUMER_SESSION_SECRET`
 - `VIRAL_SYNC_MERCHANT_SESSION_SECRET`
-- `VIRAL_SYNC_MERCHANT_ACCESS_CODE`
 
 ### Database TLS
 
@@ -45,7 +44,6 @@ Notes:
 - local file-ledger mode
 - smoke-test mode
 - missing session secrets
-- missing merchant access code
 - partial TLS configuration
 
 ## Verification before release
@@ -68,4 +66,4 @@ That command covers:
 
 ## Current deployment caveat
 
-The launch runtime is still pilot-centered in its domain model. Deploying it for real merchants is appropriate for a controlled pilot, not yet for a generalized multi-tenant rollout.
+The launch runtime now resolves merchants, offers, and operators from shared state rather than pilot constants. It is appropriate for controlled production pilots, but it is still not a full self-serve merchant platform with operator provisioning, admin UX, and deep RBAC.
