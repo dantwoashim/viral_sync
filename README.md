@@ -21,6 +21,7 @@ The current codebase includes:
 - real QR-backed invite artifacts and short-code redemption handoff in the launch flow
 - installable PWA behavior with shell-level online status and cached summary fallbacks
 - signed consumer and merchant operator sessions in the application layer
+- a multi-merchant launch runtime with merchant-specific offer and operator resolution
 - optional shared launch persistence through Postgres via `VIRAL_SYNC_DATABASE_URL`
 - a Solana program and supporting services under active development
 - workspace packages for shared runtime types and server coordination
@@ -141,6 +142,7 @@ For the current launch loop:
 - set `VIRAL_SYNC_DATABASE_URL` to move launch state into Postgres
 - treat `VIRAL_SYNC_DATABASE_URL` as required for any production launch environment
 - set the session secrets in any non-local environment
+- use launch storage, not a shared environment access code, as the source of merchant operator identities
 
 Review the application code in `app/src/lib` and the service packages for the exact variables each component expects.
 
