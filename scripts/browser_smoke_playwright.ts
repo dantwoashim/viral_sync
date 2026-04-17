@@ -200,6 +200,7 @@ async function confirmRedeemFlow(inviteePage: Page, merchantPage: Page, baseUrl:
     const code = await waitForStableCode(inviteePage.getByTestId('redeem-active-code'));
 
     await assertMerchantGate(merchantPage, baseUrl);
+    await merchantPage.getByTestId('merchant-access-merchant').selectOption('nyano-chiya-ghar');
     await merchantPage.getByTestId('merchant-operator-name').fill('Pilot Counter');
     await merchantPage.getByTestId('merchant-access-code').fill('pilot-counter');
     await merchantPage.getByTestId('merchant-access-submit').click();
@@ -240,7 +241,6 @@ async function main() {
             PORT: String(appPort),
             VIRAL_SYNC_LEDGER_PATH: ledgerPath,
             VIRAL_SYNC_SMOKE_TEST_MODE: 'true',
-            VIRAL_SYNC_MERCHANT_ACCESS_CODE: 'pilot-counter',
             VIRAL_SYNC_MERCHANT_SESSION_SECRET: 'browser-smoke-secret',
             VIRAL_SYNC_CONSUMER_SESSION_SECRET: 'browser-smoke-consumer-secret',
         };
