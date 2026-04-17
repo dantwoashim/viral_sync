@@ -52,6 +52,7 @@ The current launch path supports two persistence modes:
 - Postgres-backed shared state when `VIRAL_SYNC_DATABASE_URL` is configured
 
 In production launch environments, the intended path is the Postgres-backed mode. The file-backed ledger is retained as a development fallback, not as an internet-facing deployment target.
+The launch runtime now validates its production environment and rejects insecure or partial database TLS configuration.
 
 Consumer identity is backed by a signed application session, and merchant confirmation is backed by a separate operator session.
 
