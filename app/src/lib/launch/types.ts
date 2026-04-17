@@ -13,13 +13,26 @@ export type EventType =
 export type ClaimStatus = 'claimed' | 'code-generated' | 'redeemed' | 'blocked';
 export type RedeemCodeStatus = 'active' | 'redeemed' | 'expired' | 'revoked';
 export type ConsumerLoginMethod = 'guest' | 'email' | 'google' | null;
+export type MerchantOperatorRole = 'operator' | 'manager' | 'merchant-admin';
 
 export interface MerchantRecord {
   id: string;
+  slug: string;
   name: string;
   district: string;
   city: string;
   locationLabel: string;
+}
+
+export interface MerchantOperatorRecord {
+  id: string;
+  merchantId: string;
+  operatorLabel: string;
+  role: MerchantOperatorRole;
+  accessCodeHash: string;
+  active: boolean;
+  createdAt: string;
+  lastAuthenticatedAt?: string;
 }
 
 export interface OfferRecord {
@@ -90,6 +103,7 @@ export interface EventRecord {
 
 export interface LaunchLedger {
   merchants: MerchantRecord[];
+  merchantOperators: MerchantOperatorRecord[];
   offers: OfferRecord[];
   referralLinks: ReferralLinkRecord[];
   claims: ClaimRecord[];
@@ -186,20 +200,36 @@ export interface MerchantSummary {
   alerts: string[];
 }
 
+export interface MerchantAccessOption {
+  merchantId: string;
+  merchantSlug: string;
+  merchantName: string;
+  district: string;
+  city: string;
+  locationLabel: string;
+  roles: MerchantOperatorRole[];
+}
+
 export interface MerchantOperatorSession {
   authenticated: boolean;
+  operatorId?: string;
   merchantId?: string;
+  merchantSlug?: string;
   merchantName?: string;
   operatorLabel?: string;
+  role?: MerchantOperatorRole;
   expiresAt?: number;
   reason?: string;
 }
 
 export interface MerchantOperatorLoginResult extends MerchantOperatorSession {
   authenticated: true;
+  operatorId: string;
   merchantId: string;
+  merchantSlug: string;
   merchantName: string;
   operatorLabel: string;
+  role: MerchantOperatorRole;
   expiresAt: number;
 }
 

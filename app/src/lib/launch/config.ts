@@ -41,7 +41,6 @@ export function getLaunchEnvIssues(): LaunchEnvIssue[] {
   const databaseUrl = process.env.VIRAL_SYNC_DATABASE_URL;
   const consumerSecret = process.env.VIRAL_SYNC_CONSUMER_SESSION_SECRET;
   const merchantSecret = process.env.VIRAL_SYNC_MERCHANT_SESSION_SECRET;
-  const merchantAccessCode = process.env.VIRAL_SYNC_MERCHANT_ACCESS_CODE;
   const ca = normalizePem(process.env.VIRAL_SYNC_DATABASE_SSL_CA);
   const cert = normalizePem(process.env.VIRAL_SYNC_DATABASE_SSL_CERT);
   const key = normalizePem(process.env.VIRAL_SYNC_DATABASE_SSL_KEY);
@@ -74,13 +73,6 @@ export function getLaunchEnvIssues(): LaunchEnvIssue[] {
     issues.push({
       level: 'error',
       message: 'VIRAL_SYNC_MERCHANT_SESSION_SECRET is required in production.',
-    });
-  }
-
-  if (IS_PRODUCTION && !merchantAccessCode) {
-    issues.push({
-      level: 'error',
-      message: 'VIRAL_SYNC_MERCHANT_ACCESS_CODE is required in production.',
     });
   }
 
