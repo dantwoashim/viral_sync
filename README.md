@@ -68,6 +68,8 @@ Background workers and maintenance tasks
 ```
 
 The public architecture note is in [ARCHITECTURE.md](./ARCHITECTURE.md).
+The current operational truth is in [docs/PRODUCT_REALITY.md](./docs/PRODUCT_REALITY.md).
+The supported deployment path is in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
 ## Repository Layout
 
@@ -167,4 +169,4 @@ npm run verify:launch
 
 ## License
 
-No license file is included in this repository at the moment.
+This repository is licensed under the MIT License. See [LICENSE](./LICENSE).
