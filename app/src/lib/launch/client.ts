@@ -5,6 +5,7 @@ import type {
   ConsumerSession,
   ConsumerSessionUpdateInput,
   ConsumerSummary,
+  MerchantAccessOption,
   MerchantOperatorLoginResult,
   MerchantOperatorSession,
   MerchantConfirmResult,
@@ -77,6 +78,7 @@ export async function fetchMerchantOperatorSession() {
 }
 
 export async function createMerchantOperatorSession(payload: {
+  merchantSlug: string;
   operatorLabel: string;
   accessCode: string;
 }) {
@@ -86,6 +88,11 @@ export async function createMerchantOperatorSession(payload: {
     body: JSON.stringify(payload),
   });
   return parseJson<MerchantOperatorLoginResult>(response);
+}
+
+export async function fetchMerchantAccessOptions() {
+  const response = await fetch('/api/launch/merchant/access', { cache: 'no-store' });
+  return parseJson<MerchantAccessOption[]>(response);
 }
 
 export async function destroyMerchantOperatorSession() {

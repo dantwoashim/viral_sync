@@ -5,6 +5,7 @@ export const consumerDeviceSchema = z.object({
 });
 
 export const merchantSessionSchema = z.object({
+  merchantSlug: z.string().trim().min(1).max(64),
   operatorLabel: z.string().trim().min(1).max(48),
   accessCode: z.string().trim().min(1).max(128),
 });

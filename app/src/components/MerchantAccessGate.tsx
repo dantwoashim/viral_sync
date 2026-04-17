@@ -2,15 +2,18 @@
 
 import { useState } from 'react';
 import { LockKey, ShieldCheck, Storefront } from '@phosphor-icons/react';
-import { useMerchantOperatorSession } from '@/lib/launch/hooks';
+import { useMerchantAccessOptions, useMerchantOperatorSession } from '@/lib/launch/hooks';
 
 export default function MerchantAccessGate({ children }: { children: React.ReactNode }) {
   const { session, loading, error, login, logout } = useMerchantOperatorSession();
+  const { data: merchantOptions, loading: optionsLoading, error: optionsError } = useMerchantAccessOptions();
+  const [merchantSlug, setMerchantSlug] = useState('');
   const [operatorLabel, setOperatorLabel] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const selectedMerchantSlug = merchantSlug || merchantOptions?.[0]?.merchantSlug || '';
 
-  if (loading && !session) {
+  if ((loading || optionsLoading) && !session) {
     return (
       <div className="surface">
         <div className="surface-inner">
@@ -57,9 +60,28 @@ export default function MerchantAccessGate({ children }: { children: React.React
         <div className="split-grid">
           <section className="paper-sheet sheet-pad">
             <div className="eyebrow">Operator sign-in</div>
-            <div className="offer-claim-title">Enter the counter name and access code for this merchant.</div>
+            <div className="offer-claim-title">Select the merchant, then enter the operator name and access code for that counter.</div>
 
             <div className="field-stack" style={{ marginTop: 22 }}>
+              <div className="field">
+                <label htmlFor="merchant-access-target">Merchant</label>
+                <select
+                  id="merchant-access-target"
+                  data-testid="merchant-access-merchant"
+                  value={selectedMerchantSlug}
+                  onChange={(event) => setMerchantSlug(event.target.value)}
+                >
+                  <option value="" disabled>Select a merchant</option>
+                  {(merchantOptions ?? []).map((option) => (
+                    <option key={option.merchantId} value={option.merchantSlug}>
+                      {option.merchantName} - {option.district}
+                    </option>
+                  ))}
+                </select>
+                <div className="field-helper">
+                  {merchantOptions?.find((option) => option.merchantSlug === selectedMerchantSlug)?.locationLabel ?? 'Choose the merchant desk you are operating.'}
+                </div>
+              </div>
               <div className="field">
                 <label htmlFor="merchant-operator-name">Operator name</label>
                 <input
@@ -89,18 +111,19 @@ export default function MerchantAccessGate({ children }: { children: React.React
                   onClick={async () => {
                     try {
                       setSubmitError(null);
-                      await login({ operatorLabel, accessCode });
+                      await login({ merchantSlug: selectedMerchantSlug, operatorLabel, accessCode });
                     } catch (caught) {
                       setSubmitError(caught instanceof Error ? caught.message : 'Merchant sign-in failed.');
                     }
                   }}
+                  disabled={!selectedMerchantSlug}
                 >
                   Unlock merchant mode
                 </button>
               </div>
 
-              {(submitError || error) && (
-                <div className="empty-line">{submitError ?? error}</div>
+              {(submitError || error || optionsError) && (
+                <div className="empty-line">{submitError ?? error ?? optionsError}</div>
               )}
             </div>
           </section>

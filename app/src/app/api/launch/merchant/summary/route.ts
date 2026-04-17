@@ -18,6 +18,6 @@ export async function GET(request: NextRequest) {
     return unauthorized();
   }
 
-  const summary = await getMerchantSummary();
+  const summary = await getMerchantSummary(session.merchantId!);
   return NextResponse.json(summary);
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireMerchantLaunchReadiness } from '@/lib/launch/guard';
-import { updatePilotOffer } from '@/lib/launch/server';
+import { updateMerchantOffer } from '@/lib/launch/server';
 import { badRequest, readJsonBody, unauthorized } from '@/lib/launch/http';
 import { getMerchantSession } from '@/lib/launch/merchantAuth';
 import { merchantOfferUpdateSchema } from '@/lib/launch/schemas';
@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
     return badRequest(parsed.error.issues[0]?.message ?? 'Invalid offer update payload.');
   }
 
-  const result = await updatePilotOffer({
+  const result = await updateMerchantOffer({
+    merchantId: session.merchantId!,
     title: parsed.data.title,
     description: parsed.data.description,
     reward: parsed.data.reward,
