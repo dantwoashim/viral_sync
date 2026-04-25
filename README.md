@@ -11,7 +11,6 @@ Before mainnet, finish the external security audit, replace the default program 
 ## Portfolio docs
 
 - [Case study](docs/CASE_STUDY.md)
-- [Demo script](docs/DEMO_SCRIPT.md)
 - [Security policy](SECURITY.md)
 
 ## Repository layout
