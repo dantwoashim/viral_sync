@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
-import { PublicKey } from '@solana/web3.js';
+
+export interface PosNfcPayload {
+    sessionKey: string;
+    nonce: string;
+}
 
 interface RedemptionScannerProps {
     merchantVaultAuth: string;
     storeLocation: { latMicro: number, lngMicro: number };
+    readNfcPayload: () => Promise<PosNfcPayload>;
+    submitRedemption: (payload: PosNfcPayload, context: {
+        merchantVaultAuth: string;
+        storeLocation: { latMicro: number, lngMicro: number };
+    }) => Promise<void>;
 }
 
-/**
- * Point of Sale (POS) component engineered for iPads at retail registers.
- * Connects the V4 Architecture's requirement for physical presence to unlock
- * loyalty tokens. Merges NFC payloads with the user's Session Keys.
- */
-export const RedemptionScanner: React.FC<RedemptionScannerProps> = ({ merchantVaultAuth, storeLocation }) => {
+export const RedemptionScanner: React.FC<RedemptionScannerProps> = ({
+    merchantVaultAuth,
+    storeLocation,
+    readNfcPayload,
+    submitRedemption,
+}) => {
     const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'verifying' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState('');
 
@@ -19,27 +28,18 @@ export const RedemptionScanner: React.FC<RedemptionScannerProps> = ({ merchantVa
         setScanStatus('scanning');
 
         try {
-            // 1. In a live environment, this triggers the Web NFC API (`NDEFReader`)
-            // It reads the user's encoded SessionKey pubkey from their phone.
-            console.log('Awaiting NFC Tap from consumer device...');
-            await new Promise(res => setTimeout(res, 1500)); // Mock NFC read delay
+            const payload = await readNfcPayload();
 
             setScanStatus('verifying');
 
-            // 2. Once the Consumer's payload is detected, the POS software locally 
-            // generates the `redeem_with_geo` payload using the utility built in Week 5
-            console.log(`Generating Geolocation bounds: ${storeLocation.latMicro}, ${storeLocation.lngMicro}`);
-
-            // 3. The transaction is formulated, embedding the POS-signed geography variables,
-            // and submitted to the blockchain utilizing the Consumer's pre-approved SessionKey.
-            await new Promise(res => setTimeout(res, 2000)); // Mock Transaction finality
+            await submitRedemption(payload, { merchantVaultAuth, storeLocation });
 
             setScanStatus('success');
             setTimeout(() => setScanStatus('idle'), 4000);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             setScanStatus('error');
-            setErrorMessage(err.message || 'NFC read failed or transaction rejected.');
+            setErrorMessage(err instanceof Error ? err.message : 'NFC read failed or transaction rejected.');
             setTimeout(() => setScanStatus('idle'), 5000);
         }
     };

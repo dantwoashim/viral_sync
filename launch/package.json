@@ -1,0 +1,22 @@
+{
+  "name": "viral-sync-launch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-safe launch planning and protocol stress tooling",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare:pilots": "ts-node --project tsconfig.json onboarding/initialize_pilots.ts",
+    "stress:blinks": "ts-node --project tsconfig.json testing/stress_test_blinks.ts"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "bs58": "^5.0.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

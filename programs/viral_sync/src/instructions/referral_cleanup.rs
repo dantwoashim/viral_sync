@@ -26,12 +26,12 @@ pub fn close_expired_referral(ctx: Context<CloseExpiredReferral>) -> Result<()> 
     let now = Clock::get()?.unix_timestamp;
     
     // Security guarantees to prevent premature closing
-    require!(referral.is_expired(now), ViralSyncError::TokensExpired); 
+    require!(referral.is_expired(now), ViralSyncError::InvalidState); 
     
     // We only allow closing if all commissions have been paid out properly to prevent griefing
     require!(
         referral.commission_earned == referral.commission_settled, 
-        ViralSyncError::MathOverflow // (Map custom error for OutstandingCommissionUnsettled in full deployment)
+        ViralSyncError::OutstandingCommissionUnsettled
     );
     
     let rent_lamports = referral.to_account_info().lamports();

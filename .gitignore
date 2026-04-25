@@ -8,11 +8,15 @@ test-ledger
 .env
 .env.local
 .env.production
+.local
+app/.local
 .next
 dist
 *.log
+tmp
+output
+.playwright-cli
 app/android/app/build
 app/android/.gradle
 app/android/build
 app/out
-output/

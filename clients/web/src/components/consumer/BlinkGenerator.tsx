@@ -1,30 +1,18 @@
 import React, { useState } from 'react';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 
 interface BlinkGeneratorProps {
     mint: PublicKey;
     generationPda: PublicKey;
+    actionServerBase: string;
 }
 
-/**
- * Consumer Dashboard component mapping V4 Architecture.
- * Converts the user's active Generation PDA and Mint into an encoded 
- * Solana Action `solana-action:` URL strictly purposed for Twitter/X sharing.
- */
-export const BlinkGenerator: React.FC<BlinkGeneratorProps> = ({ mint, generationPda }) => {
-    const { wallet } = useWallet();
+export const BlinkGenerator: React.FC<BlinkGeneratorProps> = ({ mint, generationPda, actionServerBase }) => {
     const [copied, setCopied] = useState(false);
 
-    // Base URL for the Action Server hosted alongside the PWA
-    const ACTION_SERVER_BASE = process.env.NEXT_PUBLIC_ACTION_SERVER_URL || 'https://api.viralsync.io';
-
     const generateBlinkUrl = () => {
-        // Escrow generation via blink requires the action server to know the 
-        // upstream source generation PDA to build the `create_escrow_share` logic
-        const actionEndpoint = `${ACTION_SERVER_BASE}/actions/viral-sync?source=${generationPda.toBase58()}&mint=${mint.toBase58()}`;
-
-        // Format into standard Dialect/Solana Action spec
+        const base = actionServerBase.replace(/\/$/, '');
+        const actionEndpoint = `${base}/actions/viral-sync?source=${generationPda.toBase58()}&mint=${mint.toBase58()}`;
         const blinkUrl = `solana-action:${encodeURIComponent(actionEndpoint)}`;
         return blinkUrl;
     };

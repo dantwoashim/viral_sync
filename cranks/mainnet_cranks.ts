@@ -1,83 +1,183 @@
-import { Connection, Keypair, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
-import * as anchor from '@coral-xyz/anchor';
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  sendAndConfirmTransaction,
+  Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
 import bs58 from 'bs58';
 import dotenv from 'dotenv';
-// Mock import of IDL mappings
-import { ViralSync } from '../target/types/viral_sync';
+import { createHash } from 'crypto';
 
 dotenv.config();
 
-// The Crank operator's wallet. This wallet PAYS the gas fees but RECEIVES the 
-// much larger SOL rent rebates when successfully finding and closing expired PDAs.
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || 'Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS');
+const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
 const CRANK_SECRET = process.env.CRANK_SECRET || '';
-const crankKeypair = CRANK_SECRET ? Keypair.fromSecretKey(bs58.decode(CRANK_SECRET)) : Keypair.generate();
-const connection = new Connection(process.env.RPC_URL || 'https://api.mainnet-beta.solana.com', 'confirmed');
+const DRY_RUN = process.env.CRANK_DRY_RUN !== 'false';
+const SWEEP_INTERVAL_MS = Number(process.env.SWEEP_INTERVAL_MS || 5 * 60 * 1000);
+const BATCH_SIZE = Number(process.env.BATCH_SIZE || 6);
+const RUN_ONCE = process.env.CRANK_RUN_ONCE === 'true';
+const isProduction = process.env.NODE_ENV === 'production';
 
-const viralsyncProgramId = new PublicKey('Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS');
-
-// Abstracted Anchor Program initialization
-// const provider = new anchor.AnchorProvider(connection, new anchor.Wallet(crankKeypair), {});
-// const program = new anchor.Program(IDL, viralsyncProgramId, provider);
-
-async function runHarvestingCycle() {
-    console.log(`[${new Date().toISOString()}] Initiating Crank Sweep utilizing: ${crankKeypair.publicKey.toBase58()}`);
-
-    try {
-        // 1. Fetch all `ReferralRecord` accounts.
-        // In reality, this requires `getProgramAccounts` with a dataSlice filter on `expires_at`
-        console.log(`Scanning global ReferralRecord state...`);
-
-        /*
-        const records = await program.account.referralRecord.all([
-          // Filter to find records where expires_at < current unix timestamp
-        ]);
-        */
-
-        // Mock identifying 3 expired targets
-        const expiredTargets = [
-            Keypair.generate().publicKey,
-            Keypair.generate().publicKey,
-            Keypair.generate().publicKey
-        ];
-
-        if (expiredTargets.length > 0) {
-            console.log(`Identified ${expiredTargets.length} expired records. Constructing batch execution...`);
-
-            // 2. Batch transactions to minimize gas and maximize rent extraction speed.
-            const tx = new Transaction();
-
-            for (const target of expiredTargets) {
-                // Mock instruction generation
-                // const ix = await program.methods.closeExpiredReferral()
-                //     .accounts({
-                //         referralRecord: target,
-                //         caller: crankKeypair.publicKey, // Rent receiver
-                //         systemProgram: SystemProgram.programId,
-                //     })
-                //     .instruction();
-                // tx.add(ix);
-            }
-
-            // tx.feePayer = crankKeypair.publicKey;
-            // tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-            // tx.sign(crankKeypair);
-            // const sig = await connection.sendRawTransaction(tx.serialize());
-
-            console.log(`Successfully harvested ${expiredTargets.length} PDAs. Extracted ~0.0075 SOL in rent recovery.`);
-        } else {
-            console.log(`No expired records found during this cycle.`);
-        }
-
-    } catch (err: any) {
-        console.error(`Harvesting Cycle Error:`, err.message);
-    }
+if (isProduction && !CRANK_SECRET) {
+  throw new Error('CRANK_SECRET is required when NODE_ENV=production.');
 }
 
-// Continuous Crank Execution (e.g., every 5 minutes on a VPS daemon)
-const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+if (!DRY_RUN && !CRANK_SECRET) {
+  throw new Error('CRANK_SECRET is required when CRANK_DRY_RUN=false.');
+}
 
-console.log(`Viral-Sync Mainnet Harvesting Crank Online.`);
-setInterval(runHarvestingCycle, SWEEP_INTERVAL_MS);
+function parseSecretKey(secret: string) {
+  if (!secret) {
+    return Keypair.generate();
+  }
 
-// Run immediately on boot
-runHarvestingCycle();
+  const trimmed = secret.trim();
+  if (trimmed.startsWith('[')) {
+    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(trimmed) as number[]));
+  }
+
+  return Keypair.fromSecretKey(bs58.decode(trimmed));
+}
+
+function anchorDiscriminator(namespace: 'account' | 'global', name: string) {
+  return createHash('sha256').update(`${namespace}:${name}`).digest().subarray(0, 8);
+}
+
+interface ReferralRecordView {
+  address: PublicKey;
+  referrer: PublicKey;
+  referred: PublicKey;
+  expiresAt: bigint;
+  commissionEarned: bigint;
+  commissionSettled: bigint;
+  isActive: boolean;
+}
+
+function readPubkey(data: Buffer, offset: number) {
+  return new PublicKey(data.subarray(offset, offset + 32));
+}
+
+function parseReferralRecord(address: PublicKey, data: Buffer): ReferralRecordView | null {
+  const discriminator = anchorDiscriminator('account', 'ReferralRecord');
+  if (data.length < 180 || !data.subarray(0, 8).equals(discriminator)) {
+    return null;
+  }
+
+  let offset = 8;
+  offset += 1; // bump
+  offset += 32; // merchant
+  offset += 32; // mint
+  const referrer = readPubkey(data, offset);
+  offset += 32;
+  const referred = readPubkey(data, offset);
+  offset += 32;
+  offset += 8; // created_at
+  const expiresAt = data.readBigInt64LE(offset);
+  offset += 8;
+  offset += 2; // committed_commission_bps
+  offset += 8; // max_commission_cap
+  const commissionEarned = data.readBigUInt64LE(offset);
+  offset += 8;
+  const commissionSettled = data.readBigUInt64LE(offset);
+  offset += 8;
+  const isActive = data.readUInt8(offset) !== 0;
+
+  return {
+    address,
+    referrer,
+    referred,
+    expiresAt,
+    commissionEarned,
+    commissionSettled,
+    isActive,
+  };
+}
+
+function closeExpiredReferralIx(record: ReferralRecordView, caller: PublicKey) {
+  return new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      { pubkey: record.address, isSigner: false, isWritable: true },
+      { pubkey: caller, isSigner: true, isWritable: true },
+    ],
+    data: anchorDiscriminator('global', 'close_expired_referral'),
+  });
+}
+
+const connection = new Connection(RPC_URL, 'confirmed');
+const crankKeypair = parseSecretKey(CRANK_SECRET);
+
+async function findClosableReferralRecords() {
+  const discriminator = anchorDiscriminator('account', 'ReferralRecord');
+  const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
+    filters: [{
+      memcmp: {
+        offset: 0,
+        bytes: bs58.encode(discriminator),
+      },
+    }],
+  });
+  const now = BigInt(Math.floor(Date.now() / 1000));
+
+  return accounts
+    .map((account) => parseReferralRecord(account.pubkey, Buffer.from(account.account.data)))
+    .filter((record): record is ReferralRecordView => Boolean(record))
+    .filter((record) =>
+      record.isActive &&
+      record.expiresAt > 0n &&
+      now > record.expiresAt &&
+      record.commissionEarned === record.commissionSettled);
+}
+
+async function runHarvestingCycle() {
+  const startedAt = new Date().toISOString();
+  console.log(`[${startedAt}] Referral cleanup sweep started. dryRun=${DRY_RUN}`);
+
+  const closable = await findClosableReferralRecords();
+  console.log(`Found ${closable.length} closable ReferralRecord account(s).`);
+
+  if (DRY_RUN || closable.length === 0) {
+    for (const record of closable.slice(0, 10)) {
+      console.log(`Dry-run close candidate ${record.address.toBase58()} referrer=${record.referrer.toBase58()} referred=${record.referred.toBase58()}`);
+    }
+    return;
+  }
+
+  for (let index = 0; index < closable.length; index += BATCH_SIZE) {
+    const batch = closable.slice(index, index + BATCH_SIZE);
+    const tx = new Transaction();
+    for (const record of batch) {
+      tx.add(closeExpiredReferralIx(record, crankKeypair.publicKey));
+    }
+
+    const signature = await sendAndConfirmTransaction(connection, tx, [crankKeypair], {
+      commitment: 'confirmed',
+      maxRetries: 3,
+    });
+    console.log(`Closed ${batch.length} ReferralRecord account(s): ${signature}`);
+  }
+}
+
+async function main() {
+  console.log(`Viral Sync referral cleanup crank online for ${PROGRAM_ID.toBase58()}`);
+  console.log(`Crank authority: ${crankKeypair.publicKey.toBase58()}`);
+  await runHarvestingCycle();
+
+  if (!RUN_ONCE) {
+    setInterval(() => {
+      void runHarvestingCycle().catch((error) => {
+        const message = error instanceof Error ? error.message : 'Unknown crank error.';
+        console.error(`Referral cleanup sweep failed: ${message}`);
+      });
+    }, SWEEP_INTERVAL_MS);
+  }
+}
+
+void main().catch((error) => {
+  const message = error instanceof Error ? error.message : 'Fatal crank error.';
+  console.error(message);
+  process.exitCode = 1;
+});

@@ -5,13 +5,11 @@ import { Receipt, SealCheck, WarningCircle } from '@phosphor-icons/react';
 import CounterStatusPanel from '@/components/launch/CounterStatusPanel';
 import SignalRibbon from '@/components/launch/SignalRibbon';
 import { confirmMerchantCode } from '@/lib/launch/client';
-import { useOnlineStatus } from '@/lib/useOnlineStatus';
 
 export default function MerchantScanPage() {
-  const online = useOnlineStatus();
   const [redeemCode, setRedeemCode] = useState('');
   const [status, setStatus] = useState<'idle' | 'confirmed' | 'blocked'>('idle');
-  const [message, setMessage] = useState('Only an authenticated operator session can confirm a live counter redemption.');
+  const [message, setMessage] = useState('Manual merchant confirmation is required for every reward in the launch layer.');
   const ribbonItems = [
     'Counter truth desk',
     status === 'confirmed' ? 'Last code confirmed' : status === 'blocked' ? 'Last code blocked' : 'Waiting for customer code',
@@ -20,12 +18,6 @@ export default function MerchantScanPage() {
   ];
 
   const handleConfirm = async () => {
-    if (!online) {
-      setStatus('blocked');
-      setMessage('Counter confirmation is offline right now. Reconnect before settling a live reward.');
-      return;
-    }
-
     if (!redeemCode.trim()) {
       return;
     }
@@ -47,9 +39,9 @@ export default function MerchantScanPage() {
         <div className="surface-header">
           <div className="surface-title-block">
             <div className="eyebrow">Scan Desk</div>
-            <h1 className="surface-title">Counter confirmation should be fast, obvious, and tightly scoped.</h1>
+            <h1 className="surface-title">This screen should be almost impossible to misuse.</h1>
             <p className="surface-subtitle">
-              This is a single-purpose operator tool: verify one live code for one merchant, under pressure, with clear feedback.
+              The cashier only needs one task here: confirm a valid redemption fast, under pressure, with clear feedback in low-light conditions.
             </p>
           </div>
         </div>
@@ -63,14 +55,14 @@ export default function MerchantScanPage() {
               <div className="metric-line">
                 <div className="metric-label">
                   <strong>Desk rule</strong>
-                  <span>A code becomes true only when an authenticated counter operator confirms a live customer visit here.</span>
+                  <span>A code becomes true only when the staff member at the counter confirms it here.</span>
                 </div>
                 <div className="metric-value">Truth</div>
               </div>
               <div className="metric-line">
                 <div className="metric-label">
                   <strong>Feedback mode</strong>
-                  <span>The interface should tell staff immediately whether to move the line or stop and review the case.</span>
+                  <span>The screen should make it obvious whether the cashier can move on or stop and review.</span>
                 </div>
                 <div className="metric-value">{status === 'confirmed' ? 'Go' : status === 'blocked' ? 'Stop' : 'Wait'}</div>
               </div>
@@ -88,25 +80,17 @@ export default function MerchantScanPage() {
                 <label htmlFor="merchant-redeem-code">Customer code</label>
                 <input
                   id="merchant-redeem-code"
-                  data-testid="merchant-code-input"
                   value={redeemCode}
                   onChange={(event) => setRedeemCode(event.target.value)}
                   placeholder="ABC-123"
                 />
                 <div className="field-helper">
-                  {online
-                    ? 'Launch rule: a code is only true after the authenticated operator watching the counter confirms it here.'
-                    : 'Offline mode is read-only. Wait for the connection to return before confirming a live code.'}
+                  Launch rule: a code is only true after the staff member watching the counter confirms it here.
                 </div>
               </div>
 
               <div className="cta-row">
-                <button
-                  className="primary-button"
-                  data-testid="merchant-confirm-button"
-                  onClick={handleConfirm}
-                  disabled={!online}
-                >
+                <button className="primary-button" onClick={handleConfirm}>
                   Confirm redemption
                 </button>
                 <button
@@ -165,7 +149,7 @@ export default function MerchantScanPage() {
                 </div>
               </div>
 
-              <div className="empty-line" data-testid="merchant-confirm-message">{message}</div>
+              <div className="empty-line">{message}</div>
             </div>
           </section>
         </div>

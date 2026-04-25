@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: viral-sync-relayer
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build --workspace viral-sync-relayer
+    startCommand: npm run start --workspace viral-sync-relayer
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RPC_URL
+        sync: false
+      - key: RELAYER_SECRET
+        sync: false
+      - key: RELAYER_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "60000"
+      - key: RATE_LIMIT_MAX
+        value: "30"
+      - key: MAX_TRANSACTION_BYTES
+        value: "1250000"
+
+  - type: web
+    name: viral-sync-actions
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build --workspace viral-sync-actions
+    startCommand: npm run start --workspace viral-sync-actions
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: ACTION_ICON_URL
+        sync: false
+      - key: ACTIONS_ENABLED
+        value: "false"

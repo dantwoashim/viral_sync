@@ -1,6 +1,5 @@
 export type EventType =
   | 'offer_created'
-  | 'offer_updated'
   | 'referral_link_created'
   | 'referral_link_opened'
   | 'referral_claimed'
@@ -11,28 +10,14 @@ export type EventType =
   | 'reward_redeemed';
 
 export type ClaimStatus = 'claimed' | 'code-generated' | 'redeemed' | 'blocked';
-export type RedeemCodeStatus = 'active' | 'redeemed' | 'expired' | 'revoked';
-export type ConsumerLoginMethod = 'guest' | 'email' | 'google' | null;
-export type MerchantOperatorRole = 'operator' | 'manager' | 'merchant-admin';
+export type RedeemCodeStatus = 'active' | 'redeemed' | 'expired';
 
 export interface MerchantRecord {
   id: string;
-  slug: string;
   name: string;
   district: string;
   city: string;
   locationLabel: string;
-}
-
-export interface MerchantOperatorRecord {
-  id: string;
-  merchantId: string;
-  operatorLabel: string;
-  role: MerchantOperatorRole;
-  accessCodeHash: string;
-  active: boolean;
-  createdAt: string;
-  lastAuthenticatedAt?: string;
 }
 
 export interface OfferRecord {
@@ -80,12 +65,7 @@ export interface RedeemCodeRecord {
   code: string;
   status: RedeemCodeStatus;
   createdAt: string;
-  expiresAt: string;
-  attemptCount: number;
-  maxAttempts: number;
   redeemedAt?: string;
-  revokedAt?: string;
-  revokedReason?: string;
 }
 
 export interface EventRecord {
@@ -103,7 +83,6 @@ export interface EventRecord {
 
 export interface LaunchLedger {
   merchants: MerchantRecord[];
-  merchantOperators: MerchantOperatorRecord[];
   offers: OfferRecord[];
   referralLinks: ReferralLinkRecord[];
   claims: ClaimRecord[];
@@ -154,9 +133,6 @@ export interface ConsumerSummary {
     code: string;
     status: RedeemCodeStatus;
     createdAt: string;
-    expiresAt: string;
-    attemptCount: number;
-    maxAttempts: number;
   } | null;
   passbook: ConsumerPassbookRow[];
 }
@@ -200,68 +176,6 @@ export interface MerchantSummary {
   alerts: string[];
 }
 
-export interface MerchantAccessOption {
-  merchantId: string;
-  merchantSlug: string;
-  merchantName: string;
-  district: string;
-  city: string;
-  locationLabel: string;
-  roles: MerchantOperatorRole[];
-}
-
-export interface MerchantOperatorSession {
-  authenticated: boolean;
-  operatorId?: string;
-  merchantId?: string;
-  merchantSlug?: string;
-  merchantName?: string;
-  operatorLabel?: string;
-  role?: MerchantOperatorRole;
-  expiresAt?: number;
-  reason?: string;
-}
-
-export interface MerchantOperatorLoginResult extends MerchantOperatorSession {
-  authenticated: true;
-  operatorId: string;
-  merchantId: string;
-  merchantSlug: string;
-  merchantName: string;
-  operatorLabel: string;
-  role: MerchantOperatorRole;
-  expiresAt: number;
-}
-
-export interface ConsumerSession {
-  authenticated: boolean;
-  sessionId?: string;
-  displayName?: string;
-  loginMethod?: ConsumerLoginMethod;
-  role?: 'consumer';
-  expiresAt?: number;
-  reason?: string;
-}
-
-export interface ConsumerSessionUpdateInput {
-  displayName: string;
-  loginMethod: ConsumerLoginMethod;
-}
-
-export interface OfferUpdateInput {
-  title: string;
-  description: string;
-  reward: string;
-  referralGoal: number;
-  redemptionWindowHours: number;
-}
-
-export interface OfferUpdateResult {
-  ok: boolean;
-  offer?: OfferView;
-  reason?: string;
-}
-
 export interface ReferralCreateResult {
   token: string;
   sharePath: string;
@@ -279,7 +193,6 @@ export interface RedeemCodeResult {
   code?: string;
   status?: RedeemCodeStatus;
   reason?: string;
-  expiresAt?: string;
 }
 
 export interface MerchantConfirmResult {
@@ -287,5 +200,4 @@ export interface MerchantConfirmResult {
   status?: RedeemCodeStatus;
   code?: string;
   reason?: string;
-  expiresAt?: string;
 }

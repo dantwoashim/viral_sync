@@ -1,12 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Clock, QrCode, SealCheck, Storefront, Ticket } from '@phosphor-icons/react';
-import LaunchQrCode from '@/components/launch/LaunchQrCode';
 import SignalRibbon from '@/components/launch/SignalRibbon';
 import { useAuth } from '@/lib/auth';
 import { createRedeemCode } from '@/lib/launch/client';
 import { useConsumerSummary } from '@/lib/launch/hooks';
+
+const qrPattern = [
+  1, 1, 1, 0, 1, 0, 1, 1, 1,
+  1, 0, 0, 1, 0, 1, 0, 0, 1,
+  1, 0, 1, 1, 1, 1, 1, 0, 1,
+  0, 1, 1, 0, 0, 1, 1, 1, 0,
+  1, 0, 1, 1, 0, 1, 0, 0, 1,
+  0, 1, 1, 1, 1, 0, 1, 0, 0,
+  1, 0, 0, 1, 0, 1, 1, 1, 1,
+  1, 1, 0, 0, 1, 0, 0, 1, 0,
+  1, 1, 1, 0, 1, 1, 0, 1, 1,
+];
 
 export default function RedeemPage() {
   const { sessionId } = useAuth();
@@ -19,7 +30,7 @@ export default function RedeemPage() {
     }
 
     let cancelled = false;
-    void createRedeemCode()
+    void createRedeemCode(sessionId)
       .then((result) => {
         if (!cancelled) {
           if (!result.ok) {
@@ -41,16 +52,7 @@ export default function RedeemPage() {
     };
   }, [data, refresh, sessionId]);
 
-  const redeemCode = data?.activeRedeemCode?.code ?? '--- ---';
-  const redeemExpiry = data?.activeRedeemCode?.expiresAt
-    ? new Date(data.activeRedeemCode.expiresAt).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    })
-    : 'Pending';
-  const attemptsRemaining = data?.activeRedeemCode
-    ? Math.max(data.activeRedeemCode.maxAttempts - data.activeRedeemCode.attemptCount, 0)
-    : null;
+  const redeemCode = useMemo(() => data?.activeRedeemCode?.code ?? '--- ---', [data?.activeRedeemCode?.code]);
   const ribbonItems = [
     `${data?.offer.merchantName ?? 'Merchant'} counter handoff`,
     data?.activeRedeemCode ? `Live code ${redeemCode}` : 'Preparing live code',
@@ -83,12 +85,13 @@ export default function RedeemPage() {
 
             <div className="code-stage" style={{ marginTop: 22 }}>
               <div className="qr-block">
-                <LaunchQrCode
-                  value={data?.activeRedeemCode ? `VS-REDEEM:${data.activeRedeemCode.code}` : null}
-                  label="Redeem code QR"
-                />
+                <div className="qr-grid">
+                  {qrPattern.map((cell, index) => (
+                    <span key={`${cell}-${index}`} className={`qr-cell ${cell ? 'is-on' : ''}`} />
+                  ))}
+                </div>
               </div>
-              <div className="code-pill" data-testid="redeem-active-code">
+              <div className="code-pill">
                 <Clock size={18} />
                 {redeemCode}
               </div>
@@ -113,17 +116,10 @@ export default function RedeemPage() {
               </div>
               <div className="metric-line">
                 <div className="metric-label">
-                  <strong>Code expiry</strong>
-                  <span>Live codes are short-lived and should be opened only when you are physically at the counter.</span>
+                  <strong>Launch rule</strong>
+                  <span>Show the screen, let staff verify once, and do not turn this into a token-transfer ceremony.</span>
                 </div>
-                <div className="metric-value">{redeemExpiry}</div>
-              </div>
-              <div className="metric-line">
-                <div className="metric-label">
-                  <strong>Attempt window</strong>
-                  <span>Staff should resolve the code cleanly. Repeated bad confirmations will invalidate it.</span>
-                </div>
-                <div className="metric-value">{attemptsRemaining ?? '-'}</div>
+                <div className="metric-value">Counter</div>
               </div>
             </div>
           </section>
@@ -166,8 +162,8 @@ export default function RedeemPage() {
                 <div className="metric-stack" style={{ marginTop: 24 }}>
                   <div className="metric-line">
                     <div className="metric-label">
-                      <strong>Visual code block</strong>
-                      <span>This QR encodes the same short code shown above. Staff can key in the short code now and adopt scan support later without changing the reward flow.</span>
+                      <strong>Merchant mode</strong>
+                      <span>The cashier only needs the code and the customer present at the counter.</span>
                     </div>
                     <div className="metric-value">
                       <Storefront size={18} />

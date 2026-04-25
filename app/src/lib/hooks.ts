@@ -1,27 +1,23 @@
 /**
  * Viral Sync — React hooks for fetching on-chain data.
  * Each hook returns { data, loading, error } and polls every POLL_INTERVAL ms.
- * Falls back to mock data for demo when on-chain accounts aren't available.
+ * When accounts don't exist on-chain (no merchant deployed), data stays null.
  */
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { PublicKey, ConfirmedSignatureInfo, GetProgramAccountsFilter } from '@solana/web3.js';
+import { useState, useEffect, useRef } from 'react';
+import { PublicKey, ConfirmedSignatureInfo } from '@solana/web3.js';
 import {
-    APP_MODE,
     getConnection,
     PROGRAM_ID,
     POLL_INTERVAL,
-    MERCHANT_MINT,
-    MERCHANT_PUBKEY,
     findMerchantConfigPda,
     findViralOraclePda,
     findMerchantReputationPda,
     findMerchantBondPda,
     findCommissionLedgerPda,
     findTokenGenerationPda,
-    lamportsToSol,
     shortenAddress,
 } from './solana';
 import type {
@@ -35,25 +31,9 @@ import type {
     TokenGeneration,
     ActivityItem,
     DataState,
-    DataSource,
     NetworkNode,
     NetworkEdge,
 } from './types';
-import { GenSource } from './types';
-import {
-    MOCK_MERCHANT_CONFIG,
-    MOCK_VIRAL_ORACLE,
-    MOCK_MERCHANT_REPUTATION,
-    MOCK_MERCHANT_BOND,
-    MOCK_TRANSACTIONS,
-    MOCK_NETWORK_NODES,
-    MOCK_NETWORK_EDGES,
-    MOCK_DISPUTE_RECORDS,
-    MOCK_COMMISSION_LEDGER,
-    MOCK_CONSUMER_LEDGER,
-    MOCK_CONSUMER_TRANSACTIONS,
-} from './mockData';
-import { useAuth } from './auth';
 
 /* ── Generic Account Fetcher ── */
 
@@ -77,38 +57,6 @@ async function fetchAccount<T>(
     }
 }
 
-async function fetchFirstProgramAccount<T>(
-    filters: GetProgramAccountsFilter[],
-    decoder: (data: Buffer) => T
-): Promise<T | null> {
-    try {
-        const conn = getConnection();
-        const accounts = await conn.getProgramAccounts(PROGRAM_ID, { filters });
-        const account = accounts[0];
-        if (!account) {
-            return null;
-        }
-        return decoder(Buffer.from(account.account.data.slice(8)));
-    } catch {
-        return null;
-    }
-}
-
-function createState<T>(
-    data: T | null,
-    loading: boolean,
-    error: string | null,
-    source: DataSource
-): DataState<T> {
-    return { data, loading, error, source };
-}
-
-function readError(error: unknown): string {
-    return error instanceof Error ? error.message : 'Unknown error';
-}
-
-const ALLOW_DEMO_DATA = APP_MODE === 'demo';
-
 /* ── Generic Hook ── */
 
 function useAccountData<T>(
@@ -116,43 +64,52 @@ function useAccountData<T>(
     decoder: (data: Buffer) => T,
     pollInterval = POLL_INTERVAL
 ): DataState<T> {
-    const [state, setState] = useState<DataState<T>>(createState<T>(null, true, null, 'empty'));
+    const [state, setState] = useState<DataState<T>>({
+        data: null,
+        loading: true,
+        error: null,
+    });
+    const mountedRef = useRef(true);
+
+    // Store pdaFn and decoder in refs so they don't trigger re-renders
+    // Callers pass inline arrow functions which are new on every render
+    const pdaFnRef = useRef(pdaFn);
+    const decoderRef = useRef(decoder);
+
+    useEffect(() => {
+        pdaFnRef.current = pdaFn;
+        decoderRef.current = decoder;
+    }, [pdaFn, decoder]);
 
     // Derive a stable key from the PDA result for the useEffect dep
     const pdaResult = pdaFn();
     const pdaKey = pdaResult ? pdaResult[0].toBase58() : 'none';
 
     useEffect(() => {
-        let mounted = true;
+        mountedRef.current = true;
 
         const doFetch = async () => {
             try {
-                if (!pdaResult) {
-                    if (mounted) {
-                        setState(createState<T>(null, false, null, 'empty'));
-                    }
+                const result = pdaFnRef.current();
+                if (!result) {
+                    if (mountedRef.current) setState({ data: null, loading: false, error: null });
                     return;
                 }
-                const [pda] = pdaResult;
-                const data = await fetchAccount<T>(pda, decoder);
-                if (mounted) {
-                    setState(createState(data, false, null, data ? 'live' : 'empty'));
-                }
+                const [pda] = result;
+                const data = await fetchAccount<T>(pda, decoderRef.current);
+                if (mountedRef.current) setState({ data, loading: false, error: null });
             } catch (e: unknown) {
-                if (mounted) {
-                    setState(createState<T>(null, false, readError(e), 'empty'));
-                }
+                if (mountedRef.current) setState({ data: null, loading: false, error: (e as Error).message });
             }
         };
 
         doFetch();
         const interval = setInterval(doFetch, pollInterval);
         return () => {
-            mounted = false;
+            mountedRef.current = false;
             clearInterval(interval);
         };
-        // pdaKey changes when the underlying PDA changes (e.g. different merchant)
-    }, [decoder, pdaKey, pdaResult, pollInterval]);
+    }, [pdaKey, pollInterval]);
 
     return state;
 }
@@ -182,194 +139,6 @@ function readBool(buf: Buffer, offset: number): [boolean, number] {
 function readPubkey(buf: Buffer, offset: number): [PublicKey, number] {
     return [new PublicKey(buf.slice(offset, offset + 32)), offset + 32];
 }
-function readBytes(buf: Buffer, offset: number, length: number): [Uint8Array, number] {
-    return [buf.subarray(offset, offset + length), offset + length];
-}
-
-function readOptionFixedBytes32(buf: Buffer, offset: number): [Uint8Array | null, number] {
-    const [flag, nextOffset] = readU8(buf, offset);
-    if (flag === 0) {
-        return [null, nextOffset];
-    }
-
-    const [value, endOffset] = readBytes(buf, nextOffset, 32);
-    return [value, endOffset];
-}
-
-function decodeInboundEntry(buf: Buffer, offset: number): [TokenGeneration['inboundBuffer'][number], number] {
-    let o = offset;
-    const [referrer, o1] = readPubkey(buf, o); o = o1;
-    const [amount, o2] = readU64(buf, o); o = o2;
-    const [generationSourceByte, o3] = readU8(buf, o); o = o3;
-    const [slot, o4] = readU64(buf, o); o = o4;
-    const [processed, o5] = readBool(buf, o); o = o5;
-    o += 7; // Rust padding
-
-    const generationSourceMap: Record<number, GenSource> = {
-        0: GenSource.DeadPass,
-        1: GenSource.ViralShare,
-        2: GenSource.Issuance,
-    };
-
-    return [{
-        referrer,
-        amount,
-        generationSource: generationSourceMap[generationSourceByte as 0 | 1 | 2] ?? 'DeadPass',
-        slot,
-        processed,
-    }, o];
-}
-
-function decodeReferrerSlot(buf: Buffer, offset: number): [TokenGeneration['referrerSlots'][number], number] {
-    let o = offset;
-    const [referrer, o1] = readPubkey(buf, o); o = o1;
-    const [referralRecord, o2] = readPubkey(buf, o); o = o2;
-    const [tokensAttributed, o3] = readU64(buf, o); o = o3;
-    const [tokensRedeemedSoFar, o4] = readU64(buf, o); o = o4;
-    const [isActive, o5] = readBool(buf, o); o = o5;
-
-    return [{
-        referrer,
-        referralRecord,
-        tokensAttributed,
-        tokensRedeemedSoFar,
-        isActive,
-    }, o];
-}
-
-function decodeTokenGeneration(buf: Buffer): TokenGeneration {
-    let o = 0;
-    const [bump, o1] = readU8(buf, o); o = o1;
-    const [version, o2] = readU8(buf, o); o = o2;
-    const [mint, o3] = readPubkey(buf, o); o = o3;
-    const [owner, o4] = readPubkey(buf, o); o = o4;
-    const [gen1Balance, o5] = readU64(buf, o); o = o5;
-    const [gen2Balance, o6] = readU64(buf, o); o = o6;
-    const [deadBalance, o7] = readU64(buf, o); o = o7;
-    const [totalLifetime, o8] = readU64(buf, o); o = o8;
-    const [isIntermediary, o9] = readBool(buf, o); o = o9;
-    const [originalSender, o10] = readPubkey(buf, o); o = o10;
-
-    const inboundBuffer: TokenGeneration['inboundBuffer'] = [];
-    for (let i = 0; i < 16; i += 1) {
-        const [entry, nextOffset] = decodeInboundEntry(buf, o);
-        inboundBuffer.push(entry);
-        o = nextOffset;
-    }
-
-    const [bufferHead, o11] = readU8(buf, o); o = o11;
-    const [bufferPending, o12] = readU8(buf, o); o = o12;
-
-    const referrerSlots: TokenGeneration['referrerSlots'] = [];
-    for (let i = 0; i < 4; i += 1) {
-        const [slot, nextOffset] = decodeReferrerSlot(buf, o);
-        referrerSlots.push(slot);
-        o = nextOffset;
-    }
-
-    const [activeReferrerSlots, o13] = readU8(buf, o); o = o13;
-    const [firstReceivedAt, o14] = readI64(buf, o); o = o14;
-    const [lastReceivedAt, o15] = readI64(buf, o); o = o15;
-    const [shareLimitDay, o16] = readU64(buf, o); o = o16;
-    const [sharesToday, o17] = readU16(buf, o); o = o17;
-    const [processingNonce, o18] = readU64(buf, o); o = o18;
-    const [redemptionPending, o19] = readBool(buf, o); o = o19;
-    const [redemptionSlot, o20] = readU64(buf, o); o = o20;
-    const [redemptionGen2Consumed, o21] = readU64(buf, o); o = o21;
-
-    const redemptionSlotConsumed: number[] = [];
-    for (let i = 0; i < 4; i += 1) {
-        const [value, nextOffset] = readU64(buf, o);
-        redemptionSlotConsumed.push(value);
-        o = nextOffset;
-    }
-
-    const [redemptionSlotsSettled, o22] = readU8(buf, o); o = o22;
-    const [isTreasury, o23] = readBool(buf, o); o = o23;
-    const [isDexPool, o24] = readBool(buf, o); o = o24;
-    const [poiScore, o25] = readU32(buf, o); o = o25;
-    const [poiUpdatedAt, o26] = readI64(buf, o); o = o26;
-    const [identityCommitment, o27] = readOptionFixedBytes32(buf, o); o = o27;
-    const [identityProvider, o28] = readU16(buf, o); o = o28;
-    const redemptionRequiredMask = o < buf.length ? readU8(buf, o)[0] : 0;
-
-    return {
-        bump,
-        version,
-        mint,
-        owner,
-        gen1Balance,
-        gen2Balance,
-        deadBalance,
-        totalLifetime,
-        isIntermediary,
-        originalSender,
-        inboundBuffer,
-        bufferHead,
-        bufferPending,
-        referrerSlots,
-        activeReferrerSlots,
-        firstReceivedAt,
-        lastReceivedAt,
-        shareLimitDay,
-        sharesToday,
-        processingNonce,
-        redemptionPending,
-        redemptionSlot,
-        redemptionGen2Consumed,
-        redemptionSlotConsumed,
-        redemptionSlotsSettled,
-        isTreasury,
-        isDexPool,
-        poiScore,
-        poiUpdatedAt,
-        identityCommitment,
-        identityProvider,
-        redemptionRequiredMask,
-    };
-}
-
-function decodeReferralRecord(buf: Buffer) {
-    let o = 0;
-    const [bump, o1] = readU8(buf, o); o = o1;
-    const [merchant, o2] = readPubkey(buf, o); o = o2;
-    const [mint, o3] = readPubkey(buf, o); o = o3;
-    const [referrer, o4] = readPubkey(buf, o); o = o4;
-    const [referred, o5] = readPubkey(buf, o); o = o5;
-    const [createdAt, o6] = readI64(buf, o); o = o6;
-    const [expiresAt, o7] = readI64(buf, o); o = o7;
-    const [committedCommissionBps, o8] = readU16(buf, o); o = o8;
-    const [maxCommissionCap, o9] = readU64(buf, o); o = o9;
-    const [commissionEarned, o10] = readU64(buf, o); o = o10;
-    const [commissionSettled, o11] = readU64(buf, o); o = o11;
-    const [isActive] = readBool(buf, o11);
-
-    return {
-        bump,
-        merchant,
-        mint,
-        referrer,
-        referred,
-        createdAt,
-        expiresAt,
-        committedCommissionBps,
-        maxCommissionCap,
-        commissionEarned,
-        commissionSettled,
-        isActive,
-    };
-}
-
-function stableNodePosition(address: string, count: number, index: number): Pick<NetworkNode, 'x' | 'y'> {
-    const seed = Array.from(address.slice(0, 12)).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    const angle = (2 * Math.PI * index) / Math.max(count, 1);
-    const radius = 220 + (seed % 90);
-
-    return {
-        x: 400 + radius * Math.cos(angle),
-        y: 300 + radius * Math.sin(angle),
-    };
-}
 
 function decodeMerchantConfig(buf: Buffer): MerchantConfig {
     let o = 0;
@@ -390,13 +159,18 @@ function decodeMerchantConfig(buf: Buffer): MerchantConfig {
     const [currentSupply, o15] = readU64(buf, o); o = o15;
     const [tokensIssued, o16] = readU64(buf, o); o = o16;
     const [closeInitiatedAt, o17] = readI64(buf, o); o = o17;
-    const [closeWindowEndsAt] = readI64(buf, o);
+    const [closeWindowEndsAt, o18] = readI64(buf, o); o = o18;
+    let oracleAuthority = merchant;
+    if (buf.length >= o + 32) {
+        const [authority] = readPubkey(buf, o);
+        oracleAuthority = authority;
+    }
     return {
         bump, merchant, mint, isActive, minHoldBeforeShareSecs,
         minTokensPerReferral, maxTokensPerReferral, maxReferralsPerWalletPerDay,
         allowSecondGenTransfer, slotsPerDay, tokenExpiryDays, commissionRateBps,
         transferFeeBps, firstIssuanceDone, currentSupply, tokensIssued,
-        closeInitiatedAt, closeWindowEndsAt,
+        closeInitiatedAt, closeWindowEndsAt, oracleAuthority,
     };
 }
 
@@ -482,111 +256,77 @@ function decodeCommissionLedger(buf: Buffer): CommissionLedger {
     };
 }
 
-/* ── Exported Hooks (with mock data fallback) ── */
+/* ── Exported Hooks ── */
 
-function useMockFallback<T>(state: DataState<T>, mockData: T): DataState<T> {
-    if (!ALLOW_DEMO_DATA || state.source === 'live') {
-        return state;
-    }
-
-    if (!state.loading && !state.data) {
-        return createState(mockData, false, state.error, 'demo');
-    }
-    return state;
-}
-
-export function useMerchantConfig(merchant: PublicKey | null): DataState<MerchantConfig> {
-    const effectiveMerchant = merchant ?? MERCHANT_PUBKEY;
-    const [state, setState] = useState<DataState<MerchantConfig>>(createState<MerchantConfig>(null, true, null, 'empty'));
-    const lookupKey = `${MERCHANT_MINT?.toBase58() ?? 'no-mint'}:${effectiveMerchant?.toBase58() ?? 'no-merchant'}`;
-
-    useEffect(() => {
-        let mounted = true;
-
-        const doFetch = async () => {
-            try {
-                let data: MerchantConfig | null = null;
-                if (MERCHANT_MINT) {
-                    const [pda] = findMerchantConfigPda(MERCHANT_MINT);
-                    data = await fetchAccount(pda, decodeMerchantConfig);
-                }
-
-                if (!data && effectiveMerchant) {
-                    data = await fetchFirstProgramAccount<MerchantConfig>(
-                        [{ memcmp: { offset: 9, bytes: effectiveMerchant.toBase58() } }],
-                        decodeMerchantConfig
-                    );
-                }
-
-                if (mounted) {
-                    setState(createState(data, false, null, data ? 'live' : 'empty'));
-                }
-            } catch (error: unknown) {
-                if (mounted) {
-                    setState(createState<MerchantConfig>(null, false, readError(error), 'empty'));
-                }
-            }
-        };
-
-        void doFetch();
-        const interval = setInterval(doFetch, POLL_INTERVAL);
-        return () => {
-            mounted = false;
-            clearInterval(interval);
-        };
-    }, [lookupKey, effectiveMerchant]);
-
-    return useMockFallback(state, MOCK_MERCHANT_CONFIG);
+export function useMerchantConfig(mint: PublicKey | null): DataState<MerchantConfig> {
+    return useAccountData(
+        () => mint ? findMerchantConfigPda(mint) : null,
+        decodeMerchantConfig
+    );
 }
 
 export function useViralOracle(merchant: PublicKey | null): DataState<ViralOracle> {
-    const effectiveMerchant = merchant ?? MERCHANT_PUBKEY;
-    const state = useAccountData(
-        () => effectiveMerchant ? findViralOraclePda(effectiveMerchant) : null,
+    return useAccountData(
+        () => merchant ? findViralOraclePda(merchant) : null,
         decodeViralOracle
     );
-    return useMockFallback(state, MOCK_VIRAL_ORACLE);
 }
 
 export function useMerchantReputation(merchant: PublicKey | null): DataState<MerchantReputation> {
-    const effectiveMerchant = merchant ?? MERCHANT_PUBKEY;
-    const state = useAccountData(
-        () => effectiveMerchant ? findMerchantReputationPda(effectiveMerchant) : null,
+    return useAccountData(
+        () => merchant ? findMerchantReputationPda(merchant) : null,
         decodeMerchantReputation
     );
-    return useMockFallback(state, MOCK_MERCHANT_REPUTATION);
 }
 
 export function useMerchantBond(merchant: PublicKey | null): DataState<MerchantBond> {
-    const effectiveMerchant = merchant ?? MERCHANT_PUBKEY;
-    const state = useAccountData(
-        () => effectiveMerchant ? findMerchantBondPda(effectiveMerchant) : null,
+    return useAccountData(
+        () => merchant ? findMerchantBondPda(merchant) : null,
         decodeMerchantBond
     );
-    return useMockFallback(state, MOCK_MERCHANT_BOND);
 }
 
 export function useCommissionLedger(
     referrer: PublicKey | null,
     merchant: PublicKey | null
 ): DataState<CommissionLedger> {
-    const { role } = useAuth();
-    const effectiveMerchant = merchant ?? MERCHANT_PUBKEY;
-    const state = useAccountData(
-        () => (referrer && effectiveMerchant) ? findCommissionLedgerPda(referrer, effectiveMerchant) : null,
+    return useAccountData(
+        () => (referrer && merchant) ? findCommissionLedgerPda(referrer, merchant) : null,
         decodeCommissionLedger
     );
-    const fallback = role === 'consumer' ? MOCK_CONSUMER_LEDGER : MOCK_COMMISSION_LEDGER;
-    return useMockFallback(state, fallback);
 }
 
 export function useTokenGeneration(
     mint: PublicKey | null,
     owner: PublicKey | null
 ): DataState<TokenGeneration> {
+    // TokenGeneration decoding is complex due to arrays; simplified for key fields
     return useAccountData(
         () => (mint && owner) ? findTokenGenerationPda(mint, owner) : null,
-        decodeTokenGeneration
+        (buf) => {
+            let o = 0;
+            const [bump, o1] = readU8(buf, o); o = o1;
+            const [version, o2] = readU8(buf, o); o = o2;
+            const [mintPk, o3] = readPubkey(buf, o); o = o3;
+            const [owner, o4] = readPubkey(buf, o); o = o4;
+            const [gen1Balance, o5] = readU64(buf, o); o = o5;
+            const [gen2Balance, o6] = readU64(buf, o); o = o6;
+            const [deadBalance, o7] = readU64(buf, o); o = o7;
+            const [totalLifetime, o8] = readU64(buf, o); o = o8;
+            // Skip complex nested fields for now, return core balances
+            return {
+                bump, version, mint: mintPk, owner,
+                gen1Balance, gen2Balance, deadBalance, totalLifetime,
+                isIntermediary: false, originalSender: PublicKey.default,
+                inboundBuffer: [], bufferHead: 0, bufferPending: 0,
+                referrerSlots: [], activeReferrerSlots: 0,
+                firstReceivedAt: 0, lastReceivedAt: 0,
+                shareLimitDay: 0, sharesToday: 0,
+                processingNonce: 0, redemptionPending: false, redemptionSlot: 0,
+                isTreasury: false, isDexPool: false,
+                poiScore: 0, poiUpdatedAt: 0,
+            } as TokenGeneration;
+        }
     );
 }
 
@@ -596,25 +336,16 @@ export function useRecentTransactions(
     address: PublicKey | null,
     limit = 10
 ): DataState<ActivityItem[]> {
-    const [state, setState] = useState<DataState<ActivityItem[]>>(createState<ActivityItem[]>(null, true, null, 'empty'));
-
-    const { role } = useAuth();
-    const mockTxs = role === 'consumer' ? MOCK_CONSUMER_TRANSACTIONS : MOCK_TRANSACTIONS;
-    const immediateState = useMemo(() => {
-        if (address) {
-            return null;
-        }
-        return ALLOW_DEMO_DATA
-            ? createState(mockTxs.slice(0, limit), false, null, 'demo')
-            : createState([] as ActivityItem[], false, null, 'empty');
-    }, [address, limit, mockTxs]);
+    const [state, setState] = useState<DataState<ActivityItem[]>>({
+        data: null, loading: true, error: null,
+    });
 
     useEffect(() => {
         if (!address) {
             return;
         }
         let mounted = true;
-        const doFetch = async () => {
+        const fetch = async () => {
             try {
                 const conn = getConnection();
                 const sigs = await conn.getSignaturesForAddress(address, { limit });
@@ -626,51 +357,43 @@ export function useRecentTransactions(
                     description: `Transaction ${shortenAddress(sig.signature, 6)}`,
                     success: sig.err === null,
                 }));
-                if (mounted) {
-                    setState(createState(items, false, null, items.length > 0 ? 'live' : 'empty'));
-                }
-            } catch (error: unknown) {
-                if (mounted) {
-                    setState(ALLOW_DEMO_DATA
-                        ? createState(mockTxs.slice(0, limit), false, readError(error), 'demo')
-                        : createState([], false, readError(error), 'empty'));
-                }
+                if (mounted) setState({ data: items, loading: false, error: null });
+            } catch (e: unknown) {
+                if (mounted) setState({ data: null, loading: false, error: (e as Error).message });
             }
         };
-        void doFetch();
-        const interval = setInterval(doFetch, POLL_INTERVAL);
+        fetch();
+        const interval = setInterval(fetch, POLL_INTERVAL);
         return () => { mounted = false; clearInterval(interval); };
-    }, [address, limit, mockTxs]);
+    }, [address, limit]);
 
-    return immediateState ?? state;
+    if (!address) {
+        return { data: null, loading: false, error: null };
+    }
+
+    return state;
 }
 
 /* ── Dispute Records Hook (uses getProgramAccounts filter) ── */
 
 export function useDisputeRecords(merchant: PublicKey | null): DataState<DisputeRecord[]> {
-    const [state, setState] = useState<DataState<DisputeRecord[]>>(createState<DisputeRecord[]>(null, true, null, 'empty'));
-    const effectiveMerchant = merchant ?? MERCHANT_PUBKEY;
-    const immediateState = useMemo(() => {
-        if (effectiveMerchant) {
-            return null;
-        }
-        return ALLOW_DEMO_DATA
-            ? createState(MOCK_DISPUTE_RECORDS, false, null, 'demo')
-            : createState([] as DisputeRecord[], false, null, 'empty');
-    }, [effectiveMerchant]);
+    const [state, setState] = useState<DataState<DisputeRecord[]>>({
+        data: null, loading: true, error: null,
+    });
 
     useEffect(() => {
-        if (!effectiveMerchant) {
+        if (!merchant) {
             return;
         }
         let mounted = true;
-        const doFetch = async () => {
+        const fetch = async () => {
             try {
                 const conn = getConnection();
+                // Filter by merchant pubkey at offset 9 (after 8-byte discriminator + 1 bump)
                 const accounts = await conn.getProgramAccounts(PROGRAM_ID, {
                     filters: [
-                        { dataSize: 138 },
-                        { memcmp: { offset: 9, bytes: effectiveMerchant.toBase58() } },
+                        { dataSize: 138 }, // Approximate size of DisputeRecord
+                        { memcmp: { offset: 9, bytes: merchant.toBase58() } },
                     ],
                 });
                 const disputes: DisputeRecord[] = accounts.map(({ account }) => {
@@ -697,162 +420,99 @@ export function useDisputeRecords(merchant: PublicKey | null): DataState<Dispute
                         stakeLamports, raisedAt, resolvedAt,
                     };
                 });
-                if (mounted) {
-                    setState(createState(disputes, false, null, disputes.length > 0 ? 'live' : 'empty'));
-                }
-            } catch (error: unknown) {
-                if (mounted) {
-                    setState(ALLOW_DEMO_DATA
-                        ? createState(MOCK_DISPUTE_RECORDS, false, readError(error), 'demo')
-                        : createState([], false, readError(error), 'empty'));
-                }
+                if (mounted) setState({ data: disputes, loading: false, error: null });
+            } catch (e: unknown) {
+                if (mounted) setState({ data: null, loading: false, error: (e as Error).message });
             }
         };
-        void doFetch();
-        const interval = setInterval(doFetch, POLL_INTERVAL);
+        fetch();
+        const interval = setInterval(fetch, POLL_INTERVAL);
         return () => { mounted = false; clearInterval(interval); };
-    }, [effectiveMerchant]);
+    }, [merchant]);
 
-    return immediateState ?? state;
+    if (!merchant) {
+        return { data: null, loading: false, error: null };
+    }
+
+    return state;
 }
 
 /* ── Network Graph Hook (TokenGeneration accounts by mint) ── */
 
 export function useNetworkGraph(mint: PublicKey | null): DataState<{ nodes: NetworkNode[]; edges: NetworkEdge[] }> {
-    const [state, setState] = useState<DataState<{ nodes: NetworkNode[]; edges: NetworkEdge[] }>>(
-        createState<{ nodes: NetworkNode[]; edges: NetworkEdge[] }>(null, true, null, 'empty')
-    );
-
-    const mockData = useMemo(
-        () => ({ nodes: MOCK_NETWORK_NODES, edges: MOCK_NETWORK_EDGES }),
-        []
-    );
-    const immediateState = useMemo(() => {
-        if (mint) {
-            return null;
-        }
-        return ALLOW_DEMO_DATA
-            ? createState(mockData, false, null, 'demo')
-            : createState({ nodes: [], edges: [] }, false, null, 'empty');
-    }, [mint, mockData]);
+    const [state, setState] = useState<DataState<{ nodes: NetworkNode[]; edges: NetworkEdge[] }>>({
+        data: null, loading: true, error: null,
+    });
 
     useEffect(() => {
         if (!mint) {
             return;
         }
         let mounted = true;
-        const doFetch = async () => {
+        const fetch = async () => {
             try {
                 const conn = getConnection();
-                const [generationAccounts, referralAccounts] = await Promise.all([
-                    conn.getProgramAccounts(PROGRAM_ID, {
-                        filters: [
-                            { dataSize: 1708 },
-                            { memcmp: { offset: 10, bytes: mint.toBase58() } },
-                        ],
-                    }),
-                    conn.getProgramAccounts(PROGRAM_ID, {
-                        filters: [
-                            { dataSize: 180 },
-                            { memcmp: { offset: 41, bytes: mint.toBase58() } },
-                        ],
-                    }),
-                ]);
-
-                const generationRows = generationAccounts.flatMap(({ account }) => {
-                    try {
-                        return [decodeTokenGeneration(Buffer.from(account.data.slice(8)))];
-                    } catch {
-                        return [];
-                    }
+                // Fetch all TokenGeneration accounts for this mint
+                // Filter by mint pubkey at offset 10 (8 discriminator + 1 bump + 1 version)
+                const accounts = await conn.getProgramAccounts(PROGRAM_ID, {
+                    filters: [
+                        { memcmp: { offset: 10, bytes: mint.toBase58() } },
+                    ],
                 });
 
-                const referralRows = referralAccounts.flatMap(({ account }) => {
-                    try {
-                        return [decodeReferralRecord(Buffer.from(account.data.slice(8)))];
-                    } catch {
-                        return [];
-                    }
-                });
+                const nodes: NetworkNode[] = [];
+                const edges: NetworkEdge[] = [];
 
-                const edgeMap = new Map<string, NetworkEdge>();
-                referralRows.forEach((record) => {
-                    if (!record.isActive) {
-                        return;
-                    }
+                accounts.forEach(({ account }, i) => {
+                    const buf = Buffer.from(account.data.slice(8));
+                    let o = 0;
+                    const [, o1] = readU8(buf, o); o = o1; // bump
+                    const [, o2] = readU8(buf, o); o = o2; // version
+                    const [, o3] = readPubkey(buf, o); o = o3; // mint
+                    const [owner, o4] = readPubkey(buf, o); o = o4;
+                    const [gen1Balance, o5] = readU64(buf, o); o = o5;
+                    const [gen2Balance, o6] = readU64(buf, o); o = o6;
+                    const [deadBalance, o7] = readU64(buf, o); o = o7;
+                    const [totalLifetime] = readU64(buf, o);
 
-                    const from = record.referrer.toBase58();
-                    const to = record.referred.toBase58();
-                    const key = `${from}:${to}`;
-                    const existing = edgeMap.get(key);
-                    if (existing) {
-                        existing.tokensAttributed += record.maxCommissionCap;
-                        return;
-                    }
+                    const addr = owner.toBase58();
+                    const angle = (2 * Math.PI * i) / Math.max(accounts.length, 1);
+                    const radius = 200 + Math.random() * 100;
 
-                    edgeMap.set(key, {
-                        from,
-                        to,
-                        tokensAttributed: record.maxCommissionCap,
+                    nodes.push({
+                        id: addr,
+                        address: addr,
+                        gen1Balance, gen2Balance, deadBalance, totalLifetime,
+                        referrerCount: 0, // Would need deeper parsing
+                        poiScore: 0,
+                        x: 400 + radius * Math.cos(angle),
+                        y: 300 + radius * Math.sin(angle),
                     });
                 });
 
-                const refCountMap = new Map<string, number>();
-                edgeMap.forEach((edge) => {
-                    refCountMap.set(edge.from, (refCountMap.get(edge.from) ?? 0) + 1);
-                });
-
-                const nodes: NetworkNode[] = generationRows
-                    .filter((row) => !row.isTreasury && !row.isIntermediary)
-                    .sort((a, b) => a.owner.toBase58().localeCompare(b.owner.toBase58()))
-                    .map((row, index, rows) => {
-                        const address = row.owner.toBase58();
-                        const position = stableNodePosition(address, rows.length, index);
-                        return {
-                            id: address,
-                            address,
-                            gen1Balance: row.gen1Balance,
-                            gen2Balance: row.gen2Balance,
-                            deadBalance: row.deadBalance,
-                            totalLifetime: row.totalLifetime,
-                            referrerCount: refCountMap.get(address) ?? 0,
-                            poiScore: row.poiScore,
-                            ...position,
-                        };
-                    });
-
-                const nodeSet = new Set(nodes.map((node) => node.id));
-                const edges = Array.from(edgeMap.values()).filter((edge) => (
-                    nodeSet.has(edge.from) && nodeSet.has(edge.to)
-                ));
-
-                if (mounted) {
-                    setState(createState({ nodes, edges }, false, null, nodes.length > 0 ? 'live' : 'empty'));
-                }
-            } catch (error: unknown) {
-                if (mounted) {
-                    setState(ALLOW_DEMO_DATA
-                        ? createState(mockData, false, readError(error), 'demo')
-                        : createState({ nodes: [], edges: [] }, false, readError(error), 'empty'));
-                }
+                if (mounted) setState({ data: { nodes, edges }, loading: false, error: null });
+            } catch (e: unknown) {
+                if (mounted) setState({ data: null, loading: false, error: (e as Error).message });
             }
         };
-        void doFetch();
-        const interval = setInterval(doFetch, 30_000);
+        fetch();
+        const interval = setInterval(fetch, 30_000); // Less frequent for heavy call
         return () => { mounted = false; clearInterval(interval); };
-    }, [mint, mockData]);
+    }, [mint]);
 
-    return immediateState ?? state;
+    if (!mint) {
+        return { data: null, loading: false, error: null };
+    }
+
+    return state;
 }
 
 /* ── SOL Balance Hook ── */
 
 export function useSolBalance(address: PublicKey | null): DataState<number> {
-    const [state, setState] = useState<DataState<number>>(createState<number>(null, true, null, 'empty'));
-    const immediateState = useMemo(
-        () => address ? null : createState<number>(null, false, null, 'empty'),
-        [address]
-    );
+    const [state, setState] = useState<DataState<number>>({
+        data: null, loading: true, error: null,
+    });
 
     useEffect(() => {
         if (!address) {
@@ -862,16 +522,20 @@ export function useSolBalance(address: PublicKey | null): DataState<number> {
         const fetch = async () => {
             try {
                 const conn = getConnection();
-                const lamports = await conn.getBalance(address);
-                if (mounted) setState(createState(lamportsToSol(lamports), false, null, 'live'));
+                const balance = await conn.getBalance(address);
+                if (mounted) setState({ data: balance, loading: false, error: null });
             } catch (e: unknown) {
-                if (mounted) setState(createState<number>(null, false, readError(e), 'empty'));
+                if (mounted) setState({ data: null, loading: false, error: (e as Error).message });
             }
         };
-        void fetch();
+        fetch();
         const interval = setInterval(fetch, POLL_INTERVAL);
         return () => { mounted = false; clearInterval(interval); };
     }, [address]);
 
-    return immediateState ?? state;
+    if (!address) {
+        return { data: null, loading: false, error: null };
+    }
+
+    return state;
 }

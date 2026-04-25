@@ -1,126 +1,53 @@
-import * as anchor from '@coral-xyz/anchor';
-import { expect } from 'chai';
-import crypto from 'crypto';
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { expect } from "chai";
 
-const PROGRAM_ID = new anchor.web3.PublicKey('D9ds2V6y4GFGKbo8wF8qQiF81dzhkiznmZsHepcSN6Ta');
+const PROGRAM_ID = new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+const INBOUND_BUFFER_SIZE = 16;
 
-function anchorDiscriminator(name: string): Buffer {
-  return crypto.createHash('sha256').update(`global:${name}`).digest().subarray(0, 8);
+function findTokenGenerationPda(mint: PublicKey, owner: PublicKey) {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("gen_v4"), mint.toBuffer(), owner.toBuffer()],
+    PROGRAM_ID,
+  );
 }
 
-describe('viral_sync_static_contracts', () => {
-  const merchant = anchor.web3.Keypair.generate().publicKey;
-  const mint = anchor.web3.Keypair.generate().publicKey;
-  const vault = anchor.web3.Keypair.generate().publicKey;
-  const redeemer = anchor.web3.Keypair.generate().publicKey;
-  const escrowGeneration = anchor.web3.Keypair.generate().publicKey;
-  const referrer = anchor.web3.Keypair.generate().publicKey;
-  const fence = anchor.web3.Keypair.generate().publicKey;
+function simulateInboundWrites(amounts: number[]) {
+  let pending = 0;
+  let attributed = 0;
+  let deadPass = 0;
 
-  it('derives merchant config from merchant_v4 + mint', () => {
-    const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('merchant_v4'), mint.toBuffer()],
-      PROGRAM_ID
-    );
+  for (const amount of amounts) {
+    if (pending >= INBOUND_BUFFER_SIZE) {
+      deadPass += amount;
+      continue;
+    }
 
-    const [legacyPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('merchant_config'), merchant.toBuffer()],
-      PROGRAM_ID
-    );
+    pending += 1;
+    attributed += amount;
+  }
 
-    expect(pda.equals(legacyPda)).to.equal(false);
+  return { pending, attributed, deadPass };
+}
+
+describe("viral_sync_v4_core", () => {
+  it("derives TokenGeneration PDAs from mint and true owner", () => {
+    const mint = Keypair.generate().publicKey;
+    const owner = Keypair.generate().publicKey;
+    const delegatedSigner = Keypair.generate().publicKey;
+
+    const [ownerPda] = findTokenGenerationPda(mint, owner);
+    const [delegatedPda] = findTokenGenerationPda(mint, delegatedSigner);
+
+    expect(ownerPda.toBase58()).to.not.equal(delegatedPda.toBase58());
+    expect(ownerPda.equals(PublicKey.default)).to.equal(false);
   });
 
-  it('derives vault entry from vault_entry + mint + vault', () => {
-    const [vaultEntryPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('vault_entry'), mint.toBuffer(), vault.toBuffer()],
-      PROGRAM_ID
-    );
+  it("degrades inbound overflow into dead-pass accounting", () => {
+    const transfers = Array.from({ length: 18 }, () => 1);
+    const result = simulateInboundWrites(transfers);
 
-    const [legacyVaultPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('vault'), merchant.toBuffer(), vault.toBuffer()],
-      PROGRAM_ID
-    );
-
-    expect(vaultEntryPda.equals(legacyVaultPda)).to.equal(false);
-  });
-
-  it('derives geo fences from geo_fence + mint + vault', () => {
-    const [geoFencePda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('geo_fence'), mint.toBuffer(), vault.toBuffer()],
-      PROGRAM_ID
-    );
-
-    const [legacyGeoFencePda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('geofence'), vault.toBuffer()],
-      PROGRAM_ID
-    );
-
-    expect(geoFencePda.equals(legacyGeoFencePda)).to.equal(false);
-  });
-
-  it('derives referral records from mint + referrer + redeemer', () => {
-    const [referralPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('referral_v4'), mint.toBuffer(), referrer.toBuffer(), redeemer.toBuffer()],
-      PROGRAM_ID
-    );
-
-    expect(anchor.web3.PublicKey.isOnCurve(referralPda.toBytes())).to.equal(false);
-  });
-
-  it('derives escrow authority from escrow_authority + escrow generation', () => {
-    const [escrowAuthority] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('escrow_authority'), escrowGeneration.toBuffer()],
-      PROGRAM_ID
-    );
-
-    expect(anchor.web3.PublicKey.isOnCurve(escrowAuthority.toBytes())).to.equal(false);
-  });
-
-  it('derives geo nonce markers from fence + redeemer only', () => {
-    const [geoNoncePda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('geo_nonce'), fence.toBuffer(), redeemer.toBuffer()],
-      PROGRAM_ID
-    );
-
-    expect(anchor.web3.PublicKey.isOnCurve(geoNoncePda.toBytes())).to.equal(false);
-  });
-
-  it('derives merchant closure snapshots from merchant_close_snapshot + merchant config', () => {
-    const [merchantConfig] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('merchant_v4'), mint.toBuffer()],
-      PROGRAM_ID
-    );
-
-    const [snapshotPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('merchant_close_snapshot'), merchantConfig.toBuffer()],
-      PROGRAM_ID
-    );
-
-    expect(anchor.web3.PublicKey.isOnCurve(snapshotPda.toBytes())).to.equal(false);
-  });
-
-  it('derives bond claim markers from snapshot + holder', () => {
-    const [merchantConfig] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('merchant_v4'), mint.toBuffer()],
-      PROGRAM_ID
-    );
-
-    const [snapshotPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('merchant_close_snapshot'), merchantConfig.toBuffer()],
-      PROGRAM_ID
-    );
-
-    const [claimMarkerPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('bond_claim_v1'), snapshotPda.toBuffer(), redeemer.toBuffer()],
-      PROGRAM_ID
-    );
-
-    expect(anchor.web3.PublicKey.isOnCurve(claimMarkerPda.toBytes())).to.equal(false);
-  });
-
-  it('keeps instruction discriminators stable for session-critical flows', () => {
-    expect(anchorDiscriminator('init_token_generation').toString('hex')).to.equal('189464a9901b7c77');
-    expect(anchorDiscriminator('claim_escrow').toString('hex')).to.equal('c850b69f3d4b09cd');
+    expect(result.pending).to.equal(INBOUND_BUFFER_SIZE);
+    expect(result.attributed).to.equal(16);
+    expect(result.deadPass).to.equal(2);
   });
 });

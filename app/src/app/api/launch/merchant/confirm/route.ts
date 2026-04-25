@@ -1,35 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireMerchantLaunchReadiness } from '@/lib/launch/guard';
-import { confirmRedeemCode } from '@/lib/launch/server';
-import { badRequest, readJsonBody, unauthorized } from '@/lib/launch/http';
-import { getMerchantSession } from '@/lib/launch/merchantAuth';
-import { merchantConfirmSchema } from '@/lib/launch/schemas';
+import { enforceRateLimit, jsonError, readJsonBody } from '@/lib/launch/api';
+import { confirmRedeemCode, isValidRedeemCode, normalizeRedeemCode } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const launchGuard = requireMerchantLaunchReadiness();
-  if (launchGuard) {
-    return launchGuard;
-  }
-
-  const session = getMerchantSession(request);
-  if (!session.authenticated || !session.merchantId || !session.operatorLabel) {
-    return unauthorized();
+  const limited = enforceRateLimit(request, 'merchant-confirm', 30);
+  if (limited) {
+    return limited;
   }
 
   const body = await readJsonBody(request);
-  const parsed = merchantConfirmSchema.safeParse(body);
-  if (!parsed.success) {
-    return badRequest(parsed.error.issues[0]?.message ?? 'Invalid confirmation payload.');
+  const code = typeof body?.code === 'string' ? body.code : '';
+  const normalizedCode = normalizeRedeemCode(code);
+
+  if (!normalizedCode || !isValidRedeemCode(normalizedCode)) {
+    return jsonError('A valid code is required.', 400);
   }
 
-  const result = await confirmRedeemCode({
-    code: parsed.data.code.toUpperCase(),
-    merchantId: session.merchantId,
-    operatorLabel: session.operatorLabel,
-    operatorId: session.operatorId,
-  });
+  const result = await confirmRedeemCode({ code: normalizedCode });
   return NextResponse.json(result, { status: result.ok ? 200 : 409 });
 }

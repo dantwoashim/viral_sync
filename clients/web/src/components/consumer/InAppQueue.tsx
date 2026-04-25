@@ -1,57 +1,61 @@
-import React, { useEffect, useState } from 'react';
-import { useConnection } from '@solana/wallet-adapter-react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { PublicKey } from '@solana/web3.js';
 
 interface InAppQueueProps {
     generationPda: PublicKey;
     hasPendingEntries: boolean;
+    relayUrl: string;
+    relayApiKey?: string;
+    buildFinalizeTransaction: (generationPda: PublicKey) => Promise<string>;
+    onRelayed?: (signature: string) => void;
 }
 
-/**
- * Consumer Component representing the V4 Engine Auto-Finalizer.
- * In V4, inbound buffers map 16 transfers before dropping to generic DeadPasses. 
- * This component runs silently in the PWA, pinging the Relayer to crank `finalize_inbound`
- * and attribute the locked referrals, completely abstracting gas from the user.
- */
-export const InAppQueue: React.FC<InAppQueueProps> = ({ generationPda, hasPendingEntries }) => {
+export const InAppQueue: React.FC<InAppQueueProps> = ({
+    generationPda,
+    hasPendingEntries,
+    relayUrl,
+    relayApiKey,
+    buildFinalizeTransaction,
+    onRelayed,
+}) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [lastProcessed, setLastProcessed] = useState<number | null>(null);
 
-    useEffect(() => {
-        // If user's buffer flags as having pending entries, immediately request Relayer intervention 
-        if (hasPendingEntries && !isProcessing) {
-            triggerCrank();
-        }
-    }, [hasPendingEntries]);
-
-    const triggerCrank = async () => {
+    const triggerCrank = useCallback(async () => {
         setIsProcessing(true);
         try {
-            console.log(`Pinging Relayer to finalize inbound transfers for generation PDA: ${generationPda.toBase58()}`);
-
-            // In production, build an unsigned Transaction targeting `finalize_inbound` here
-            // and POST it to the `/relay` endpoint engineered in Week 5
-            const RELAY_URL = process.env.NEXT_PUBLIC_RELAY_URL || 'http://localhost:3000/relay';
-
-            /*
-            const txBase64 = ...build TX...;
-            await fetch(RELAY_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transactionBase64: txBase64 })
+            const transactionBase64 = await buildFinalizeTransaction(generationPda);
+            const response = await fetch(relayUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(relayApiKey ? { Authorization: `Bearer ${relayApiKey}` } : {}),
+                },
+                body: JSON.stringify({ transactionBase64 }),
             });
-            */
 
-            // Mock delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const payload = await response.json() as { signature?: string; error?: string };
+            if (!response.ok) {
+                throw new Error(payload.error || 'Relayer rejected finalize_inbound.');
+            }
+
             setLastProcessed(Date.now());
+            if (payload.signature) {
+                onRelayed?.(payload.signature);
+            }
 
         } catch (err) {
             console.error("Failed to auto-finalize buffer queue", err);
         } finally {
             setIsProcessing(false);
         }
-    };
+    }, [buildFinalizeTransaction, generationPda, onRelayed, relayApiKey, relayUrl]);
+
+    useEffect(() => {
+        if (hasPendingEntries && !isProcessing) {
+            void triggerCrank();
+        }
+    }, [hasPendingEntries, isProcessing, triggerCrank]);
 
     if (!hasPendingEntries) return null;
 
@@ -61,7 +65,11 @@ export const InAppQueue: React.FC<InAppQueueProps> = ({ generationPda, hasPendin
             <div className="text-sm">
                 <div className="font-bold">Syncing Referrals...</div>
                 <div className="text-blue-200 text-xs">
-                    {isProcessing ? 'Relayer processing gas-free transaction' : 'Standing by'}
+                    {isProcessing
+                        ? 'Relayer processing gas-free transaction'
+                        : lastProcessed
+                            ? `Last synced ${new Date(lastProcessed).toLocaleTimeString()}`
+                            : 'Standing by'}
                 </div>
             </div>
         </div>
