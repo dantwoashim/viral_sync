@@ -1,3 +1,5 @@
+#![allow(ambiguous_glob_reexports)]
+
 pub mod init_token_generation;
 pub mod init_treasury_token_generation;
 pub mod merchant_init;

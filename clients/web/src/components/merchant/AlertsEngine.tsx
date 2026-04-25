@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Mock structure corresponding to `programs/viral_sync/src/state/merchant_reputation.rs`
 interface ReputationData {
     reputationScore: number; // 0 to 10000
     suspicionScore: number;
@@ -12,11 +11,6 @@ interface AlertsEngineProps {
     pendingDisputeCount: number;
 }
 
-/**
- * Merchant Dashboard V1 Component.
- * Surfaces the severe engine tracking signals mapping to the MerchantReputation engine built in Week 3.
- * Warns merchants explicitly when their neglect risks automated bond seizure (`resolve_expired_dispute` threshold).
- */
 export const AlertsEngine: React.FC<AlertsEngineProps> = ({ reputation, pendingDisputeCount }) => {
     if (!reputation) return null;
 

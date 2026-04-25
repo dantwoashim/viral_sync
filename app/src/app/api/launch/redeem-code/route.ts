@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { attachConsumerSession, getOrCreateConsumerSession } from '@/lib/launch/consumerAuth';
-import { requireConsumerLaunchReadiness } from '@/lib/launch/guard';
-import { generateRedeemCode } from '@/lib/launch/server';
+import { enforceRateLimit, jsonError, readJsonBody } from '@/lib/launch/api';
+import { generateRedeemCode, isValidSessionId } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const launchGuard = requireConsumerLaunchReadiness();
-  if (launchGuard) {
-    return launchGuard;
+  const limited = enforceRateLimit(request, 'redeem-code', 30);
+  if (limited) {
+    return limited;
   }
 
-  const session = getOrCreateConsumerSession(request);
-  const result = await generateRedeemCode({ sessionId: session.sessionId! });
-  const response = NextResponse.json(result, { status: result.ok ? 200 : 409 });
-  attachConsumerSession(response, session);
-  return response;
+  const body = await readJsonBody(request);
+  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+
+  if (!sessionId || !isValidSessionId(sessionId)) {
+    return jsonError('A valid sessionId is required.', 400);
+  }
+
+  const result = await generateRedeemCode({ sessionId });
+  return NextResponse.json(result, { status: result.ok ? 200 : 409 });
 }

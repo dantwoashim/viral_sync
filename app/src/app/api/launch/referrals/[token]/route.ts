@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { attachConsumerSession, getOrCreateConsumerSession } from '@/lib/launch/consumerAuth';
-import { requireConsumerLaunchReadiness } from '@/lib/launch/guard';
-import { getReferralDetail } from '@/lib/launch/server';
+import { enforceRateLimit, jsonError } from '@/lib/launch/api';
+import { getReferralDetail, isValidReferralToken, isValidSessionId } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,20 +9,23 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ token: string }> },
 ) {
-  const launchGuard = requireConsumerLaunchReadiness();
-  if (launchGuard) {
-    return launchGuard;
+  const limited = enforceRateLimit(request, 'referral-detail', 120);
+  if (limited) {
+    return limited;
   }
 
   const { token } = await context.params;
-  const session = getOrCreateConsumerSession(request);
-  const detail = await getReferralDetail(token, session.sessionId);
+  const viewerSessionId = request.nextUrl.searchParams.get('sessionId') ?? undefined;
+
+  if (!isValidReferralToken(token) || (viewerSessionId && !isValidSessionId(viewerSessionId))) {
+    return jsonError('Referral not found.', 404);
+  }
+
+  const detail = await getReferralDetail(token, viewerSessionId);
 
   if (!detail) {
     return NextResponse.json({ error: 'Referral not found.' }, { status: 404 });
   }
 
-  const response = NextResponse.json(detail);
-  attachConsumerSession(response, session);
-  return response;
+  return NextResponse.json(detail);
 }

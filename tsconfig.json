@@ -1,12 +1,8 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "types": ["node", "mocha"],
-    "rootDir": "."
+    "types": ["mocha", "node"],
+    "noEmit": true
   },
-  "include": [
-    "tests/**/*.ts",
-    "packages/shared/src/**/*.ts"
-  ]
+  "include": ["tests/**/*.ts"]
 }

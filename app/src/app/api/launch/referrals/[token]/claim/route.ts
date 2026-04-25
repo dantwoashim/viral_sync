@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { attachConsumerSession, getOrCreateConsumerSession } from '@/lib/launch/consumerAuth';
-import { requireConsumerLaunchReadiness } from '@/lib/launch/guard';
-import { claimReferral } from '@/lib/launch/server';
-import { badRequest, readJsonBody, readString } from '@/lib/launch/http';
-import { consumerDeviceSchema } from '@/lib/launch/schemas';
+import { enforceRateLimit, jsonError, readJsonBody } from '@/lib/launch/api';
+import {
+  claimReferral,
+  isValidReferralToken,
+  isValidSessionId,
+  sanitizeDeviceFingerprint,
+  sanitizeDisplayName,
+} from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,28 +15,27 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ token: string }> },
 ) {
-  const launchGuard = requireConsumerLaunchReadiness();
-  if (launchGuard) {
-    return launchGuard;
+  const limited = enforceRateLimit(request, 'referral-claim', 20);
+  if (limited) {
+    return limited;
   }
 
   const { token } = await context.params;
-  const session = getOrCreateConsumerSession(request);
   const body = await readJsonBody(request);
-  const parsed = consumerDeviceSchema.safeParse(body);
-  if (!parsed.success) {
-    return badRequest(parsed.error.issues[0]?.message ?? 'Invalid claim request.');
+  const claimerSessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+  const claimerDisplayName = sanitizeDisplayName(typeof body?.displayName === 'string' ? body.displayName : 'Guest');
+  const deviceFingerprint = sanitizeDeviceFingerprint(typeof body?.deviceFingerprint === 'string' ? body.deviceFingerprint : claimerSessionId, claimerSessionId);
+
+  if (!isValidReferralToken(token) || !claimerSessionId || !isValidSessionId(claimerSessionId)) {
+    return jsonError('A valid referral token and sessionId are required.', 400);
   }
-  const deviceFingerprint = readString(parsed.data.deviceFingerprint, session.sessionId);
 
   const result = await claimReferral({
     token,
-    claimerSessionId: session.sessionId!,
-    claimerDisplayName: session.displayName ?? 'Guest',
+    claimerSessionId,
+    claimerDisplayName,
     deviceFingerprint,
   });
 
-  const response = NextResponse.json(result, { status: result.ok ? 200 : 409 });
-  attachConsumerSession(response, session);
-  return response;
+  return NextResponse.json(result, { status: result.ok ? 200 : 409 });
 }

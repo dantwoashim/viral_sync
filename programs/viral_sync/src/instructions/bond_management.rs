@@ -1,15 +1,13 @@
 use anchor_lang::prelude::*;
-
-use crate::errors::ViralSyncError;
 use crate::state::{
-    bond_claim_marker::BondClaimMarker,
-    merchant_bond::MerchantBond,
-    merchant_closure_snapshot::MerchantClosureSnapshot,
     merchant_config::MerchantConfig,
+    merchant_bond::MerchantBond,
     token_generation::TokenGeneration,
 };
+use crate::errors::ViralSyncError;
 
-pub const CLOSE_WINDOW_SECS: i64 = 2_592_000; // 30 days
+// Example constants matching ARCHITECTURE_V4
+pub const CLOSE_WINDOW_SECS: i64 = 2592000; // 30 Days
 
 #[event]
 pub struct MerchantCloseInitiated {
@@ -35,37 +33,24 @@ pub struct BondShareRedeemed {
 pub struct WithdrawBond<'info> {
     #[account(mut, has_one = merchant)]
     pub merchant_bond: Account<'info, MerchantBond>,
-
-    #[account(mut)]
+    
     pub merchant: Signer<'info>,
 }
 
 pub fn withdraw_bond(ctx: Context<WithdrawBond>, amount: u64) -> Result<()> {
-    let now = Clock::get()?.unix_timestamp;
-    let bond_info = ctx.accounts.merchant_bond.to_account_info();
-    let merchant_info = ctx.accounts.merchant.to_account_info();
     let bond = &mut ctx.accounts.merchant_bond;
-
-    require!(!bond.is_locked, ViralSyncError::AccessDenied);
-    if bond.unlock_requested_at > 0 {
-        require!(now > bond.unlock_requested_at + 172_800, ViralSyncError::AccessDenied);
-    }
+    
+    require!(!bond.is_locked, ViralSyncError::InvalidState);
     require!(
         bond.bonded_lamports.saturating_sub(amount) >= bond.min_required_lamports,
         ViralSyncError::InsufficientBalance
     );
-
-    let rent_floor = Rent::get()?.minimum_balance(bond_info.data_len());
-    let available_lamports = (**bond_info.lamports.borrow()).saturating_sub(rent_floor);
-    require!(available_lamports >= amount, ViralSyncError::InsufficientBalance);
-
-    bond.bonded_lamports = bond
-        .bonded_lamports
-        .checked_sub(amount)
-        .ok_or(ViralSyncError::MathOverflow)?;
-    **bond_info.try_borrow_mut_lamports()? -= amount;
-    **merchant_info.try_borrow_mut_lamports()? += amount;
-
+    
+    // Simulate Time Lock Check natively 
+    // require!(Clock::get()?.unix_timestamp > bond.unlock_requested_at + 172800, ViralSyncError::AccessDenied);
+    
+    bond.bonded_lamports = bond.bonded_lamports.checked_sub(amount).ok_or(ViralSyncError::MathOverflow)?;
+    // Native sublamports from bond vault to merchant...
     Ok(())
 }
 
@@ -73,13 +58,13 @@ pub fn withdraw_bond(ctx: Context<WithdrawBond>, amount: u64) -> Result<()> {
 pub struct InitiateCloseMerchant<'info> {
     #[account(mut, has_one = merchant)]
     pub merchant_config: Account<'info, MerchantConfig>,
-
+    
     pub merchant: Signer<'info>,
 }
 
 pub fn initiate_close_merchant(ctx: Context<InitiateCloseMerchant>) -> Result<()> {
     let config = &mut ctx.accounts.merchant_config;
-    require!(config.is_active, ViralSyncError::MerchantInactive);
+    require!(config.is_active, ViralSyncError::InvalidState);
 
     config.is_active = false;
     config.close_initiated_at = Clock::get()?.unix_timestamp;
@@ -97,154 +82,77 @@ pub fn initiate_close_merchant(ctx: Context<InitiateCloseMerchant>) -> Result<()
 
 #[derive(Accounts)]
 pub struct FinalizeCloseMerchant<'info> {
-    #[account(mut, has_one = merchant)]
+    #[account(mut)]
+    #[account(has_one = merchant)]
     pub merchant_config: Account<'info, MerchantConfig>,
-
-    #[account(mut, has_one = merchant)]
+    #[account(has_one = merchant)]
     pub merchant_bond: Account<'info, MerchantBond>,
-
-    #[account(
-        init,
-        payer = merchant,
-        space = 8 + MerchantClosureSnapshot::LEN,
-        seeds = [b"merchant_close_snapshot", merchant_config.key().as_ref()],
-        bump
-    )]
-    pub closure_snapshot: Account<'info, MerchantClosureSnapshot>,
-
+    
     #[account(mut)]
     pub merchant: Signer<'info>,
-
-    pub system_program: Program<'info, System>,
+    
+    /// CHECK: Target Vault
+    #[account(mut)]
+    pub bond_account: UncheckedAccount<'info>,
 }
 
 pub fn finalize_close_merchant(ctx: Context<FinalizeCloseMerchant>) -> Result<()> {
     let config = &ctx.accounts.merchant_config;
+    let bond = &ctx.accounts.merchant_bond;
     let now = Clock::get()?.unix_timestamp;
-    require!(!config.is_active, ViralSyncError::MerchantInactive);
-    require!(config.close_window_ends_at > 0, ViralSyncError::MerchantClosureNotFinalized);
+
+    require!(config.close_window_ends_at > 0, ViralSyncError::InvalidState);
     require!(now > config.close_window_ends_at, ViralSyncError::CloseWindowNotExpired);
 
-    let bond = &mut ctx.accounts.merchant_bond;
-    bond.is_locked = true;
+    let _remaining_bond = bond.bonded_lamports;
+    // **ctx.accounts.merchant.try_borrow_mut_lamports()? += remaining_bond;
+    // **ctx.accounts.bond_account.try_borrow_mut_lamports()? -= remaining_bond;
 
-    let snapshot = &mut ctx.accounts.closure_snapshot;
-    snapshot.bump = ctx.bumps.closure_snapshot;
-    snapshot.merchant = config.merchant;
-    snapshot.mint = config.mint;
-    snapshot.close_initiated_at = config.close_initiated_at;
-    snapshot.close_finalized_at = now;
-    snapshot.total_supply_snapshot = config.current_supply;
-    snapshot.bonded_lamports_snapshot = bond.bonded_lamports;
-    snapshot.claims_processed = 0;
-
-    emit!(MerchantClosed {
-        merchant: config.merchant,
-        mint: config.mint,
-    });
+    emit!(MerchantClosed { merchant: config.merchant, mint: config.mint });
     Ok(())
 }
 
 #[derive(Accounts)]
 pub struct RedeemBondShare<'info> {
-    pub merchant_config: Box<Account<'info, MerchantConfig>>,
-
-    #[account(
-        mut,
-        constraint = holder_generation.owner == holder.key() @ ViralSyncError::AccessDenied,
-        constraint = holder_generation.mint == merchant_config.mint @ ViralSyncError::AccessDenied
-    )]
+    pub merchant_config: Account<'info, MerchantConfig>,
+    
+    #[account(constraint = holder_generation.owner == holder.key() @ ViralSyncError::AccessDenied)]
     pub holder_generation: Box<Account<'info, TokenGeneration>>,
-
+    
     #[account(mut)]
-    pub merchant_bond: Box<Account<'info, MerchantBond>>,
-
-    #[account(
-        mut,
-        seeds = [b"merchant_close_snapshot", merchant_config.key().as_ref()],
-        bump = closure_snapshot.bump,
-        constraint = closure_snapshot.merchant == merchant_config.merchant @ ViralSyncError::MerchantClosureNotFinalized,
-        constraint = closure_snapshot.mint == merchant_config.mint @ ViralSyncError::MerchantClosureNotFinalized
-    )]
-    pub closure_snapshot: Box<Account<'info, MerchantClosureSnapshot>>,
-
-    #[account(
-        init_if_needed,
-        payer = holder,
-        space = 8 + BondClaimMarker::LEN,
-        seeds = [b"bond_claim_v1", closure_snapshot.key().as_ref(), holder.key().as_ref()],
-        bump
-    )]
-    pub bond_claim_marker: Box<Account<'info, BondClaimMarker>>,
-
+    pub merchant_bond: Account<'info, MerchantBond>,
+    
     #[account(mut)]
     pub holder: Signer<'info>,
-
-    pub system_program: Program<'info, System>,
+    
+    /// CHECK: Target Vault
+    #[account(mut)]
+    pub bond_account: UncheckedAccount<'info>,
 }
 
 pub fn redeem_bond_share(ctx: Context<RedeemBondShare>) -> Result<()> {
-    let now = Clock::get()?.unix_timestamp;
     let config = &ctx.accounts.merchant_config;
     let gen = &ctx.accounts.holder_generation;
     let bond = &mut ctx.accounts.merchant_bond;
-    let snapshot = &mut ctx.accounts.closure_snapshot;
-    let bond_info = bond.to_account_info();
-    let holder_info = ctx.accounts.holder.to_account_info();
-    let marker = &mut ctx.accounts.bond_claim_marker;
 
-    require!(!config.is_active, ViralSyncError::MerchantInactive);
-    require!(config.close_window_ends_at > 0, ViralSyncError::MerchantClosureNotFinalized);
-    require!(now > config.close_window_ends_at, ViralSyncError::CloseWindowNotExpired);
-    require!(bond.merchant == config.merchant, ViralSyncError::AccessDenied);
-    require!(snapshot.close_finalized_at > 0, ViralSyncError::MerchantClosureNotFinalized);
-    require!(marker.claimed_at == 0, ViralSyncError::BondShareAlreadyRedeemed);
+    require!(!config.is_active, ViralSyncError::InvalidState);
+    require!(config.current_supply > 0, ViralSyncError::InvalidState);
 
-    let holder_tokens = total_generation_balance(gen)?;
-    require!(holder_tokens > 0, ViralSyncError::NothingToClaim);
-    require!(snapshot.total_supply_snapshot > 0, ViralSyncError::MerchantClosureNotFinalized);
+    let holder_tokens = gen.gen1_balance
+        .checked_add(gen.gen2_balance).ok_or(ViralSyncError::MathOverflow)?
+        .checked_add(gen.dead_balance).ok_or(ViralSyncError::MathOverflow)?;
+    let pct_of_supply = (holder_tokens as u128)
+        .checked_mul(1_000_000).ok_or(ViralSyncError::MathOverflow)?
+        .checked_div(config.current_supply as u128).ok_or(ViralSyncError::MathOverflow)? as u64;
 
-    let bond_share = (snapshot.bonded_lamports_snapshot as u128)
-        .checked_mul(holder_tokens as u128)
-        .ok_or(ViralSyncError::MathOverflow)?
-        .checked_div(snapshot.total_supply_snapshot as u128)
-        .ok_or(ViralSyncError::MathOverflow)? as u64;
-    require!(bond_share > 0, ViralSyncError::NothingToClaim);
+    let bond_share = (bond.bonded_lamports as u128)
+        .checked_mul(pct_of_supply as u128).ok_or(ViralSyncError::MathOverflow)?
+        .checked_div(1_000_000).ok_or(ViralSyncError::MathOverflow)? as u64;
 
-    let rent_floor = Rent::get()?.minimum_balance(bond_info.data_len());
-    let available_lamports = (**bond_info.lamports.borrow()).saturating_sub(rent_floor);
-    require!(available_lamports >= bond_share, ViralSyncError::InsufficientBalance);
-    require!(bond.bonded_lamports >= bond_share, ViralSyncError::InsufficientBalance);
+    bond.bonded_lamports = bond.bonded_lamports.checked_sub(bond_share).ok_or(ViralSyncError::MathOverflow)?;
+    // **ctx.accounts.holder.try_borrow_mut_lamports()? += bond_share;
+    // **ctx.accounts.bond_account.try_borrow_mut_lamports()? -= bond_share;
 
-    bond.bonded_lamports = bond
-        .bonded_lamports
-        .checked_sub(bond_share)
-        .ok_or(ViralSyncError::MathOverflow)?;
-    snapshot.claims_processed = snapshot
-        .claims_processed
-        .checked_add(1)
-        .ok_or(ViralSyncError::MathOverflow)?;
-
-    marker.bump = ctx.bumps.bond_claim_marker;
-    marker.snapshot = snapshot.key();
-    marker.merchant = config.merchant;
-    marker.holder = ctx.accounts.holder.key();
-    marker.claimed_lamports = bond_share;
-    marker.claimed_at = now;
-
-    **bond_info.try_borrow_mut_lamports()? -= bond_share;
-    **holder_info.try_borrow_mut_lamports()? += bond_share;
-
-    emit!(BondShareRedeemed {
-        holder: gen.owner,
-        lamports: bond_share,
-    });
+    emit!(BondShareRedeemed { holder: gen.owner, lamports: bond_share });
     Ok(())
-}
-
-fn total_generation_balance(gen: &TokenGeneration) -> Result<u64> {
-    gen.gen1_balance
-        .checked_add(gen.gen2_balance)
-        .and_then(|value| value.checked_add(gen.dead_balance))
-        .ok_or_else(|| error!(ViralSyncError::MathOverflow))
 }

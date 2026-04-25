@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { attachConsumerSession, getOrCreateConsumerSession } from '@/lib/launch/consumerAuth';
-import { requireConsumerLaunchReadiness } from '@/lib/launch/guard';
-import { getConsumerSummary } from '@/lib/launch/server';
+import { enforceRateLimit, jsonError } from '@/lib/launch/api';
+import { getConsumerSummary, isValidSessionId } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const launchGuard = requireConsumerLaunchReadiness();
-  if (launchGuard) {
-    return launchGuard;
+  const limited = enforceRateLimit(request, 'consumer-summary', 90);
+  if (limited) {
+    return limited;
   }
 
-  const session = getOrCreateConsumerSession(request);
-  const summary = await getConsumerSummary(session.sessionId!);
-  const response = NextResponse.json(summary);
-  attachConsumerSession(response, session);
-  return response;
+  const sessionId = request.nextUrl.searchParams.get('sessionId');
+
+  if (!sessionId || !isValidSessionId(sessionId)) {
+    return jsonError('A valid sessionId is required.', 400);
+  }
+
+  const summary = await getConsumerSummary(sessionId);
+  return NextResponse.json(summary);
 }

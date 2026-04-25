@@ -44,7 +44,7 @@ export default function PassbookPage() {
               {data?.offer.title ?? 'Your current reward line'}
             </div>
             <p className="ticket-note" style={{ marginTop: 16 }}>
-              {data?.offer.reward ?? 'Loading reward'} - {data?.offer.merchantName ?? 'Merchant'}
+              {data?.offer.reward ?? 'Loading reward'} · {data?.offer.merchantName ?? 'Merchant'}
             </p>
 
             <div className="passbook-facts">
@@ -85,6 +85,8 @@ export default function PassbookPage() {
                 <div className="loading-pulse" style={{ marginTop: 10 }} />
                 <div className="loading-pulse" style={{ marginTop: 10 }} />
               </div>
+            ) : error ? (
+              <div className="empty-state">{error}</div>
             ) : (
               <>
                 <div className="ledger-head">
@@ -113,11 +115,6 @@ export default function PassbookPage() {
                     </div>
                   </div>
                 ))}
-                {error && (
-                  <div className="empty-line" style={{ margin: '0 22px 22px' }}>
-                    {error}
-                  </div>
-                )}
               </>
             )}
           </section>

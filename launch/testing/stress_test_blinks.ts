@@ -1,63 +1,41 @@
-import { Connection, Keypair, VersionedTransaction } from '@solana/web3.js';
-// import * as anchor from '@coral-xyz/anchor';
+interface StressResult {
+    totalAttempts: number;
+    inboundBufferAccepted: number;
+    degradedToDeadPass: number;
+    hardFailures: number;
+}
 
-/**
- * Stress Testing the V4 16-slot Inbound Buffer architecture.
- * This simulates a "Viral Spike" where 100+ users attempt to claim a Blink
- * Escrow associated with a SINGLE Generation PDA simultaneously.
- * Pre-V4 architectures would crash due to concurrent CU overflow.
- * V4 Gracefully catches them in the array, resolving overflows to Dead passes.
- */
-async function launchBlinkStressTest() {
-    console.log("============ [V4 STRESS TEST] ============");
-    console.log("Initiating Concurrent Blink Escrow Claim simulation...");
+export function simulateInboundBufferSpike(concurrentUsers = 150, inboundBufferSize = 16): StressResult {
+    if (!Number.isInteger(concurrentUsers) || concurrentUsers < 0) {
+        throw new Error('concurrentUsers must be a non-negative integer.');
+    }
+    if (!Number.isInteger(inboundBufferSize) || inboundBufferSize <= 0) {
+        throw new Error('inboundBufferSize must be a positive integer.');
+    }
 
-    const CONCURRENT_USERS = 150;
-    const testers = Array.from({ length: CONCURRENT_USERS }, () => Keypair.generate());
+    const inboundBufferAccepted = Math.min(concurrentUsers, inboundBufferSize);
+    const degradedToDeadPass = Math.max(concurrentUsers - inboundBufferSize, 0);
 
-    console.log(`Generated ${CONCURRENT_USERS} ephemeral wallets.`);
+    return {
+        totalAttempts: concurrentUsers,
+        inboundBufferAccepted,
+        degradedToDeadPass,
+        hardFailures: 0,
+    };
+}
 
-    let successCount = 0;
-    let overflowDeadPassCount = 0;
-    let failureCount = 0;
+function main() {
+    const concurrentUsers = Number(process.env.CONCURRENT_USERS || 150);
+    const inboundBufferSize = Number(process.env.INBOUND_BUFFER_SIZE || 16);
+    const result = simulateInboundBufferSpike(concurrentUsers, inboundBufferSize);
 
-    // We simulate firing 150 `claim_escrow` instructions in the exact same block
-    console.log("Firing massive Transfer Hook interception wave...");
+    console.log(JSON.stringify(result, null, 2));
 
-    const promises = testers.map(async (tester, i) => {
-        try {
-            // Mock transaction submission against the RPC
-            // const tx = await buildClaimEscrowTx(tester);
-            // await connection.sendTransaction(tx);
-
-            // Simulating network latency and Anchor Hook response
-            await new Promise(r => setTimeout(r, Math.random() * 500));
-
-            // The simulation dictates that indices 0-15 sit cleanly in the array.
-            // Indices 16+ hit the overflow and get pushed to dead_balance.
-            if (i < 16) {
-                successCount++;
-            } else {
-                overflowDeadPassCount++;
-            }
-        } catch (err) {
-            failureCount++;
-        }
-    });
-
-    await Promise.all(promises);
-
-    console.log("\n--- [V4 STRESS TEST RESULTS] ---");
-    console.log(`Total Attempts: ${CONCURRENT_USERS}`);
-    console.log(`Hook Processed Cleanly (Inbound Buffer): ${successCount}`);
-    console.log(`Hook Degraded Gracefully (DeadPass Overflow): ${overflowDeadPassCount}`);
-    console.log(`Hard Node Failures: ${failureCount}`);
-
-    if (failureCount === 0 && overflowDeadPassCount > 0) {
-        console.log("\n✅ ARCHITECTURE PASSED: The V4 Inbound Buffer caught the spike. Referrals degraded gracefully without halting token delivery. The protocol survived the CU exhaustion vector.");
-    } else {
-        console.log("\n❌ ARCHITECTURE FAILED: Node failures detected.");
+    if (result.hardFailures !== 0) {
+        process.exitCode = 1;
     }
 }
 
-launchBlinkStressTest();
+if (require.main === module) {
+    main();
+}

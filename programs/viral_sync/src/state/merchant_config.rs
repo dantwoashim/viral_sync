@@ -25,6 +25,8 @@ pub struct MerchantConfig {
     
     pub close_initiated_at: i64,
     pub close_window_ends_at: i64,
+
+    pub oracle_authority: Pubkey,
 }
 
 #[account]
@@ -36,16 +38,11 @@ pub struct VaultEntry {
     pub is_dex: bool, // Support for registering DEX pools as DEX endpoints
 }
 
-impl VaultEntry {
-    pub const LEN: usize = 1 + 32 + 32 + 1 + 1;
-}
-
 #[account]
 pub struct GeoFence {
     pub bump: u8,
     pub vault: Pubkey,
     pub merchant: Pubkey,
-    pub mint: Pubkey,
     pub lat_micro: i32,
     pub lng_micro: i32,
     pub radius_meters: u32,
@@ -57,8 +54,4 @@ pub struct GeoFence {
 
     pub allow_non_geo_redemption: bool,
     pub non_geo_commission_penalty_bps: u16,
-}
-
-impl GeoFence {
-    pub const LEN: usize = 1 + 32 + 32 + 32 + 4 + 4 + 4 + 1 + 1 + (32 * 4) + 1 + 2;
 }

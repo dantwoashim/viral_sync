@@ -20,7 +20,7 @@ import type { ReferralDetail } from '@/lib/launch/types';
 export default function OfferReferralPage() {
   const params = useParams<{ token: string }>();
   const router = useRouter();
-  const { deviceId, sessionId } = useAuth();
+  const { deviceId, sessionId, displayName } = useAuth();
   const token = params.token;
   const [detail, setDetail] = useState<ReferralDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function OfferReferralPage() {
 
       setLoading(true);
       try {
-        const next = await fetchReferralDetail(token);
+        const next = await fetchReferralDetail(token, sessionId ?? undefined);
         if (cancelled) {
           return;
         }
@@ -67,6 +67,8 @@ export default function OfferReferralPage() {
     }
 
     const result = await claimReferralLink(token, {
+      sessionId,
+      displayName: displayName || 'Guest',
       deviceFingerprint: deviceId,
     });
 
@@ -110,7 +112,7 @@ export default function OfferReferralPage() {
               <Ticket size={34} weight="duotone" />
             </div>
             <p className="ticket-note" style={{ marginTop: 16 }}>
-              {detail?.offer.merchantName ?? 'Merchant'} - {detail?.offer.reward ?? 'Reward loading'}
+              {detail?.offer.merchantName ?? 'Merchant'} · {detail?.offer.reward ?? 'Reward loading'}
             </p>
 
             <div className="offer-facts">
@@ -218,12 +220,7 @@ export default function OfferReferralPage() {
                 </div>
 
                 <div className="cta-row" style={{ marginTop: 24 }}>
-                  <button
-                    className="primary-button"
-                    data-testid="offer-claim-button"
-                    onClick={handleClaim}
-                    disabled={!detail?.viewer.canClaim || !sessionId}
-                  >
+                  <button className="primary-button" onClick={handleClaim} disabled={!detail?.viewer.canClaim}>
                     Claim this visit
                     <ArrowRight size={18} />
                   </button>

@@ -1,33 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { attachConsumerSession, getOrCreateConsumerSession } from '@/lib/launch/consumerAuth';
-import { requireConsumerLaunchReadiness } from '@/lib/launch/guard';
-import { ensureReferralLink } from '@/lib/launch/server';
-import { badRequest, readJsonBody, readString } from '@/lib/launch/http';
-import { consumerDeviceSchema } from '@/lib/launch/schemas';
+import { enforceRateLimit, jsonError, readJsonBody } from '@/lib/launch/api';
+import {
+  ensureReferralLink,
+  isValidSessionId,
+  sanitizeDeviceFingerprint,
+  sanitizeDisplayName,
+} from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const launchGuard = requireConsumerLaunchReadiness();
-  if (launchGuard) {
-    return launchGuard;
+  const limited = enforceRateLimit(request, 'referrals-create', 20);
+  if (limited) {
+    return limited;
   }
 
-  const session = getOrCreateConsumerSession(request);
   const body = await readJsonBody(request);
-  const parsed = consumerDeviceSchema.safeParse(body);
-  if (!parsed.success) {
-    return badRequest(parsed.error.issues[0]?.message ?? 'Invalid referral request.');
-  }
-  const deviceFingerprint = readString(parsed.data.deviceFingerprint, session.sessionId);
+  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+  const displayName = sanitizeDisplayName(typeof body?.displayName === 'string' ? body.displayName : 'Guest');
+  const deviceFingerprint = sanitizeDeviceFingerprint(typeof body?.deviceFingerprint === 'string' ? body.deviceFingerprint : sessionId, sessionId);
 
-  const referral = await ensureReferralLink({
-    sessionId: session.sessionId!,
-    displayName: session.displayName ?? 'Guest',
-    deviceFingerprint,
-  });
-  const response = NextResponse.json(referral);
-  attachConsumerSession(response, session);
-  return response;
+  if (!sessionId || !isValidSessionId(sessionId)) {
+    return jsonError('A valid sessionId is required.', 400);
+  }
+
+  const referral = await ensureReferralLink({ sessionId, displayName, deviceFingerprint });
+  return NextResponse.json(referral);
 }

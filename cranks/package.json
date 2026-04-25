@@ -4,13 +4,12 @@
     "description": "Mainnet permissionless rent-harvesting operations",
     "main": "dist/mainnet_cranks.js",
     "scripts": {
-        "build": "tsc",
+        "build": "tsc -p tsconfig.json",
         "start": "node dist/mainnet_cranks.js",
-        "dev": "ts-node mainnet_cranks.ts"
+        "dev": "ts-node --project tsconfig.json mainnet_cranks.ts",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
     },
     "dependencies": {
-    "@viral-sync/shared": "file:../packages/shared",
-        "@coral-xyz/anchor": "^0.30.1",
         "@solana/web3.js": "^1.95.3",
         "bs58": "^5.0.0",
         "dotenv": "^16.4.5"

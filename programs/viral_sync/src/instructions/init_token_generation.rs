@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::Mint;
-use crate::state::token_generation::{TokenGeneration, INBOUND_BUFFER_SIZE, InboundEntry};
+use crate::state::token_generation::{TokenGeneration, INBOUND_BUFFER_SIZE, InboundEntry, ReferrerSlot};
 
 #[derive(Accounts)]
 pub struct InitTokenGeneration<'info> {
@@ -19,14 +19,13 @@ pub struct InitTokenGeneration<'info> {
     /// CHECK: The user receiving the PDA, does not need to sign
     pub owner: UncheckedAccount<'info>,
     
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    pub mint: InterfaceAccount<'info, Mint>,
     
     pub system_program: Program<'info, System>,
 }
 
-#[inline(never)]
-pub fn init_token_generation(ctx: Context<InitTokenGeneration>) -> Result<()> {
-    let gen = &mut *ctx.accounts.token_generation;
+pub fn handler(ctx: Context<InitTokenGeneration>) -> Result<()> {
+    let gen = &mut ctx.accounts.token_generation;
     
     gen.bump = ctx.bumps.token_generation;
     gen.version = 4;
@@ -44,6 +43,8 @@ pub fn init_token_generation(ctx: Context<InitTokenGeneration>) -> Result<()> {
     gen.buffer_head = 0;
     gen.buffer_pending = 0;
     gen.inbound_buffer = [InboundEntry::default(); INBOUND_BUFFER_SIZE];
+    gen.referrer_slots = [ReferrerSlot::default(); 4];
+    gen.active_referrer_slots = 0;
     
     gen.is_intermediary = false;
     gen.original_sender = Pubkey::default();
@@ -56,13 +57,16 @@ pub fn init_token_generation(ctx: Context<InitTokenGeneration>) -> Result<()> {
     gen.redemption_pending = false;
     gen.redemption_gen2_consumed = 0;
     gen.redemption_slot = 0;
+    gen.redemption_slot_consumed = [0; 4];
+    gen.redemption_slots_settled = 0;
     
     gen.is_treasury = false;
     gen.is_dex_pool = false;
     
     gen.poi_score = 0;
     gen.poi_updated_at = 0;
-    gen.redemption_required_mask = 0;
+    gen.identity_commitment = None;
+    gen.identity_provider = 0;
     
     Ok(())
 }

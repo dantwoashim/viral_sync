@@ -3,8 +3,6 @@
  * Every interface exactly matches the Rust structs in programs/viral_sync/src/state/
  */
 
-// These UI types are maintained manually and may omit on-chain fields that are
-// not surfaced in the current frontend.
 import { PublicKey } from '@solana/web3.js';
 
 /* ── Enums ── */
@@ -43,6 +41,7 @@ export interface MerchantConfig {
     tokensIssued: number;
     closeInitiatedAt: number;
     closeWindowEndsAt: number;
+    oracleAuthority: PublicKey;
 }
 
 export interface ViralOracle {
@@ -154,16 +153,10 @@ export interface TokenGeneration {
     processingNonce: number;
     redemptionPending: boolean;
     redemptionSlot: number;
-    redemptionGen2Consumed: number;
-    redemptionSlotConsumed: number[];
-    redemptionSlotsSettled: number;
     isTreasury: boolean;
     isDexPool: boolean;
     poiScore: number;
     poiUpdatedAt: number;
-    identityCommitment: Uint8Array | null;
-    identityProvider: number;
-    redemptionRequiredMask: number;
 }
 
 export interface VaultEntry {
@@ -178,7 +171,6 @@ export interface GeoFence {
     bump: number;
     vault: PublicKey;
     merchant: PublicKey;
-    mint: PublicKey;
     latMicro: number;
     lngMicro: number;
     radiusMeters: number;
@@ -220,12 +212,9 @@ export interface NetworkEdge {
     tokensAttributed: number;
 }
 
-export type DataSource = 'live' | 'demo' | 'empty';
-
 /** Hook return type with loading/error states */
 export interface DataState<T> {
     data: T | null;
     loading: boolean;
     error: string | null;
-    source: DataSource;
 }

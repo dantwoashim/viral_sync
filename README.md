@@ -1,174 +1,100 @@
 # Viral Sync
 
-Viral Sync is a referral and loyalty system for local merchants built on Solana. It tracks the path from share to claim to in-store redemption, attributes each conversion to the right referrer, and exposes that state through a merchant console and a consumer-facing application.
+Viral Sync is a Solana referral and loyalty protocol for merchant-funded rewards. The repository contains the Anchor program, the Next.js launch app, a gas relayer, a Solana Actions service, POS/client adapters, launch tooling, and protocol tests.
 
-This repository contains the full stack:
+## Status
 
-- an Anchor program for referral state, reward accounting, and settlement rules
-- a Next.js application with separate merchant and consumer experiences
-- a relayer for sponsored transactions
-- an actions server for runtime workflows
-- background workers and shared packages used by the application stack
+This codebase is ready for devnet pilot rehearsal. It is not audited for mainnet funds.
 
-## Current Scope
+Before mainnet, finish the external security audit, replace the default program ID, wire production wallet infrastructure, add local-validator instruction tests, and connect monitoring for the hosted services.
 
-Viral Sync is under active development. The repository is suitable for local development, devnet testing, and product work. It is not presented here as a turnkey production deployment.
-
-The current codebase includes:
-
-- a public-facing web application with merchant and consumer modes
-- a launch loop for link creation, claims, merchant confirmation, and passbook views
-- real QR-backed invite artifacts and short-code redemption handoff in the launch flow
-- installable PWA behavior with shell-level online status and cached summary fallbacks
-- signed consumer and merchant operator sessions in the application layer
-- a multi-merchant launch runtime with merchant-specific offer and operator resolution
-- optional shared launch persistence through Postgres via `VIRAL_SYNC_DATABASE_URL`
-- a Solana program and supporting services under active development
-- workspace packages for shared runtime types and server coordination
-
-## Core Flow
-
-For merchants:
-
-- define referral and reward behavior
-- issue trackable rewards
-- confirm in-store redemptions
-- inspect referral activity and campaign performance
-
-For consumers:
-
-- receive and share referral links
-- claim offers
-- maintain a passbook of rewards and progress
-- redeem rewards through the merchant flow
-
-The product is organized around a simple loop:
-
-1. A merchant creates or configures an offer.
-2. A consumer receives or opens a referral link.
-3. The consumer claims the offer.
-4. The merchant confirms the redemption.
-5. The passbook and merchant views update to reflect the result.
-
-## Architecture
-
-At a high level, the system is split into five layers:
+## Repository layout
 
 ```text
-Consumer and merchant app (Next.js)
-        |
-        +-- launch APIs and runtime flows
-        |
-Relayer and action services
-        |
-Shared workspace package
-        |
-Anchor program on Solana
-        |
-Background workers and maintenance tasks
+app/                  Next.js launch app and dashboard
+clients/              POS and web client adapters
+cranks/               Referral cleanup runner
+launch/               Pilot input validation and stress tooling
+programs/viral_sync/  Anchor program
+relayer/              Transaction sponsorship service
+server/actions/       Solana Actions API
+tests/                Protocol tests
 ```
 
-The public architecture note is in [ARCHITECTURE.md](./ARCHITECTURE.md).
-The current operational truth is in [docs/PRODUCT_REALITY.md](./docs/PRODUCT_REALITY.md).
-The supported deployment path is in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
-
-## Repository Layout
-
-```text
-app/                 Next.js application
-programs/viral_sync/ Anchor program
-relayer/             Sponsored transaction service
-server/actions/      Runtime action service
-cranks/              Background workers and maintenance scripts
-packages/shared/     Shared runtime types and constants
-clients/             Client-side helpers
-tests/               Integration and workflow tests
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18 or newer
-- Rust and Cargo
-- Anchor for Solana program development
-
-### Install Dependencies
-
-From the repository root:
+## Verify
 
 ```bash
+npm ci
+npm run verify
+```
+
+`npm run verify` builds the app and every workspace package, runs `cargo check`, builds the Anchor program and IDL, and runs the protocol test suite.
+
+## Local development
+
+```bash
+cp app/.env.example app/.env.local
+cp relayer/.env.example relayer/.env
+cp cranks/.env.example cranks/.env
+cp server/actions/.env.example server/actions/.env
+
 npm install
+npm run dev --workspace app
+npm run dev --workspace viral-sync-relayer
+npm run dev --workspace viral-sync-actions
 ```
 
-### Run the Web App
+Build the program:
 
 ```bash
-cd app
-npm run dev
-```
-
-The application runs at `http://localhost:3000`.
-
-### Build the Web App
-
-```bash
-cd app
-npm run build
-```
-
-### Build the Solana Program
-
-```bash
-cargo build
 anchor build
 ```
 
-## Environment
+## Production variables
 
-The application and services use standard environment variables for RPC endpoints, program IDs, relayer URLs, and runtime service URLs. Typical local development values include:
+```text
+app:
+  NEXT_PUBLIC_SOLANA_RPC_URL
+  NEXT_PUBLIC_PROGRAM_ID
+  NEXT_PUBLIC_MERCHANT_PUBKEY
+  NEXT_PUBLIC_RELAYER_URL
+  LAUNCH_DATABASE_URL
 
-- `NEXT_PUBLIC_SOLANA_RPC_URL`
-- `NEXT_PUBLIC_PROGRAM_ID`
-- `NEXT_PUBLIC_RELAYER_URL`
-- `NEXT_PUBLIC_ACTIONS_URL`
-- `VIRAL_SYNC_CONSUMER_SESSION_SECRET`
-- `VIRAL_SYNC_MERCHANT_SESSION_SECRET`
-- `VIRAL_SYNC_DATABASE_URL`
+relayer:
+  RPC_URL
+  RELAYER_SECRET
+  RELAYER_API_KEY
+  CORS_ORIGINS
 
-For the current launch loop:
+cranks:
+  PROGRAM_ID
+  RPC_URL
+  CRANK_SECRET
+  CRANK_DRY_RUN=false
 
-- omit `VIRAL_SYNC_DATABASE_URL` to use local filesystem persistence for development
-- set `VIRAL_SYNC_DATABASE_URL` to move launch state into Postgres
-- treat `VIRAL_SYNC_DATABASE_URL` as required for any production launch environment
-- set the session secrets in any non-local environment
-- use launch storage, not a shared environment access code, as the source of merchant operator identities
-
-Review the application code in `app/src/lib` and the service packages for the exact variables each component expects.
-
-## Development Notes
-
-- The app is a workspace package and resolves shared runtime types from `packages/shared`.
-- The frontend includes merchant and consumer routes in the same codebase.
-- The `cranks/` directory is kept in-tree but is not part of the active npm workspace build.
-- Internal planning notes and working documents are intentionally not included in the public tree.
-
-## Verification
-
-For the application package:
-
-```bash
-cd app
-npm run lint
-npm run build
+actions:
+  PUBLIC_BASE_URL
+  ACTION_ICON_URL
+  ACTIONS_ENABLED=true
 ```
 
-For a full launch-readiness check from the repository root:
+Use `LAUNCH_DATABASE_URL` for deployed pilots. Local JSON storage is only for development.
 
-```bash
-npm run verify:launch
+## Pilot hosting
+
+A zero-dollar pilot can run with:
+
+```text
+Next.js app:       Vercel Hobby
+Launch database:  Neon Free Postgres
+Relayer:          Render Free web service
+Actions service:  Render Free web service
+Crank dry-run:    GitHub Actions schedule
+Program:          Solana devnet or testnet
 ```
+
+Render free services sleep after idle periods, so this setup is for pilots, not production service-level commitments.
 
 ## License
 
-This repository is licensed under the MIT License. See [LICENSE](./LICENSE).
+MIT

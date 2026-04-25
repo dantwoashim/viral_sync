@@ -1,17 +1,16 @@
 /**
- * Viral Sync v1 relayer client.
- * Live mode should use typed sponsored-action endpoints instead of the legacy
- * generic relay API so the backend can enforce action-specific policy.
+ * Viral Sync — Relayer Client
+ * Sends transactions to the gas relayer instead of directly to Solana.
+ * The relayer pays the gas fee so users never need SOL.
+ *
+ * Flow:
+ * 1. Frontend builds transaction (unsigned or partially signed by session key)
+ * 2. Serializes to base64 and sends to relayer
+ * 3. Relayer simulates, co-signs (adds fee payer), broadcasts
+ * 4. Returns transaction signature
  */
 
 import { Transaction, VersionedTransaction } from '@solana/web3.js';
-import {
-    type RelayerAction,
-    type RelayerHealthPayload,
-    type SponsoredActionRequest,
-    type SponsoredActionResponse,
-    RELAYER_ROUTE_PREFIX,
-} from '@viral-sync/shared';
 
 const RELAYER_URL = process.env.NEXT_PUBLIC_RELAYER_URL || 'http://localhost:3001';
 
@@ -22,82 +21,29 @@ export interface RelayResult {
     logs?: string[];
 }
 
-export interface RelayHealthResult {
-    online: boolean;
-    relayEnabled?: boolean;
-    relayerPubkey?: string;
-    balance?: number;
-    apiVersion?: string;
-}
-
-function serializeTransaction(tx: Transaction | VersionedTransaction): string {
-    if (tx instanceof VersionedTransaction) {
-        return Buffer.from(tx.serialize()).toString('base64');
-    }
-
-    return Buffer.from(tx.serialize({
-        requireAllSignatures: false,
-        verifySignatures: false,
-    })).toString('base64');
-}
-
-async function parseJsonResponse<T>(response: Response): Promise<T> {
-    return response.json() as Promise<T>;
-}
-
-async function postLegacyRelay(
-    transactionBase64: string
+/**
+ * Send a transaction through the gas relayer.
+ * The relayer pays the SOL transaction fee.
+ */
+export async function relayTransaction(
+    tx: Transaction | VersionedTransaction
 ): Promise<RelayResult> {
-    const response = await fetch(`${RELAYER_URL}/relay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionBase64 }),
-    });
-
-    const data = await parseJsonResponse<RelayResult & SponsoredActionResponse>(response);
-    if (!response.ok) {
-        return {
-            success: false,
-            error: data.error || 'Relay failed',
-            logs: data.logs,
-        };
-    }
-
-    return {
-        success: true,
-        signature: data.signature,
-    };
-}
-
-export async function sponsorActionTransaction(
-    action: RelayerAction,
-    tx: Transaction | VersionedTransaction,
-    options: Omit<SponsoredActionRequest, 'action' | 'transactionBase64'> = {}
-): Promise<RelayResult> {
-    const transactionBase64 = serializeTransaction(tx);
-
     try {
-        const response = await fetch(`${RELAYER_URL}${RELAYER_ROUTE_PREFIX}/actions/sponsor`, {
+        const serialized = tx.serialize();
+        const base64 = Buffer.from(serialized).toString('base64');
+
+        const response = await fetch(`${RELAYER_URL}/relay`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action,
-                transactionBase64,
-                merchant: options.merchant,
-                idempotencyKey: options.idempotencyKey,
-                metadata: options.metadata,
-            } satisfies SponsoredActionRequest),
+            body: JSON.stringify({ transactionBase64: base64 }),
         });
 
-        if (response.status === 404) {
-            return postLegacyRelay(transactionBase64);
-        }
+        const data = await response.json();
 
-        const data = await parseJsonResponse<SponsoredActionResponse>(response);
-        if (!response.ok || data.status !== 'success') {
+        if (!response.ok) {
             return {
                 success: false,
-                error: data.error || 'Sponsored action failed',
+                error: data.error || 'Relay failed',
                 logs: data.logs,
             };
         }
@@ -105,67 +51,48 @@ export async function sponsorActionTransaction(
         return {
             success: true,
             signature: data.signature,
-            logs: data.logs,
         };
     } catch (error: unknown) {
         return {
             success: false,
-            error: error instanceof Error ? error.message : 'Network error: relayer may be offline',
+            error: error instanceof Error ? error.message : 'Network error — relayer may be offline',
         };
     }
 }
 
 /**
- * Legacy compatibility wrapper.
- * New live flows should call sponsorActionTransaction with an explicit action.
+ * Check if the relayer is online and healthy.
  */
-export async function relayTransaction(
-    tx: Transaction | VersionedTransaction,
-    action: RelayerAction = 'claim-commission'
-): Promise<RelayResult> {
-    return sponsorActionTransaction(action, tx);
-}
-
-export async function checkRelayerHealth(): Promise<RelayHealthResult> {
+export async function checkRelayerHealth(): Promise<{
+    online: boolean;
+    relayerPubkey?: string;
+    balance?: number;
+}> {
     try {
-        const v1Response = await fetch(`${RELAYER_URL}${RELAYER_ROUTE_PREFIX}/health`, {
+        const response = await fetch(`${RELAYER_URL}/health`, {
             method: 'GET',
             signal: AbortSignal.timeout(3000),
         });
 
-        if (v1Response.ok) {
-            const data = await parseJsonResponse<RelayerHealthPayload>(v1Response);
-            return {
-                online: true,
-                relayEnabled: data.relayEnabled,
-                relayerPubkey: data.relayerPubkey,
-                balance: data.balance,
-                apiVersion: RELAYER_ROUTE_PREFIX,
-            };
-        }
-
-        const legacyResponse = await fetch(`${RELAYER_URL}/health`, {
-            method: 'GET',
-            signal: AbortSignal.timeout(3000),
-        });
-
-        if (!legacyResponse.ok) {
+        if (!response.ok) {
             return { online: false };
         }
 
-        const legacyData = await parseJsonResponse<RelayerHealthPayload>(legacyResponse);
+        const data = await response.json();
         return {
             online: true,
-            relayEnabled: legacyData.relayEnabled,
-            relayerPubkey: legacyData.relayerPubkey,
-            balance: legacyData.balance,
-            apiVersion: 'legacy',
+            relayerPubkey: data.relayerPubkey,
+            balance: data.balance,
         };
     } catch {
         return { online: false };
     }
 }
 
+/**
+ * Get the relayer's public key and current SOL balance.
+ * Useful for displaying relayer status in merchant settings.
+ */
 export function getRelayerUrl(): string {
     return RELAYER_URL;
 }

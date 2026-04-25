@@ -1,8 +1,8 @@
 [workspace]
-members = [
-    "programs/viral_sync"
-]
 resolver = "2"
+members = [
+    "programs/*"
+]
 
 [profile.release]
 overflow-checks = true
