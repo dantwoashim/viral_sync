@@ -8,6 +8,12 @@ This codebase is ready for devnet pilot rehearsal. It is not audited for mainnet
 
 Before mainnet, finish the external security audit, replace the default program ID, wire production wallet infrastructure, add local-validator instruction tests, and connect monitoring for the hosted services.
 
+## Portfolio docs
+
+- [Case study](docs/CASE_STUDY.md)
+- [Demo script](docs/DEMO_SCRIPT.md)
+- [Security policy](SECURITY.md)
+
 ## Repository layout
 
 ```text
