@@ -37,25 +37,26 @@ const merchantTabs = [
 
 export default function MerchantShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { displayName, setRole } = useAuth();
+  const { displayName, loading, setRole } = useAuth();
 
   const hideChrome = pathname === '/login';
+  const immersiveHome = ['/', '/invite', '/redeem', '/passbook', '/profile', '/routes', '/merchant/today', '/merchant/scan'].includes(pathname);
   const mode = pathname.startsWith('/merchant') ? 'merchant' : 'consumer';
   const tabs = mode === 'merchant' ? merchantTabs : consumerTabs;
 
   useEffect(() => {
-    if (!hideChrome) {
+    if (!hideChrome && !loading) {
       setRole(mode);
     }
-  }, [hideChrome, mode, setRole]);
+  }, [hideChrome, loading, mode, setRole]);
 
   if (hideChrome) {
     return <>{children}</>;
   }
 
   return (
-    <div className="vs-shell">
-      <aside className="vs-rail">
+    <div className={`vs-shell ${immersiveHome ? 'is-immersive' : ''}`}>
+      {!immersiveHome && <aside className="vs-rail">
         <div className="vs-rail-brand">
           <div className="vs-brand-mark">
             <Storefront size={18} weight="duotone" />
@@ -97,10 +98,10 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
             </div>
           </div>
         </div>
-      </aside>
+      </aside>}
 
-      <div className="vs-main">
-        <div className="vs-topbar">
+      <div className={`vs-main ${immersiveHome ? 'is-immersive' : ''}`}>
+        {!immersiveHome && <div className="vs-topbar">
           <div className="vs-topbar-note">
             <div className="vs-kicker">{mode === 'merchant' ? 'Merchant growth OS' : 'Modern passbook'}</div>
             <div className="vs-topline">
@@ -119,12 +120,12 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
               <span>{mode === 'merchant' ? 'Consumer' : 'Merchant'}</span>
             </Link>
           </div>
-        </div>
+        </div>}
 
-        <div className="vs-content">{children}</div>
+        <div className={`vs-content ${immersiveHome ? 'is-immersive' : ''}`}>{children}</div>
       </div>
 
-      <BottomNav />
+      {!immersiveHome && <BottomNav />}
     </div>
   );
 }

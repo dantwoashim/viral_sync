@@ -12,7 +12,7 @@ import { createHash } from 'crypto';
 
 dotenv.config();
 
-const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || 'Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS');
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || '8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9');
 const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
 const CRANK_SECRET = process.env.CRANK_SECRET || '';
 const DRY_RUN = process.env.CRANK_DRY_RUN !== 'false';
@@ -28,6 +28,15 @@ if (isProduction && !CRANK_SECRET) {
 if (!DRY_RUN && !CRANK_SECRET) {
   throw new Error('CRANK_SECRET is required when CRANK_DRY_RUN=false.');
 }
+
+function assertPositiveInteger(value: number, name: string) {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+}
+
+assertPositiveInteger(SWEEP_INTERVAL_MS, 'SWEEP_INTERVAL_MS');
+assertPositiveInteger(BATCH_SIZE, 'BATCH_SIZE');
 
 function parseSecretKey(secret: string) {
   if (!secret) {

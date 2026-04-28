@@ -21,9 +21,9 @@ export default function MerchantCustomersPage() {
         <div className="surface-header">
           <div className="surface-title-block">
             <div className="eyebrow">Customers</div>
-            <h1 className="surface-title">Use this in under 30 seconds.</h1>
+            <h1 className="surface-title">Spot the referrers who bring real tables.</h1>
             <p className="surface-subtitle">
-              Merchant customer views should surface rising referrers, repeat visitors, and suspicious patterns without turning into CRM bloat.
+              Rising referrers, repeat visitors, and blocked patterns stay readable at a glance.
             </p>
           </div>
         </div>
@@ -45,7 +45,7 @@ export default function MerchantCustomersPage() {
                 <div className="ledger-head">
                   <div>
                     <div className="eyebrow">Relationship ledger</div>
-                    <div className="ledger-headline">The roster should tell you who is real, not who clicked.</div>
+                    <div className="ledger-headline">This roster ranks real visits over noisy clicks.</div>
                   </div>
                   <div className="row-meta">
                     <div>{data?.merchant.district ?? 'Pilot'}</div>
@@ -99,7 +99,7 @@ export default function MerchantCustomersPage() {
                 <div className="metric-line">
                   <div className="metric-label">
                     <strong>Tracked people</strong>
-                    <span>The launch should stay small enough that every line still means something.</span>
+                    <span>The pilot stays small enough that every customer line still means something.</span>
                   </div>
                   <div className="metric-value">{customerCount}</div>
                 </div>

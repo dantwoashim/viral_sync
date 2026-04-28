@@ -20,7 +20,7 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: {
     default: 'Viral Sync Nepal',
-    template: '%s · Viral Sync Nepal',
+    template: '%s - Viral Sync Nepal',
   },
   description: 'Share places you love and unlock rewards with your people.',
 };

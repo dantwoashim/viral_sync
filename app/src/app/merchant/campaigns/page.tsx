@@ -26,9 +26,9 @@ export default function MerchantCampaignsPage() {
         <div className="surface-header">
           <div className="surface-title-block">
             <div className="eyebrow">Campaigns</div>
-            <h1 className="surface-title">Compose offers like a merchant, not an enterprise admin.</h1>
+            <h1 className="surface-title">Launch a reward staff can explain in one breath.</h1>
             <p className="surface-subtitle">
-              Campaign creation should answer four things fast: what the customer gets, what triggers it, how long it lasts, and what it is likely to cost.
+              Set the reward, invite trigger, redemption window, and expected cost without turning a cafe pilot into enterprise software.
             </p>
           </div>
         </div>
@@ -46,9 +46,9 @@ export default function MerchantCampaignsPage() {
           <section className="paper-sheet sheet-pad campaign-composer">
             <div className="campaign-head">
               <div className="eyebrow">Offer composition</div>
-              <div className="campaign-headline">Write the reward as something staff can explain in one breath.</div>
+              <div className="campaign-headline">Make the promise clear enough to repeat at the counter.</div>
               <p className="sheet-copy">
-                This is not ad copy. It should read like a clear promise that a cashier, student group, or office friend can repeat without confusion.
+                Customers share faster when the offer sounds like a real table reward, not a campaign configuration.
               </p>
             </div>
 
