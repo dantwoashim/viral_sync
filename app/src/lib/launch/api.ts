@@ -15,6 +15,15 @@ export async function readJsonBody(request: NextRequest) {
   }
 }
 
+export function requireJsonRequest(request: NextRequest) {
+  const contentType = request.headers.get('content-type') ?? '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    return jsonError('Content-Type must be application/json.', 415);
+  }
+
+  return null;
+}
+
 function getClientKey(request: NextRequest, scope: string) {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
   const realIp = request.headers.get('x-real-ip')?.trim();

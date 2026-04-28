@@ -5,7 +5,7 @@ use crate::state::{merchant_config::{MerchantConfig, VaultEntry}, token_generati
 use crate::errors::ViralSyncError;
 use crate::events::*;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9");
 
 // ── INITIALIZE EXTRA ACCOUNT METAS ──────────────────────────────────────────
 #[derive(Accounts)]

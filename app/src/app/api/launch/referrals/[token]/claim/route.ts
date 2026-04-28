@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest } from '@/lib/launch/api';
 import {
   claimReferral,
   isValidReferralToken,
@@ -18,6 +18,11 @@ export async function POST(
   const limited = enforceRateLimit(request, 'referral-claim', 20);
   if (limited) {
     return limited;
+  }
+
+  const invalidContentType = requireJsonRequest(request);
+  if (invalidContentType) {
+    return invalidContentType;
   }
 
   const { token } = await context.params;

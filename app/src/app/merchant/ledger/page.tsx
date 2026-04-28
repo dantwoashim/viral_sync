@@ -16,7 +16,7 @@ export default function MerchantLedgerPage() {
         <div className="surface-header">
           <div className="surface-title-block">
             <div className="eyebrow">Ledger</div>
-            <h1 className="surface-title">The money view should be honest, not theatrical.</h1>
+            <h1 className="surface-title">Show merchant value before platform fees.</h1>
             <p className="surface-subtitle">
               Before PSP integrations, the merchant ledger needs to show attributed activity, reward cost, and the exact line between deferred platform fees and real value delivered.
             </p>
@@ -77,7 +77,7 @@ export default function MerchantLedgerPage() {
               <div className="metric-line">
                 <div className="metric-label">
                   <strong>Reward first</strong>
-                  <span>The merchant should see the cost of redeemed value before any platform charge appears.</span>
+                  <span>The merchant sees the cost of redeemed value before any platform charge appears.</span>
                 </div>
                 <div className="metric-value">Fair</div>
               </div>
@@ -114,7 +114,7 @@ export default function MerchantLedgerPage() {
               <div className="ledger-head">
                 <div>
                   <div className="eyebrow">Ledger lines</div>
-                  <div className="ledger-headline">The numbers should explain the business without sales theater.</div>
+                  <div className="ledger-headline">The numbers explain the business without sales theater.</div>
                 </div>
                 <div className="row-meta">
                   <div>{data?.merchant.district ?? 'Pilot'}</div>

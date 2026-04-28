@@ -55,8 +55,8 @@ const dbPool = DATABASE_URL
   })
   : null;
 
-export const PILOT_MERCHANT_ID = 'merchant-nyano-chiya-ghar';
-export const PILOT_OFFER_ID = 'offer-thamel-four-friends';
+export const PILOT_MERCHANT_ID = 'merchant-thamel-brew-house';
+export const PILOT_OFFER_ID = 'offer-thamel-brew-pass';
 const MAX_DISPLAY_NAME_LENGTH = 48;
 const MAX_SESSION_ID_LENGTH = 96;
 const MAX_DEVICE_FINGERPRINT_LENGTH = 160;
@@ -120,7 +120,7 @@ function codeFromClaimId(claimId: string) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatMeta(timestamp: string, label: string) {
   const date = new Date(timestamp);
-  return `${date.toLocaleDateString('en-US', { phase: 'short', day: 'numeric' })} · ${label}`;
+  return `${date.toLocaleDateString('en-US', { phase: 'short', day: 'numeric' })} - ${label}`;
 }
 
 function isSameUtcDay(left: string, right: string) {
@@ -144,7 +144,7 @@ function formatLedgerMetaSafe(timestamp: string, label: string) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatLedgerMeta(timestamp: string, label: string) {
   const date = new Date(timestamp);
-  return `${date.toLocaleDateString('en-US', { phase: 'short', day: 'numeric' })} · ${label}`;
+  return `${date.toLocaleDateString('en-US', { phase: 'short', day: 'numeric' })} - ${label}`;
 }
 
 function countRedeemedClaimsForReferral(ledger: LaunchLedger, referralToken: string) {
@@ -172,7 +172,7 @@ function expireStaleRedeemCodes(ledger: LaunchLedger) {
 }
 
 function normalizeLedgerState(ledger: LaunchLedger) {
-  let changed = false;
+  let changed = removeLegacySampleData(ledger);
 
   ledger.referralLinks = ledger.referralLinks.map((referral) => {
     const referrerDeviceFingerprint = referral.referrerDeviceFingerprint ?? referral.referrerSessionId;
@@ -205,150 +205,75 @@ function toOfferView(offer: OfferRecord, merchantName: string, district: string)
   };
 }
 
-function createSeedLedger(): LaunchLedger {
-  const now = new Date();
-  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-  const ninetyMinutesAgo = new Date(now.getTime() - 90 * 60 * 1000);
-  const sixtyMinutesAgo = new Date(now.getTime() - 60 * 60 * 1000);
-  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
-
+function createInitialLedger(): LaunchLedger {
   const merchant = {
     id: PILOT_MERCHANT_ID,
-    name: 'Nyano Chiya Ghar',
+    name: 'Thamel Brew House',
     district: 'Thamel',
     city: 'Kathmandu',
-    locationLabel: 'Thamel North Lane',
+    locationLabel: 'Thamel Coffee Lane',
   };
 
   const offer: OfferRecord = {
     id: PILOT_OFFER_ID,
     merchantId: merchant.id,
-    slug: 'thamel-four-friends',
-    title: 'Bring 3 friends. All 4 unlock a warm momo set.',
+    slug: 'thamel-brew-pass',
+    title: 'Bring 3 friends. All 4 unlock Rs. 150 coffee credit.',
     description: 'Merchant-funded group reward for a dense district pilot. Confirmation happens at the counter.',
-    reward: '1 plate buff momo + 4 masala teas',
+    reward: 'Rs. 150 coffee credit for each guest',
     referralGoal: 3,
     redemptionWindowHours: 72,
     active: true,
-    createdAt: iso(twoHoursAgo),
-  };
-
-  const sajinaReferral: ReferralLinkRecord = {
-    token: 'sajina-thamel',
-    offerId: offer.id,
-    referrerSessionId: 'seed-sajina',
-    referrerDisplayName: 'Sajina',
-    referrerDeviceFingerprint: 'device-sajina',
-    createdAt: iso(twoHoursAgo),
-    openCount: 9,
-  };
-
-  const prabinReferral: ReferralLinkRecord = {
-    token: 'prabin-thamel',
-    offerId: offer.id,
-    referrerSessionId: 'seed-prabin',
-    referrerDisplayName: 'Prabin',
-    referrerDeviceFingerprint: 'device-prabin',
-    createdAt: iso(sixtyMinutesAgo),
-    openCount: 3,
-  };
-
-  const claim1: ClaimRecord = {
-    id: 'claim-ritesh-1',
-    offerId: offer.id,
-    referralToken: sajinaReferral.token,
-    referrerSessionId: sajinaReferral.referrerSessionId,
-    referrerDisplayName: sajinaReferral.referrerDisplayName,
-    claimerSessionId: 'seed-ritesh',
-    claimerDisplayName: 'Ritesh',
-    deviceFingerprint: 'device-ritesh',
-    claimedAt: iso(ninetyMinutesAgo),
-    status: 'redeemed',
-    redeemedAt: iso(sixtyMinutesAgo),
-  };
-
-  const claim2: ClaimRecord = {
-    id: 'claim-mina-1',
-    offerId: offer.id,
-    referralToken: sajinaReferral.token,
-    referrerSessionId: sajinaReferral.referrerSessionId,
-    referrerDisplayName: sajinaReferral.referrerDisplayName,
-    claimerSessionId: 'seed-mina',
-    claimerDisplayName: 'Mina',
-    deviceFingerprint: 'device-mina',
-    claimedAt: iso(sixtyMinutesAgo),
-    status: 'code-generated',
-  };
-
-  const claim3: ClaimRecord = {
-    id: 'claim-ansu-1',
-    offerId: offer.id,
-    referralToken: prabinReferral.token,
-    referrerSessionId: prabinReferral.referrerSessionId,
-    referrerDisplayName: prabinReferral.referrerDisplayName,
-    claimerSessionId: 'seed-ansu',
-    claimerDisplayName: 'Ansu',
-    deviceFingerprint: 'device-ansu',
-    claimedAt: iso(thirtyMinutesAgo),
-    status: 'redeemed',
-    redeemedAt: iso(thirtyMinutesAgo),
-  };
-
-  const claim4: ClaimRecord = {
-    id: 'claim-sajina-self',
-    offerId: offer.id,
-    referralToken: sajinaReferral.token,
-    referrerSessionId: sajinaReferral.referrerSessionId,
-    referrerDisplayName: sajinaReferral.referrerDisplayName,
-    claimerSessionId: 'seed-sajina',
-    claimerDisplayName: 'Sajina',
-    deviceFingerprint: 'seed-sajina',
-    claimedAt: iso(now),
-    status: 'blocked',
-    blockedReason: 'Self-referral from the same device cluster is not allowed.',
-  };
-
-  const code1: RedeemCodeRecord = {
-    id: 'code-mina-1',
-    claimId: claim2.id,
-    merchantId: merchant.id,
-    code: 'MIN-A01',
-    status: 'active',
-    createdAt: iso(thirtyMinutesAgo),
-  };
-
-  const code2: RedeemCodeRecord = {
-    id: 'code-ritesh-1',
-    claimId: claim1.id,
-    merchantId: merchant.id,
-    code: 'RIT-101',
-    status: 'redeemed',
-    createdAt: iso(sixtyMinutesAgo),
-    redeemedAt: iso(sixtyMinutesAgo),
+    createdAt: iso(new Date()),
   };
 
   const events: EventRecord[] = [
     { id: 'evt-offer', type: 'offer_created', createdAt: offer.createdAt, merchantId: merchant.id, offerId: offer.id },
-    { id: 'evt-link-sajina', type: 'referral_link_created', createdAt: sajinaReferral.createdAt, merchantId: merchant.id, offerId: offer.id, referralToken: sajinaReferral.token, actorSessionId: sajinaReferral.referrerSessionId },
-    { id: 'evt-link-prabin', type: 'referral_link_created', createdAt: prabinReferral.createdAt, merchantId: merchant.id, offerId: offer.id, referralToken: prabinReferral.token, actorSessionId: prabinReferral.referrerSessionId },
-    { id: 'evt-claim-1', type: 'referral_claimed', createdAt: claim1.claimedAt, merchantId: merchant.id, offerId: offer.id, referralToken: claim1.referralToken, claimId: claim1.id, actorSessionId: claim1.claimerSessionId },
-    { id: 'evt-code-1', type: 'merchant_code_generated', createdAt: code2.createdAt, merchantId: merchant.id, offerId: offer.id, claimId: claim1.id, redeemCodeId: code2.id, actorSessionId: claim1.claimerSessionId },
-    { id: 'evt-redeem-1', type: 'redemption_confirmed', createdAt: claim1.redeemedAt!, merchantId: merchant.id, offerId: offer.id, claimId: claim1.id, redeemCodeId: code2.id, actorSessionId: claim1.claimerSessionId },
-    { id: 'evt-claim-2', type: 'referral_claimed', createdAt: claim2.claimedAt, merchantId: merchant.id, offerId: offer.id, referralToken: claim2.referralToken, claimId: claim2.id, actorSessionId: claim2.claimerSessionId },
-    { id: 'evt-code-2', type: 'merchant_code_generated', createdAt: code1.createdAt, merchantId: merchant.id, offerId: offer.id, claimId: claim2.id, redeemCodeId: code1.id, actorSessionId: claim2.claimerSessionId },
-    { id: 'evt-claim-3', type: 'referral_claimed', createdAt: claim3.claimedAt, merchantId: merchant.id, offerId: offer.id, referralToken: claim3.referralToken, claimId: claim3.id, actorSessionId: claim3.claimerSessionId },
-    { id: 'evt-redeem-3', type: 'redemption_confirmed', createdAt: claim3.redeemedAt!, merchantId: merchant.id, offerId: offer.id, claimId: claim3.id, actorSessionId: claim3.claimerSessionId },
-    { id: 'evt-blocked-self', type: 'referral_blocked', createdAt: claim4.claimedAt, merchantId: merchant.id, offerId: offer.id, referralToken: claim4.referralToken, claimId: claim4.id, actorSessionId: claim4.claimerSessionId, payload: { reason: claim4.blockedReason ?? 'blocked' } },
   ];
 
   return {
     merchants: [merchant],
     offers: [offer],
-    referralLinks: [sajinaReferral, prabinReferral],
-    claims: [claim1, claim2, claim3, claim4],
-    redeemCodes: [code1, code2],
+    referralLinks: [],
+    claims: [],
+    redeemCodes: [],
     events,
   };
+}
+
+function removeLegacySampleData(ledger: LaunchLedger) {
+  const legacySessionPrefix = 'seed-';
+  let changed = false;
+
+  const beforeReferrals = ledger.referralLinks.length;
+  ledger.referralLinks = ledger.referralLinks.filter((referral) =>
+    !referral.referrerSessionId.startsWith(legacySessionPrefix));
+  changed = changed || ledger.referralLinks.length !== beforeReferrals;
+
+  const beforeClaims = ledger.claims.length;
+  ledger.claims = ledger.claims.filter((claim) =>
+    !claim.referrerSessionId.startsWith(legacySessionPrefix) &&
+    !claim.claimerSessionId.startsWith(legacySessionPrefix));
+  changed = changed || ledger.claims.length !== beforeClaims;
+
+  const remainingClaimIds = new Set(ledger.claims.map((claim) => claim.id));
+  const remainingReferralTokens = new Set(ledger.referralLinks.map((referral) => referral.token));
+  const beforeCodes = ledger.redeemCodes.length;
+  ledger.redeemCodes = ledger.redeemCodes.filter((code) => remainingClaimIds.has(code.claimId));
+  changed = changed || ledger.redeemCodes.length !== beforeCodes;
+
+  const beforeEvents = ledger.events.length;
+  ledger.events = ledger.events.filter((event) =>
+    event.id === 'evt-offer' ||
+    (
+      (!event.referralToken || remainingReferralTokens.has(event.referralToken)) &&
+      (!event.claimId || remainingClaimIds.has(event.claimId)) &&
+      (!event.redeemCodeId || ledger.redeemCodes.some((code) => code.id === event.redeemCodeId)) &&
+      (!event.actorSessionId || !event.actorSessionId.startsWith(legacySessionPrefix))
+    ));
+  changed = changed || ledger.events.length !== beforeEvents;
+
+  return changed;
 }
 
 function extractCompleteJsonDocument(raw: string) {
@@ -419,8 +344,8 @@ async function ensureLedger() {
   try {
     await fs.access(LEDGER_PATH);
   } catch {
-    const seed = createSeedLedger();
-    await fs.writeFile(LEDGER_PATH, JSON.stringify(seed, null, 2), 'utf8');
+    const initialLedger = createInitialLedger();
+    await fs.writeFile(LEDGER_PATH, JSON.stringify(initialLedger, null, 2), 'utf8');
   }
 }
 
@@ -454,7 +379,7 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
       INSERT INTO launch_ledger (id, data)
       VALUES ($1, $2::jsonb)
       ON CONFLICT (id) DO NOTHING
-    `, [LEDGER_ROW_ID, JSON.stringify(createSeedLedger())]);
+    `, [LEDGER_ROW_ID, JSON.stringify(createInitialLedger())]);
   };
 
   if (client) {
@@ -470,7 +395,7 @@ async function loadLedgerFromDatabase() {
   await ensureDatabaseLedger();
   const result = await dbPool!.query('SELECT data FROM launch_ledger WHERE id = $1', [LEDGER_ROW_ID]);
   if (result.rowCount === 0) {
-    return createSeedLedger();
+    return createInitialLedger();
   }
 
   const ledger = result.rows[0].data as LaunchLedger;
@@ -550,7 +475,7 @@ async function withLedgerMutation<T>(mutator: (ledger: LaunchLedger) => T | Prom
         'SELECT data FROM launch_ledger WHERE id = $1 FOR UPDATE',
         [LEDGER_ROW_ID],
       );
-      const ledger = (result.rows[0]?.data as LaunchLedger | undefined) ?? createSeedLedger();
+      const ledger = (result.rows[0]?.data as LaunchLedger | undefined) ?? createInitialLedger();
       normalizeLedgerState(ledger);
       const mutationResult = await mutator(ledger);
 
@@ -649,17 +574,6 @@ function derivePassbookRows(ledger: LaunchLedger, sessionId: string, offerView: 
       createdAt: claim.claimedAt,
     });
   });
-
-  if (rows.length === 0) {
-    rows.push({
-      id: 'welcome-passbook',
-      title: 'Your passbook is ready to start',
-      subtitle: 'Create a share link, bring friends in, and let the first confirmed redemption write the first line.',
-      meta: formatLedgerMetaSafe(new Date().toISOString(), offerView.district),
-      status: 'progress',
-      createdAt: new Date().toISOString(),
-    });
-  }
 
   return rows.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }

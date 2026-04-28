@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest } from '@/lib/launch/api';
 import {
   ensureReferralLink,
   isValidSessionId,
@@ -14,6 +14,11 @@ export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, 'referrals-create', 20);
   if (limited) {
     return limited;
+  }
+
+  const invalidContentType = requireJsonRequest(request);
+  if (invalidContentType) {
+    return invalidContentType;
   }
 
   const body = await readJsonBody(request);

@@ -6,7 +6,15 @@ Viral Sync is a Solana referral and loyalty protocol for merchant-funded rewards
 
 This codebase is ready for devnet pilot rehearsal. It is not audited for mainnet funds.
 
-Before mainnet, finish the external security audit, replace the default program ID, wire production wallet infrastructure, add local-validator instruction tests, and connect monitoring for the hosted services.
+The Frontier build is scoped to one complete merchant loop: Thamel Brew House launches a merchant-funded coffee reward, customers share a mobile pass, friends claim and redeem it in-store, and the merchant dashboard shows confirmed attribution.
+
+Pilot program ID:
+
+```text
+8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9
+```
+
+Before mainnet, finish the external security audit, wire production wallet infrastructure, expand local-validator instruction tests, and connect monitoring for the hosted services.
 
 ## Portfolio docs
 
@@ -25,6 +33,14 @@ relayer/              Transaction sponsorship service
 server/actions/       Solana Actions API
 tests/                Protocol tests
 ```
+
+## Frontier demo path
+
+```text
+Merchant Today -> Invite -> Offer Claim -> Redeem Code -> Merchant Scan -> Ledger/Attribution
+```
+
+The visible demo should stay focused on this path. Routes outside that loop are supporting surfaces, not the main submission story.
 
 ## Verify
 
@@ -80,8 +96,10 @@ cranks:
 actions:
   PUBLIC_BASE_URL
   ACTION_ICON_URL
-  ACTIONS_ENABLED=true
+  ACTIONS_ENABLED=false
 ```
+
+The Actions API is intentionally disabled in the Frontier build until the transaction builder is wired. The mobile web claim flow is the supported demo path.
 
 Use `LAUNCH_DATABASE_URL` for deployed pilots. Local JSON storage is only for development.
 

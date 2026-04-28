@@ -9,14 +9,22 @@ use crate::errors::ViralSyncError;
 
 #[derive(Accounts)]
 pub struct ClaimCommission<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = commission_ledger.merchant == merchant_config.merchant @ ViralSyncError::InvalidState,
+        constraint = commission_ledger.mint == mint.key() @ ViralSyncError::InvalidState
+    )]
     pub commission_ledger: Account<'info, CommissionLedger>,
     
+    #[account(
+        constraint = merchant_config.mint == mint.key() @ ViralSyncError::InvalidState
+    )]
     pub merchant_config: Account<'info, MerchantConfig>,
     
     #[account(
         mut,
         constraint = treasury_generation.is_treasury @ ViralSyncError::InvalidState,
+        constraint = treasury_generation.owner == treasury_signer.key() @ ViralSyncError::InvalidState,
         constraint = treasury_generation.mint == mint.key() @ ViralSyncError::InvalidState
     )]
     pub treasury_generation: Box<Account<'info, TokenGeneration>>,
@@ -28,7 +36,11 @@ pub struct ClaimCommission<'info> {
     )]
     pub treasury_ata: InterfaceAccount<'info, TokenAccount>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = referrer_ata.owner == commission_ledger.referrer @ ViralSyncError::InvalidTokenAccount,
+        constraint = referrer_ata.mint == mint.key() @ ViralSyncError::InvalidTokenAccount
+    )]
     pub referrer_ata: InterfaceAccount<'info, TokenAccount>,
     
     pub mint: InterfaceAccount<'info, Mint>,

@@ -8,6 +8,7 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
+import { createHash, timingSafeEqual } from 'crypto';
 
 dotenv.config();
 
@@ -18,7 +19,8 @@ const RELAYER_SECRET = process.env.RELAYER_SECRET || '';
 const RELAYER_API_KEY = process.env.RELAYER_API_KEY || '';
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 30);
-const MAX_TRANSACTION_BYTES = Number(process.env.MAX_TRANSACTION_BYTES || 1_250_000);
+const MAX_TRANSACTION_BYTES = Number(process.env.MAX_TRANSACTION_BYTES || 2_048);
+const REPLAY_CACHE_TTL_MS = Number(process.env.REPLAY_CACHE_TTL_MS || 5 * 60_000);
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -31,6 +33,18 @@ if (isProduction && !RELAYER_SECRET) {
 if (isProduction && !RELAYER_API_KEY) {
   throw new Error('RELAYER_API_KEY is required when NODE_ENV=production.');
 }
+
+function assertPositiveInteger(value: number, name: string) {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+}
+
+assertPositiveInteger(PORT, 'PORT');
+assertPositiveInteger(RATE_LIMIT_WINDOW_MS, 'RATE_LIMIT_WINDOW_MS');
+assertPositiveInteger(RATE_LIMIT_MAX, 'RATE_LIMIT_MAX');
+assertPositiveInteger(MAX_TRANSACTION_BYTES, 'MAX_TRANSACTION_BYTES');
+assertPositiveInteger(REPLAY_CACHE_TTL_MS, 'REPLAY_CACHE_TTL_MS');
 
 function parseSecretKey(secret: string) {
   if (!secret) {
@@ -63,9 +77,10 @@ app.use(cors({
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Relayer-Key'],
 }));
-app.use(express.json({ limit: '2mb', type: 'application/json' }));
+app.use(express.json({ limit: '16kb', type: 'application/json' }));
 
 const rateLimitMap = new Map<string, number[]>();
+const replayCache = new Map<string, number>();
 
 function clientKey(req: Request) {
   return req.ip || req.socket.remoteAddress || 'unknown';
@@ -90,7 +105,7 @@ function requireApiKey(req: Request, res: Response, next: NextFunction) {
   }
 
   const supplied = req.header('x-relayer-key') || req.header('authorization')?.replace(/^Bearer\s+/i, '');
-  if (supplied !== RELAYER_API_KEY) {
+  if (!supplied || !constantTimeEqual(supplied, RELAYER_API_KEY)) {
     res.status(401).json({ error: 'Invalid relayer credentials.' });
     return;
   }
@@ -111,6 +126,17 @@ function maskRpcUrl(value: string) {
   return value.replace(/\/\/([^/@]+)@/, '//***@');
 }
 
+function constantTimeEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function decodeTransactionPayload(transactionBase64: unknown) {
   if (typeof transactionBase64 !== 'string' || transactionBase64.length === 0) {
     throw new Error('Missing transactionBase64.');
@@ -125,14 +151,18 @@ function decodeTransactionPayload(transactionBase64: unknown) {
     throw new Error(`Transaction must be between 1 and ${MAX_TRANSACTION_BYTES} bytes.`);
   }
 
+  const fingerprint = createHash('sha256').update(txBuffer).digest('hex');
+
   try {
     return {
       kind: 'versioned' as const,
+      fingerprint,
       tx: VersionedTransaction.deserialize(txBuffer),
     };
   } catch {
     return {
       kind: 'legacy' as const,
+      fingerprint,
       tx: Transaction.from(txBuffer),
     };
   }
@@ -160,6 +190,20 @@ async function simulateSignedTransaction(tx: VersionedTransaction | Transaction)
   return connection.simulateTransaction(tx);
 }
 
+function reserveReplayFingerprint(fingerprint: string) {
+  const now = Date.now();
+  const existing = replayCache.get(fingerprint);
+  if (existing && now - existing < REPLAY_CACHE_TTL_MS) {
+    throw new Error('Duplicate transaction payload rejected by relayer replay protection.');
+  }
+
+  replayCache.set(fingerprint, now);
+}
+
+function releaseReplayFingerprint(fingerprint: string) {
+  replayCache.delete(fingerprint);
+}
+
 setInterval(() => {
   const now = Date.now();
   for (const [ip, timestamps] of rateLimitMap.entries()) {
@@ -168,6 +212,12 @@ setInterval(() => {
       rateLimitMap.delete(ip);
     } else {
       rateLimitMap.set(ip, recent);
+    }
+  }
+
+  for (const [fingerprint, timestamp] of replayCache.entries()) {
+    if (now - timestamp >= REPLAY_CACHE_TTL_MS) {
+      replayCache.delete(fingerprint);
     }
   }
 }, 30_000).unref();
@@ -194,28 +244,35 @@ app.post('/relay', requireApiKey, requireRateLimit, async (req, res) => {
   try {
     const decoded = decodeTransactionPayload(req.body?.transactionBase64);
     assertRelayerIsFeePayer(decoded);
+    reserveReplayFingerprint(decoded.fingerprint);
 
-    if (decoded.kind === 'versioned') {
-      decoded.tx.sign([relayerKeypair]);
-    } else {
-      decoded.tx.partialSign(relayerKeypair);
-    }
+    try {
+      if (decoded.kind === 'versioned') {
+        decoded.tx.sign([relayerKeypair]);
+      } else {
+        decoded.tx.partialSign(relayerKeypair);
+      }
 
-    const simulation = await simulateSignedTransaction(decoded.tx);
-    if (simulation.value.err) {
-      res.status(400).json({
-        error: 'Transaction simulation failed.',
-        logs: simulation.value.logs?.slice(-10),
+      const simulation = await simulateSignedTransaction(decoded.tx);
+      if (simulation.value.err) {
+        releaseReplayFingerprint(decoded.fingerprint);
+        res.status(400).json({
+          error: 'Transaction simulation failed.',
+          logs: simulation.value.logs?.slice(-10),
+        });
+        return;
+      }
+
+      const signature = await connection.sendRawTransaction(decoded.tx.serialize(), {
+        skipPreflight: true,
+        maxRetries: 3,
       });
-      return;
+
+      res.json({ signature, status: 'success' });
+    } catch (error) {
+      releaseReplayFingerprint(decoded.fingerprint);
+      throw error;
     }
-
-    const signature = await connection.sendRawTransaction(decoded.tx.serialize(), {
-      skipPreflight: true,
-      maxRetries: 3,
-    });
-
-    res.json({ signature, status: 'success' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Relay failed.';
     res.status(400).json({ error: message });
