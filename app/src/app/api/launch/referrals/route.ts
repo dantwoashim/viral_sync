@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireSameOrigin } from '@/lib/launch/api';
 import {
   ensureReferralLink,
   isValidSessionId,
   sanitizeDeviceFingerprint,
   sanitizeDisplayName,
 } from '@/lib/launch/server';
+import { validateReferralCreate } from '@/lib/launch/validation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,11 +21,19 @@ export async function POST(request: NextRequest) {
   if (invalidContentType) {
     return invalidContentType;
   }
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) {
+    return invalidOrigin;
+  }
 
   const body = await readJsonBody(request);
-  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
-  const displayName = sanitizeDisplayName(typeof body?.displayName === 'string' ? body.displayName : 'Guest');
-  const deviceFingerprint = sanitizeDeviceFingerprint(typeof body?.deviceFingerprint === 'string' ? body.deviceFingerprint : sessionId, sessionId);
+  const parsed = validateReferralCreate(body);
+  if (!parsed.ok) {
+    return jsonError(parsed.message, 400, 'invalid_request', requestId(request), parsed.details);
+  }
+  const sessionId = parsed.value.sessionId;
+  const displayName = sanitizeDisplayName(parsed.value.displayName);
+  const deviceFingerprint = sanitizeDeviceFingerprint(parsed.value.deviceFingerprint, sessionId);
 
   if (!sessionId || !isValidSessionId(sessionId)) {
     return jsonError('A valid sessionId is required.', 400);

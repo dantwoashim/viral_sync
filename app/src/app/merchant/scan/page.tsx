@@ -1,5 +1,5 @@
-import { MerchantScanReferenceUi } from '@/components/ReferenceUi';
+import { StaffTerminalScreen } from '@/components/launch/screens';
 
 export default function MerchantScanPage() {
-  return <MerchantScanReferenceUi />;
+  return <StaffTerminalScreen />;
 }

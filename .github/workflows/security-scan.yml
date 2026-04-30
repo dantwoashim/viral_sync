@@ -1,0 +1,31 @@
+name: Security Scan
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  dependency-and-secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+      - name: Secret pattern scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RInE '(PRIVATE_KEY=|SECRET_KEY=|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|ghp_[A-Za-z0-9_]{30,}|xox[baprs]-)' \
+            --exclude-dir=.git \
+            --exclude-dir=node_modules \
+            --exclude-dir=target \
+            --exclude-dir=dist \
+            .

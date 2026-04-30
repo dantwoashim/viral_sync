@@ -39,3 +39,50 @@ pub struct CommissionPaid {
     pub amount: u64,
     pub mint: Pubkey,
 }
+
+#[event]
+pub struct MerchantRegistered {
+    pub merchant_config: Pubkey,
+    pub merchant_authority: Pubkey,
+    pub org_id_hash: [u8; 32],
+}
+
+#[event]
+pub struct GrowthCampaignCreated {
+    pub growth_campaign: Pubkey,
+    pub merchant_config: Pubkey,
+    pub merchant_authority: Pubkey,
+    pub campaign_id_hash: [u8; 32],
+    pub reward_mint: Pubkey,
+    pub reward_per_verified_visit: u64,
+    pub max_redemptions: u32,
+    pub starts_at: i64,
+    pub expires_at: i64,
+}
+
+#[event]
+pub struct GrowthBountyFunded {
+    pub growth_campaign: Pubkey,
+    pub reward_escrow: Pubkey,
+    pub amount: u64,
+    pub total_funded: u64,
+}
+
+#[event]
+pub struct CausalReceiptRecorded {
+    pub causal_receipt: Pubkey,
+    pub growth_campaign: Pubkey,
+    pub receipt_id_hash: [u8; 32],
+    pub claimer_nullifier_hash: [u8; 32],
+    pub reward_amount: u64,
+}
+
+#[event]
+pub struct ReceiptRewardSettled {
+    pub causal_receipt: Pubkey,
+    pub growth_campaign: Pubkey,
+    pub settlement_record: Pubkey,
+    pub referrer_amount: u64,
+    pub visitor_amount: u64,
+    pub settled_amount: u64,
+}

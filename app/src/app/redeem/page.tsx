@@ -1,5 +1,5 @@
-import { RedeemReferenceUi } from '@/components/ReferenceUi';
+import { RedeemScreen } from '@/components/launch/screens';
 
 export default function RedeemPage() {
-  return <RedeemReferenceUi />;
+  return <RedeemScreen />;
 }

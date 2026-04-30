@@ -6,9 +6,12 @@ import SignalRibbon from '@/components/launch/SignalRibbon';
 import { merchantCampaignDefaults } from '@/lib/nepalData';
 
 export default function MerchantCampaignsPage() {
+  const [title, setTitle] = useState(merchantCampaignDefaults.title);
   const [reward, setReward] = useState(merchantCampaignDefaults.reward);
   const [threshold, setThreshold] = useState(merchantCampaignDefaults.threshold);
   const [windowLabel, setWindowLabel] = useState(merchantCampaignDefaults.window);
+  const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'published' | 'error'>('idle');
+  const [publishMessage, setPublishMessage] = useState('');
 
   const { estimate, effectiveClaims, cadence } = useMemo(() => {
     const claimCount = Number.parseInt(threshold, 10);
@@ -19,6 +22,37 @@ export default function MerchantCampaignsPage() {
       cadence: effectiveClaims >= 5 ? 'Best for high-energy dinner groups' : 'Best for short tea and snack clusters',
     };
   }, [threshold]);
+
+  async function publishCampaign() {
+    setPublishState('publishing');
+    setPublishMessage('');
+    const windowHours = Number.parseInt(windowLabel, 10);
+
+    try {
+      const response = await fetch('/api/launch/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          reward,
+          referralGoal: effectiveClaims,
+          redemptionWindowHours: Number.isFinite(windowHours) ? windowHours : 72,
+          description: `${effectiveClaims} invited confirmations unlock a merchant-confirmed reward.`,
+        }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload?.reason || payload?.error?.message || 'Campaign could not be published.');
+      }
+
+      setPublishState('published');
+      setPublishMessage('Campaign published to the pilot ledger.');
+    } catch (error) {
+      setPublishState('error');
+      setPublishMessage(error instanceof Error ? error.message : 'Campaign could not be published.');
+    }
+  }
 
   return (
     <div className="surface">
@@ -55,7 +89,7 @@ export default function MerchantCampaignsPage() {
             <div className="field-stack" style={{ marginTop: 22 }}>
               <div className="field">
                 <label htmlFor="campaign-title">Campaign title</label>
-                <input id="campaign-title" defaultValue={merchantCampaignDefaults.title} />
+                <input id="campaign-title" value={title} onChange={(event) => setTitle(event.target.value)} />
               </div>
               <div className="field">
                 <label htmlFor="campaign-reward">Reward</label>
@@ -72,6 +106,15 @@ export default function MerchantCampaignsPage() {
                 </div>
               </div>
               <div className="field-helper">{merchantCampaignDefaults.budgetHint}</div>
+            </div>
+
+            <div className="field-row" style={{ marginTop: 18, alignItems: 'center' }}>
+              <button className="vs-link-chip" type="button" onClick={publishCampaign} disabled={publishState === 'publishing'}>
+                {publishState === 'publishing' ? 'Publishing...' : 'Publish campaign'}
+              </button>
+              <div className="field-helper" role="status">
+                {publishMessage || 'Publishes reward, cap, timing, copy, preview, and active status into the pilot ledger.'}
+              </div>
             </div>
 
             <div className="campaign-sequence">

@@ -67,16 +67,22 @@ function writeSession(session: StoredSession) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 }
 
-function buildGuestSession(role: UserRole = null): StoredSession {
-  const seed = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()
-    : Math.random().toString(36).slice(2, 8).toUpperCase();
+async function requestServerGuestSession(fallback?: StoredSession | null): Promise<StoredSession> {
+  const response = await fetch('/api/launch/session', {
+    method: 'POST',
+    credentials: 'same-origin',
+  });
 
+  if (!response.ok) {
+    throw new Error('Guest session could not be issued.');
+  }
+
+  const issued = await response.json() as StoredSession;
   return {
-    sessionId: `vs-${Date.now().toString(36)}-${seed.toLowerCase()}`,
-    displayName: `Guest ${seed.slice(0, 3)}`,
-    loginMethod: 'guest',
-    role,
+    ...issued,
+    displayName: fallback?.displayName ?? issued.displayName,
+    loginMethod: fallback?.loginMethod ?? issued.loginMethod,
+    role: fallback?.role ?? issued.role,
   };
 }
 
@@ -104,20 +110,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = readSession();
-    const nextSession = saved ?? buildGuestSession();
     const nextDeviceId = getOrCreateDeviceId();
-    writeSession(nextSession);
-    queueMicrotask(() => {
-      setSession(nextSession);
-      setDeviceId(nextDeviceId);
-      setLoading(false);
-    });
+    const saved = readSession();
+
+    requestServerGuestSession(saved)
+      .then((nextSession) => {
+        writeSession(nextSession);
+        setSession(nextSession);
+      })
+      .catch(() => {
+        if (saved) {
+          setSession(saved);
+        }
+      })
+      .finally(() => {
+        setDeviceId(nextDeviceId);
+        setLoading(false);
+      });
   }, []);
 
   const persistSession = useCallback((updater: (current: StoredSession) => StoredSession) => {
     setSession((current) => {
-      const next = updater(current ?? buildGuestSession());
+      const next = updater(current ?? {
+        sessionId: 'vs-pending-session',
+        displayName: 'Guest',
+        loginMethod: 'guest',
+        role: null,
+      });
       writeSession(next);
       return next;
     });
@@ -126,10 +145,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(() => setShowModal(true), []);
 
   const logout = useCallback(() => {
-    const nextGuest = buildGuestSession();
-    writeSession(nextGuest);
-    setSession(nextGuest);
-    setShowModal(false);
+    requestServerGuestSession(null).then((nextGuest) => {
+      writeSession(nextGuest);
+      setSession(nextGuest);
+      setShowModal(false);
+    }).catch(() => setShowModal(false));
   }, []);
 
   const setRole = useCallback((role: UserRole) => {

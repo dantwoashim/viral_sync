@@ -1,5 +1,43 @@
 # Security Policy
 
+## Current Launch Security Status
+
+Viral Sync is not audited for mainnet funds. The Frontier build now includes a P0 auth baseline:
+
+- server-issued guest session cookie;
+- temporary merchant/staff PIN gate;
+- merchant session records with roles;
+- staff device enrollment/revocation records;
+- audit events for sensitive actions;
+- append-only reward ledger entries;
+- idempotency records for retry-sensitive mutations.
+- runtime validation for public mutations;
+- common API error shape with request ids;
+- CSRF origin checks for sensitive cookie/mutation routes;
+- browser security headers on sensitive responses.
+
+Remaining production work:
+
+- replace temporary PIN with real merchant login;
+- store sessions and staff devices in normalized Postgres tables;
+- use enrolled device signatures instead of demo HMAC signatures;
+- complete external audit before mainnet funds;
+- wire live on-chain receipt submission and settlement monitoring.
+- keep the Day 140 security gate blocked while unresolved P0/P1 issues remain;
+- move upgrade authority to multisig before uncapped beta.
+
+## Day 134-144 Security Gate
+
+The repository now includes:
+
+- threat model v2 in `docs/threat-model-v2-day-134.md`;
+- baseline CSRF/XSS/session notes in `docs/csrf-xss-session-tests-day-135.md`;
+- GitHub security scanning workflow in `.github/workflows/security-scan.yml`;
+- program security review notes in `docs/program-security-review-day-137.md`;
+- relayer abuse drill in `docs/relayer-abuse-drill-day-138.md`;
+- incident runbooks in `docs/incident-runbooks-day-139.md`;
+- mainnet beta scope and upgrade authority policies in `docs/mainnet-beta-scope-day-141.md` and `docs/upgrade-authority-policy-day-142.md`.
+
 Viral Sync is a devnet/prototype project. It is not audited for mainnet funds.
 
 ## Reporting a vulnerability
