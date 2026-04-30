@@ -72,11 +72,14 @@ GitHub Actions also runs `.github/workflows/production-smoke.yml` every 6 hours 
 
 - Program ID: `8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9`
 - IDL snapshot: `docs/snapshots/solana/viral_sync-idl-devnet-2026-04-30.json`
+- Localnet deployment snapshot: `docs/snapshots/solana/viral_sync-localnet-deployment-snapshot-2026-04-30.json`
 - Deployment snapshot metadata: `docs/snapshots/solana/viral_sync-devnet-deployment-snapshot-2026-04-30.json`
 - Solana CLI: `solana-cli 3.1.14` installed in WSL Ubuntu 24.04
 - Devnet payer: `FDbsM2KxA2rEYf377CmqzrJTSsaPSkmu36CFHn9jLuM4`
 
-The Anchor build succeeds locally and the Solana CLI is installed in WSL. Final devnet deployment is blocked only by devnet faucet funding: the payer has `0 SOL`, faucet requests are rate-limited, and deploying `target/deploy/viral_sync.so` requires about `4.8550176 SOL` rent plus transaction fees.
+The Anchor build succeeds locally and the compiled program artifact deploys successfully on a WSL local validator with the same program ID. Localnet deployment signature: `3zXb3mNvaY4dZSoUM4vCxQTPMHxo8ksK7NJiuutnJvH7myu95UhpZ95ttUj6E9AUcfLMS2C1hLVdbXWiL1zvrjA5`.
+
+Final devnet deployment is blocked only by devnet faucet funding: the payer has `0 SOL`, faucet requests are rate-limited, and deploying `target/deploy/viral_sync.so` requires about `4.8550176 SOL` rent plus transaction fees.
 
 Once the payer has at least `5 SOL` on devnet, run:
 
