@@ -1,5 +1,5 @@
-import { InviteReferenceUi } from '@/components/ReferenceUi';
+import { InviteScreen } from '@/components/launch/screens';
 
 export default function InvitePage() {
-  return <InviteReferenceUi />;
+  return <InviteScreen />;
 }

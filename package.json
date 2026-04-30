@@ -8,15 +8,20 @@
     "cranks",
     "launch",
     "relayer",
+    "sdk",
     "server/actions"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "build:program": "anchor build",
+    "backup:neon": "node scripts/backup-neon-ledger.mjs",
+    "monitor:production": "node scripts/check-production.mjs",
+    "seed:demo": "ts-node scripts/seed-demo.ts",
+    "reset:demo": "ts-node scripts/reset-demo.ts",
     "lint": "npm run lint --workspaces --if-present",
     "test:protocol": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "verify": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-clients && npm run build --workspace viral-sync-launch && npm run build --workspace relayer && npm run build --workspace cranks && npm run build --workspace viral-sync-actions && cargo check --manifest-path programs/viral_sync/Cargo.toml && npm run build:program && npm run test:protocol"
+    "verify": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-clients && npm run build --workspace viral-sync-launch && npm run build --workspace viral-sync-sdk && npm run build --workspace relayer && npm run build --workspace cranks && npm run build --workspace viral-sync-actions && cargo check --manifest-path programs/viral_sync/Cargo.toml && npm run build:program && npm run test:protocol"
   },
   "overrides": {
     "axios": "1.15.2",

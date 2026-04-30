@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS outbox_jobs;
+DROP TABLE IF EXISTS idempotency_records;
+DROP TABLE IF EXISTS reward_ledger_entries;
+DROP TABLE IF EXISTS audit_events;
+DROP TABLE IF EXISTS causal_receipts;
+DROP TABLE IF EXISTS redemptions;
+DROP TABLE IF EXISTS claims;
+DROP TABLE IF EXISTS causal_invites;
+DROP TABLE IF EXISTS campaigns;
+DROP TABLE IF EXISTS staff_devices;
+DROP TABLE IF EXISTS merchant_sessions;
+DROP TABLE IF EXISTS merchants;
+DROP TABLE IF EXISTS merchant_orgs;

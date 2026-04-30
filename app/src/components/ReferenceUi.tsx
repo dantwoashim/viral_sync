@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Bell,
   CalendarBlank,
+  ChartBar,
   Check,
   CheckCircle,
   Coffee,
@@ -32,6 +33,7 @@ import { useAuth } from '@/lib/auth';
 import { confirmMerchantCode, createRedeemCode, ensureConsumerReferral } from '@/lib/launch/client';
 import { useConsumerSummary, useMerchantSummary } from '@/lib/launch/hooks';
 import type { ConsumerPassbookRow, ConsumerSummary, MerchantSummary } from '@/lib/launch/types';
+import QrPayload from '@/components/launch/QrPayload';
 
 const emptyQrCells = [
   1, 1, 1, 0, 1, 0, 1, 1, 1,
@@ -157,13 +159,25 @@ function BottomTabs({ active }: { active: 'home' | 'passbook' | 'invite' | 'prof
   );
 }
 
-function QrGrid({ seed }: { seed?: string | null }) {
+function QrGrid({ seed, payload, label }: { seed?: string | null; payload?: string; label: string }) {
   const cells = useMemo(() => qrCellsFor(seed), [seed]);
+  if (payload) {
+    return (
+      <div>
+        <QrPayload payload={payload} label={label} />
+        <small className="ref-demo-code-label">Scannable QR. Manual entry remains available.</small>
+      </div>
+    );
+  }
+
   return (
-    <div className="ref-qr" aria-hidden="true">
-      {cells.map((cell, index) => (
-        <i key={`${cell}-${index}`} className={cell ? 'is-on' : ''} />
-      ))}
+    <div>
+      <div className="ref-qr" aria-hidden="true">
+        {cells.map((cell, index) => (
+          <i key={`${cell}-${index}`} className={cell ? 'is-on' : ''} />
+        ))}
+      </div>
+      <small className="ref-demo-code-label">Waiting for a live payload.</small>
     </div>
   );
 }
@@ -328,6 +342,9 @@ export function InviteReferenceUi() {
   const shareUrl = typeof window !== 'undefined' && data?.referral.sharePath
     ? `${window.location.origin}${data.referral.sharePath}`
     : '';
+  const shareText = data
+    ? `${displayName || 'A friend'} invited you to ${data.offer.merchantName}. Claim ${data.offer.reward}: ${shareUrl}`
+    : shareUrl;
 
   const createLink = async () => {
     if (!sessionId) {
@@ -363,7 +380,7 @@ export function InviteReferenceUi() {
     if (navigator.share) {
       await navigator.share({
         title: data?.offer.title ?? 'Viral Sync invite',
-        text: data?.offer.reward ?? 'Claim this merchant reward.',
+        text: shareText,
         url: shareUrl,
       });
       return;
@@ -381,7 +398,7 @@ export function InviteReferenceUi() {
       <section className={`ref-share-ticket ${!token ? 'is-muted' : ''}`}>
         <h2>{offerShortName(data)}</h2>
         <p>{token ? 'Share Ticket' : 'Unissued Ticket'}</p>
-        <QrGrid seed={token} />
+        <QrGrid seed={token} payload={shareUrl || undefined} label="Referral invite QR" />
         <span>Your Referral Code</span>
         <strong>{codeLabel(token)}</strong>
       </section>
@@ -405,11 +422,11 @@ export function InviteReferenceUi() {
           <LinkSimple size={24} />
           <span>{token ? 'Copy Link' : working ? 'Creating' : 'Create Link'}</span>
         </button>
-        <a href={shareUrl ? `https://wa.me/?text=${encodeURIComponent(shareUrl)}` : undefined} aria-disabled={!shareUrl}>
+        <a href={shareUrl ? `https://wa.me/?text=${encodeURIComponent(shareText)}` : undefined} aria-disabled={!shareUrl}>
           <ShareNetwork size={24} />
           <span>WhatsApp</span>
         </a>
-        <a href={shareUrl ? `sms:?&body=${encodeURIComponent(shareUrl)}` : undefined} aria-disabled={!shareUrl}>
+        <a href={shareUrl ? `sms:?&body=${encodeURIComponent(shareText)}` : undefined} aria-disabled={!shareUrl}>
           <PaperPlaneTilt size={24} />
           <span>Messages</span>
         </a>
@@ -432,6 +449,12 @@ export function RedeemReferenceUi() {
   const [message, setMessage] = useState<string | null>(null);
   const code = data?.activeRedeemCode?.code ?? null;
   const hasClaim = Boolean(data?.activeClaim && data.activeClaim.status !== 'blocked');
+  const qrPayload = code ? JSON.stringify({
+    type: 'viral-sync-redeem-code',
+    version: '1',
+    code,
+    offerId: data?.offer.id,
+  }) : undefined;
 
   const generateCode = async () => {
     if (!sessionId) {
@@ -462,7 +485,7 @@ export function RedeemReferenceUi() {
       <section className={`ref-redeem-ticket ${!code ? 'is-muted' : ''}`}>
         <h2>{offerShortName(data)}</h2>
         <p>{code ? 'Redeem Ticket' : 'No Active Code'}</p>
-        <QrGrid seed={code} />
+        <QrGrid seed={code} payload={qrPayload} label="Redeem code QR" />
         <span>Counter Code</span>
         <strong>{code ?? 'Create first'}</strong>
       </section>
@@ -503,6 +526,7 @@ function MerchantRail({ active, summary }: { active: string; summary: MerchantSu
     { label: 'Referrals', href: '/network', icon: ShareNetwork },
     { label: 'Customers', href: '/merchant/customers', icon: UsersThree },
     { label: 'Rewards', href: '/merchant/campaigns', icon: Gift },
+    { label: 'Reports', href: '/merchant/reports', icon: ChartBar },
     { label: 'Settings', href: '/settings', icon: Storefront },
   ] as const;
 
@@ -614,20 +638,33 @@ export function MerchantTodayReferenceUi() {
 export function MerchantScanReferenceUi() {
   const { data, loading, error, refresh } = useMerchantSummary();
   const [code, setCode] = useState('');
+  const [staffPin, setStaffPin] = useState('');
+  const [manualReceiptId, setManualReceiptId] = useState('');
   const [working, setWorking] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [receiptId, setReceiptId] = useState<string | null>(null);
+
+  const normalizeStaffCode = (value: string) => {
+    const raw = value.replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 6);
+    return raw.length > 3 ? `${raw.slice(0, 3)}-${raw.slice(3)}` : raw;
+  };
 
   const submit = async () => {
     setWorking(true);
     setResult(null);
+    setReceiptId(null);
     try {
-      const response = await confirmMerchantCode(code);
+      const response = await confirmMerchantCode(code, staffPin, manualReceiptId);
       if (!response.ok) {
         setResult(response.reason ?? 'Code could not be confirmed.');
         return;
       }
-      setResult(response.status === 'redeemed' ? `Confirmed ${response.code}.` : `Code ${response.code} is ${response.status}.`);
+      setResult(response.receiptPda
+        ? `Confirmed ${response.code}. Receipt ${response.receiptPda.slice(0, 18)}...`
+        : response.status === 'redeemed' ? `Confirmed ${response.code}.` : `Code ${response.code} is ${response.status}.`);
+      setReceiptId(response.receiptId ?? null);
       setCode('');
+      setManualReceiptId('');
       await refresh();
     } finally {
       setWorking(false);
@@ -646,28 +683,63 @@ export function MerchantScanReferenceUi() {
             <Link href="/merchant/ledger"><Receipt size={17} /> Transactions</Link>
             <Link href="/settings"><Storefront size={17} /> Settings</Link>
           </nav>
+          <small>Camera scanner is browser-permission dependent. Manual entry is always available for the counter.</small>
         </aside>
 
         <section className="ref-confirm-panel">
           <div className={`ref-check ${result ? 'is-live' : ''}`}>{result ? <Check size={58} /> : <QrCode size={58} />}</div>
           <h1>{result ? 'Reviewed' : 'Ready'}</h1>
           <p>{result ?? 'Enter a six-character live code from the customer redeem screen.'}</p>
+          <div className="ref-scanner-note">
+            <QrCode size={18} />
+            <span>QR scan-ready. Use manual entry if camera permission is unavailable.</span>
+          </div>
           <div className="ref-form">
             <label htmlFor="redeem-code">Manual code</label>
             <div>
               <input
                 id="redeem-code"
                 value={code}
-                onChange={(event) => setCode(event.target.value.toUpperCase())}
+                onChange={(event) => setCode(normalizeStaffCode(event.target.value))}
                 placeholder="ABC-123"
                 maxLength={7}
+                inputMode="text"
               />
               <button onClick={submit} disabled={working || code.trim().length < 6}>
                 {working ? 'Checking' : 'Confirm'}
               </button>
             </div>
+            <div className="ref-cta-row">
+              <button className="ref-secondary" type="button" onClick={() => setCode('')}>
+                Clear
+              </button>
+              <button className="ref-secondary" type="button" onClick={() => void refresh()}>
+                Refresh
+              </button>
+            </div>
+            <label htmlFor="staff-pin">Staff PIN</label>
+            <input
+              id="staff-pin"
+              value={staffPin}
+              onChange={(event) => setStaffPin(event.target.value)}
+              placeholder="DEMO-PIN"
+              autoComplete="off"
+            />
+            <label htmlFor="manual-receipt-id">Receipt ID</label>
+            <input
+              id="manual-receipt-id"
+              value={manualReceiptId}
+              onChange={(event) => setManualReceiptId(event.target.value.toUpperCase())}
+              placeholder="Optional bill #"
+              autoComplete="off"
+            />
           </div>
           {error && <div className="ref-message is-error">{error}</div>}
+          {receiptId && (
+            <Link className="ref-secondary" href={`/receipts/${encodeURIComponent(receiptId)}`}>
+              Open receipt proof
+            </Link>
+          )}
         </section>
 
         <section className="ref-balance-panel">

@@ -1,0 +1,14 @@
+﻿{
+    "snapshotCreatedAt":  "2026-04-30T20:21:01.4504994+05:45",
+    "cluster":  "devnet",
+    "programId":  "8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9",
+    "anchorCli":  "0.30.1",
+    "idlPath":  "docs/snapshots/solana/viral_sync-idl-devnet-2026-04-30.json",
+    "idlSha256":  "4e3a8938ade55d8cf241c18c63149bfb7f60e70f3adea6abefc5e45348f2a03b",
+    "idlBytes":  73292,
+    "binaryPath":  "target/deploy/viral_sync.so",
+    "binarySha256":  "f54cf2f1f050184da66f888985b5c4763fb48392a2a40628c89460d945ccfa2d",
+    "binaryBytes":  697432,
+    "deploymentStatus":  "build-snapshot-only",
+    "blocker":  "Solana CLI is not installed or not on PATH, so anchor deploy / solana program show cannot run here yet."
+}

@@ -163,4 +163,65 @@ pub mod viral_sync {
     pub fn revoke_session_key(ctx: Context<RevokeSessionKey>) -> Result<()> {
         instructions::session_management::revoke_session_key(ctx)
     }
+
+    // Causal Commerce path
+    pub fn register_merchant(ctx: Context<RegisterMerchant>, org_id_hash: [u8; 32]) -> Result<()> {
+        instructions::causal_commerce::register_merchant(ctx, org_id_hash)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_growth_campaign(
+        ctx: Context<CreateGrowthCampaign>,
+        campaign_id_hash: [u8; 32],
+        reward_per_verified_visit: u64,
+        max_redemptions: u32,
+        max_depth: u8,
+        split_rules_hash: [u8; 32],
+        fraud_policy_hash: [u8; 32],
+        starts_at: i64,
+        expires_at: i64,
+    ) -> Result<()> {
+        instructions::causal_commerce::create_growth_campaign(
+            ctx,
+            campaign_id_hash,
+            reward_per_verified_visit,
+            max_redemptions,
+            max_depth,
+            split_rules_hash,
+            fraud_policy_hash,
+            starts_at,
+            expires_at,
+        )
+    }
+
+    pub fn fund_growth_bounty(ctx: Context<FundGrowthBounty>, amount: u64) -> Result<()> {
+        instructions::causal_commerce::fund_growth_bounty(ctx, amount)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn record_causal_receipt(
+        ctx: Context<RecordCausalReceipt>,
+        receipt_id_hash: [u8; 32],
+        parent_receipt_id_hash: [u8; 32],
+        referrer_commitment: [u8; 32],
+        claimer_nullifier_hash: [u8; 32],
+        invite_hash: [u8; 32],
+        visit_attestation_hash: [u8; 32],
+        risk_score_commitment: [u8; 32],
+    ) -> Result<()> {
+        instructions::causal_commerce::record_causal_receipt(
+            ctx,
+            receipt_id_hash,
+            parent_receipt_id_hash,
+            referrer_commitment,
+            claimer_nullifier_hash,
+            invite_hash,
+            visit_attestation_hash,
+            risk_score_commitment,
+        )
+    }
+
+    pub fn settle_receipt_reward(ctx: Context<SettleReceiptReward>) -> Result<()> {
+        instructions::causal_commerce::settle_receipt_reward(ctx)
+    }
 }

@@ -1,5 +1,5 @@
-import { MerchantTodayReferenceUi } from '@/components/ReferenceUi';
+import { MerchantDashboardScreen } from '@/components/launch/screens';
 
 export default function MerchantTodayPage() {
-  return <MerchantTodayReferenceUi />;
+  return <MerchantDashboardScreen />;
 }

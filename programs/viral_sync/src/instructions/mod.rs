@@ -17,6 +17,7 @@ pub mod geo_fencing;
 pub mod bond_management;
 pub mod disputes;
 pub mod session_management;
+pub mod causal_commerce;
 
 pub use init_token_generation::*;
 pub use init_treasury_token_generation::*;
@@ -33,3 +34,4 @@ pub use geo_fencing::*;
 pub use bond_management::*;
 pub use disputes::*;
 pub use session_management::*;
+pub use causal_commerce::*;

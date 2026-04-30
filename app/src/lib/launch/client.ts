@@ -93,11 +93,11 @@ export async function createRedeemCode(sessionId: string) {
   return result;
 }
 
-export async function confirmMerchantCode(code: string) {
+export async function confirmMerchantCode(code: string, staffPin: string, manualReceiptId?: string) {
   const response = await fetch('/api/launch/merchant/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, staffPin, manualReceiptId }),
   });
 
   const result = await response.json() as MerchantConfirmResult & { error?: string };
