@@ -1,5 +1,5 @@
 ﻿{
-    "snapshotCreatedAt":  "2026-04-30T20:47:39.3521978+05:45",
+    "snapshotCreatedAt":  "2026-04-30T20:58:00+05:45",
     "cluster":  "devnet",
     "programId":  "8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9",
     "anchorCli":  "0.30.1",
@@ -9,10 +9,17 @@
     "binaryPath":  "target/deploy/viral_sync.so",
     "binarySha256":  "f54cf2f1f050184da66f888985b5c4763fb48392a2a40628c89460d945ccfa2d",
     "binaryBytes":  697432,
-    "deploymentStatus":  "ready-to-deploy-pending-devnet-sol",
-    "blocker":  "Devnet deploy command is ready, but the WSL payer wallet has 0 SOL and the devnet faucet is rate-limiting airdrops. solana program deploy failed because it needs about 4.8553308 SOL plus fee.",
+    "deploymentStatus":  "devnet-deployed",
+    "owner":  "BPFLoaderUpgradeab1e11111111111111111111111",
+    "programDataAddress":  "41u78G6XYtMddPoaHXvk5uJ1wA7Lof83GUPQb7j63nZY",
+    "authority":  "FDbsM2KxA2rEYf377CmqzrJTSsaPSkmu36CFHn9jLuM4",
+    "lastDeployedSlot":  459162617,
+    "dataLengthHex":  "0xaa458",
+    "deployedBalanceSol":  4.8553308,
+    "verificationCommand":  "solana program show 8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9 --url devnet",
+    "blocker":  null,
     "solanaCli":  "solana-cli 3.1.14 (WSL Ubuntu-24.04)",
     "devnetPayer":  "FDbsM2KxA2rEYf377CmqzrJTSsaPSkmu36CFHn9jLuM4",
-    "devnetBalanceSol":  0,
+    "devnetBalanceSol":  null,
     "rentExemptMinimumSol":  4.8550176
 }
