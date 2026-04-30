@@ -73,5 +73,19 @@ GitHub Actions also runs `.github/workflows/production-smoke.yml` every 6 hours 
 - Program ID: `8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9`
 - IDL snapshot: `docs/snapshots/solana/viral_sync-idl-devnet-2026-04-30.json`
 - Deployment snapshot metadata: `docs/snapshots/solana/viral_sync-devnet-deployment-snapshot-2026-04-30.json`
+- Solana CLI: `solana-cli 3.1.14` installed in WSL Ubuntu 24.04
+- Devnet payer: `FDbsM2KxA2rEYf377CmqzrJTSsaPSkmu36CFHn9jLuM4`
 
-The Anchor build succeeds locally, but final devnet deployment could not be completed from this Windows machine because the Solana CLI is not installed and the official installer requires a WSL Linux distribution for the Rust-based tooling.
+The Anchor build succeeds locally and the Solana CLI is installed in WSL. Final devnet deployment is blocked only by devnet faucet funding: the payer has `0 SOL`, faucet requests are rate-limited, and deploying `target/deploy/viral_sync.so` requires about `4.8550176 SOL` rent plus transaction fees.
+
+Once the payer has at least `5 SOL` on devnet, run:
+
+```bash
+wsl -d Ubuntu-24.04 -- bash -lc 'export PATH=/root/.local/share/solana/install/active_release/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; cd /mnt/d/viral-sync-main; solana program deploy target/deploy/viral_sync.so --program-id target/deploy/viral_sync-keypair.json --url devnet --keypair /root/.config/solana/id.json'
+```
+
+Then verify with:
+
+```bash
+wsl -d Ubuntu-24.04 -- bash -lc 'export PATH=/root/.local/share/solana/install/active_release/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; solana program show 8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9 --url devnet'
+```
