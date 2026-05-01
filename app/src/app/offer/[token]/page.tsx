@@ -1,19 +1,20 @@
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { ArrowRight, CheckCircle, SealWarning } from '@phosphor-icons/react';
 import {
-  ArrowRight,
-  MapPin,
-  SealCheck,
-  Storefront,
-  Ticket,
-  Timer,
-  UsersThree,
-} from '@phosphor-icons/react';
+  PremiumAsyncState,
+  PremiumButton,
+  PremiumMetric,
+  PremiumNav,
+  PremiumProofRow,
+  PremiumShell,
+  PremiumStatusBadge,
+  PremiumSurface,
+  PremiumTransactionPanel,
+} from '@/components/premium/PremiumUi';
 import { useAuth } from '@/lib/auth';
-import SignalRibbon from '@/components/launch/SignalRibbon';
 import { claimReferralLink, fetchReferralDetail, recordReferralOpen } from '@/lib/launch/client';
 import type { ReferralDetail } from '@/lib/launch/types';
 
@@ -24,33 +25,30 @@ export default function OfferReferralPage() {
   const token = params.token;
   const [detail, setDetail] = useState<ReferralDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      if (!token) {
-        return;
-      }
+      if (!token) return;
 
       setLoading(true);
+      setError(null);
       try {
         const next = await fetchReferralDetail(token, sessionId ?? undefined);
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
         setDetail(next);
         setMessage(next.viewer.reason);
         void recordReferralOpen(token);
       } catch (caught) {
         if (!cancelled) {
-          setMessage(caught instanceof Error ? caught.message : 'This referral could not be loaded.');
+          setError(caught instanceof Error ? caught.message : 'This invite could not be loaded.');
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -63,183 +61,107 @@ export default function OfferReferralPage() {
 
   const handleClaim = async () => {
     if (!token || !sessionId) {
+      setMessage('Guest session is still preparing. Try again in a moment.');
       return;
     }
 
-    const result = await claimReferralLink(token, {
-      sessionId,
-      displayName: displayName || 'Guest',
-      deviceFingerprint: deviceId,
-    });
+    setWorking(true);
+    setMessage(null);
+    try {
+      const result = await claimReferralLink(token, {
+        sessionId,
+        displayName: displayName || 'Guest',
+        deviceFingerprint: deviceId,
+      });
 
-    if (!result.ok) {
-      setMessage(result.reason ?? 'This referral could not be claimed.');
-      return;
+      if (!result.ok) {
+        setMessage(result.reason ?? 'This invite could not be claimed.');
+        return;
+      }
+
+      router.push('/redeem');
+    } finally {
+      setWorking(false);
     }
-
-    router.push('/redeem');
   };
 
+  const canClaim = Boolean(detail?.viewer.canClaim);
+
   return (
-    <div className="surface">
-      <div className="surface-inner">
-        <div className="surface-header">
-          <div className="surface-title-block">
-            <div className="eyebrow">Shared offer</div>
-            <h1 className="surface-title">Claim the offer, then finish the truth step at the counter.</h1>
-            <p className="surface-subtitle">
-              The link gets you into the passbook fast. The merchant confirmation step is what makes the reward real.
-            </p>
+    <PremiumShell>
+      <PremiumNav />
+      <section className="premium-flow-grid">
+        <div className="premium-hero-copy">
+          <span className="premium-eyebrow">Offer claim</span>
+          <h1 className="premium-h1">Claim once. Redeem after the visit.</h1>
+          <p className="premium-lede">
+            This page is the conversion moment. It gives the visitor one clear action while making
+            the requirement honest: the reward is not real until the counter confirms the visit.
+          </p>
+
+          <div className="premium-actions">
+            <button className="premium-button premium-button-primary" onClick={handleClaim} disabled={!canClaim || working || loading}>
+              {working ? 'Claiming visit' : canClaim ? 'Claim this visit' : 'Claim unavailable'}
+              <ArrowRight size={17} weight="bold" />
+            </button>
+            <PremiumButton href="/invite" variant="secondary">Back to invite</PremiumButton>
           </div>
+
+          {loading ? (
+            <PremiumAsyncState tone="loading" title="Loading invite" detail="Checking the token, claim window, and whether this device already has a live claim." />
+          ) : error ? (
+            <PremiumAsyncState tone="error" title="Invite unavailable" detail={error} />
+          ) : !canClaim ? (
+            <PremiumAsyncState tone="error" title="Invite cannot be claimed" detail={detail?.viewer.reason ?? 'This invite is expired, already claimed, or blocked by the device/session rules.'} />
+          ) : (
+            <div className="premium-metrics">
+              <PremiumMetric label="Reward" value={detail?.offer.reward ?? 'Reward'} detail="Unlocked after staff confirmation." />
+              <PremiumMetric label="Window" value={`${detail?.offer.redemptionWindowHours ?? 72}h`} detail="Expired claims cannot create receipts." />
+              <PremiumMetric label="Confirmed" value={`${detail?.referral.redeemedCount ?? 0}`} detail="Visits already proven from this invite." />
+            </div>
+          )}
+
+          <PremiumSurface tone="light" className="premium-system-section">
+            <div className="premium-card-title">
+              <span>Claim sequence</span>
+              <h2>One CTA, three proof steps.</h2>
+            </div>
+            <ol className="premium-timeline">
+              <li><span>1</span><div><strong>Claim once</strong><p>The app binds the claim to session and device nullifier.</p></div></li>
+              <li><span>2</span><div><strong>Show counter code</strong><p>The redeem screen creates a short-lived code for the merchant terminal.</p></div></li>
+              <li><span>3</span><div><strong>Receipt appears</strong><p>Staff confirmation produces receipt proof and settlement status.</p></div></li>
+            </ol>
+          </PremiumSurface>
         </div>
 
-        <SignalRibbon
-          items={[
-            `${detail?.offer.merchantName ?? 'Merchant'} live offer`,
-            `${detail?.offer.district ?? 'Pilot district'} pilot`,
-            `${detail?.offer.referralGoal ?? 3} confirmed visits unlock the table reward`,
-            `${detail?.offer.redemptionWindowHours ?? 72} hour redemption window`,
-          ]}
-        />
+        <PremiumTransactionPanel eyebrow="Invite proof" title={detail?.offer.title ?? 'Checking reward'}>
+          <PremiumProofRow label="Merchant" value={detail?.offer.merchantName ?? 'Loading'} meta={detail?.offer.district ?? 'Pilot district'} status={detail ? 'success' : 'warning'} />
+          <PremiumProofRow label="Token" value={token ?? 'missing'} meta="Referral invite" status={token ? 'success' : 'danger'} />
+          <PremiumProofRow label="Claimable" value={canClaim ? 'yes' : 'no'} meta={detail?.viewer.reason ?? 'Device and session checked'} status={canClaim ? 'success' : 'warning'} />
+          <PremiumProofRow label="Referrer" value={detail?.referral.referrerDisplayName ?? 'Private referrer'} meta="Displayed only as provided by app session" status="muted" />
+          <div className="premium-component-row">
+            <PremiumStatusBadge tone={canClaim ? 'success' : 'warning'}>{canClaim ? 'Ready to claim' : 'Claim blocked'}</PremiumStatusBadge>
+            {message ? <PremiumStatusBadge tone="warning">{message}</PremiumStatusBadge> : null}
+          </div>
+        </PremiumTransactionPanel>
+      </section>
 
-        <div className="poster-grid poster-hero" style={{ marginTop: 18 }}>
-          <section className="ticket-sheet sheet-pad poster-ticket offer-stage">
-            <div className="ticket-head">
-              <div>
-                <div className="eyebrow">Invite from {detail?.referral.referrerDisplayName ?? 'a friend'}</div>
-                <div className="ticket-title">{detail?.offer.title ?? 'Loading offer...'}</div>
-              </div>
-              <Ticket size={34} weight="duotone" />
-            </div>
-            <p className="ticket-note" style={{ marginTop: 16 }}>
-              {detail?.offer.merchantName ?? 'Merchant'} · {detail?.offer.reward ?? 'Reward loading'}
-            </p>
-
-            <div className="offer-facts">
-              <div className="offer-fact">
-                <MapPin size={18} />
-                <div>
-                  <strong>District</strong>
-                  <span>{detail?.offer.district ?? 'Pilot district'}</span>
-                </div>
-              </div>
-              <div className="offer-fact">
-                <UsersThree size={18} />
-                <div>
-                  <strong>Unlock line</strong>
-                  <span>{detail?.offer.referralGoal ?? 3} confirmed visits for the shared reward</span>
-                </div>
-              </div>
-              <div className="offer-fact">
-                <Timer size={18} />
-                <div>
-                  <strong>Window</strong>
-                  <span>{detail?.offer.redemptionWindowHours ?? 72} hours after claim</span>
-                </div>
-              </div>
-              <div className="offer-fact">
-                <Storefront size={18} />
-                <div>
-                  <strong>Truth check</strong>
-                  <span>Staff confirmation at the counter makes the reward real</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="offer-sequence">
-              <div className="offer-sequence-step">
-                <span>01</span>
-                <div>
-                  <strong>Open the ticket</strong>
-                  <p>The link drops you into the same passbook system your friend is building.</p>
-                </div>
-              </div>
-              <div className="offer-sequence-step">
-                <span>02</span>
-                <div>
-                  <strong>Claim your visit</strong>
-                  <p>A live visit record is created only once for your device and session.</p>
-                </div>
-              </div>
-              <div className="offer-sequence-step">
-                <span>03</span>
-                <div>
-                  <strong>Finish at the counter</strong>
-                  <p>Merchant mode confirms the code so the chain cannot be gamed from home.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="offer-footer-line">
-              <span>Confirmed from this link</span>
-              <strong>{detail?.referral.redeemedCount ?? 0}</strong>
-            </div>
-          </section>
-
-          <section className="paper-sheet sheet-pad offer-claim-rail">
-            <div className="eyebrow">Claim flow</div>
-            <div className="offer-claim-title">Claim the visit now, then go to the counter with your live code.</div>
-
-            {loading ? (
-              <div style={{ marginTop: 24 }}>
-                <div className="loading-pulse" />
-                <div className="loading-pulse" style={{ marginTop: 10 }} />
-              </div>
-            ) : (
-              <>
-                <div className="offer-claim-block">
-                  <div className="offer-claim-row">
-                    <span>Can this device claim?</span>
-                    <strong>{detail?.viewer.canClaim ? 'Yes' : 'No'}</strong>
-                  </div>
-                  <p className="offer-claim-note">
-                    {detail?.viewer.canClaim
-                      ? 'Yes. This passbook does not have an active claim window yet.'
-                      : detail?.viewer.reason ?? 'This invite is not claimable right now.'}
-                  </p>
-                </div>
-
-                <div className="offer-claim-block">
-                  <div className="offer-claim-row">
-                    <span>After you claim</span>
-                    <strong>Redeem</strong>
-                  </div>
-                  <p className="offer-claim-note">
-                    Open the Redeem screen and let staff confirm the live code in merchant mode.
-                  </p>
-                </div>
-
-                <div className="offer-claim-block">
-                  <div className="offer-claim-row">
-                    <span>Why this is strict</span>
-                    <strong>Anti-abuse</strong>
-                  </div>
-                  <p className="offer-claim-note">
-                    The system blocks same-device self-referrals and waits for a merchant-side truth step.
-                  </p>
-                </div>
-
-                <div className="cta-row" style={{ marginTop: 24 }}>
-                  <button className="primary-button" onClick={handleClaim} disabled={!detail?.viewer.canClaim}>
-                    Claim this visit
-                    <ArrowRight size={18} />
-                  </button>
-                  <Link href="/" className="secondary-button">
-                    Go to home
-                  </Link>
-                </div>
-              </>
-            )}
-
-            {message && (
-              <div className="vs-chip" style={{ marginTop: 18 }}>
-                <SealCheck size={18} />
-                {message}
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
-    </div>
+      <section className="premium-system-grid" style={{ marginTop: 'clamp(42px, 7vw, 76px)' }}>
+        <PremiumSurface tone="raised" className="premium-system-section">
+          <div className="premium-card-title">
+            <span><CheckCircle size={15} weight="bold" /> Conversion rule</span>
+            <h2>No vague rewards.</h2>
+          </div>
+          <p className="premium-copy">The visitor sees the reward, expiry, merchant, and proof requirement before tapping the primary action.</p>
+        </PremiumSurface>
+        <PremiumSurface tone="raised" className="premium-system-section">
+          <div className="premium-card-title">
+            <span><SealWarning size={15} weight="bold" /> Fraud rule</span>
+            <h2>Replay is not hidden.</h2>
+          </div>
+          <p className="premium-copy">The claim path explicitly names the device/session nullifier so duplicate attempts feel designed against, not surprising.</p>
+        </PremiumSurface>
+      </section>
+    </PremiumShell>
   );
 }

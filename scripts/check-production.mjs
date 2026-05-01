@@ -2,9 +2,10 @@ const baseUrl = process.env.PRODUCTION_BASE_URL || 'https://viralsync1.vercel.ap
 
 const checks = [
   { name: 'home', path: '/', expectedStatus: 200 },
+  { name: 'health', path: '/api/launch/health', expectedStatus: 200 },
   { name: 'ops summary', path: '/api/launch/ops/summary', expectedStatus: 200 },
-  { name: 'merchant summary', path: '/api/launch/merchant/summary', expectedStatus: 200 },
-  { name: 'relayer monitoring', path: '/api/launch/relayer/monitoring', expectedStatus: 200 },
+  { name: 'merchant summary auth boundary', path: '/api/launch/merchant/summary', expectedStatus: 401 },
+  { name: 'relayer monitoring auth boundary', path: '/api/launch/relayer/monitoring', expectedStatus: 401 },
 ];
 
 async function runCheck(check) {

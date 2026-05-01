@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, idempotencyKey, jsonError, readJsonBody, requestId, requireJsonRequest, requireSameOrigin, staffDeviceFromRequest, staffPinFromRequest, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, idempotencyKey, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireMerchantRequestRole, requireSameOrigin, staffDeviceFromRequest, staffPinFromRequest, withSecurityHeaders } from '@/lib/launch/api';
 import { confirmRedeemCode, isValidRedeemCode, normalizeRedeemCode } from '@/lib/launch/server';
+import { demoPinAccepted, isProductionRuntime } from '@/lib/launch/security';
 import { validateRedeemCodeBody } from '@/lib/launch/validation';
 
 export const runtime = 'nodejs';
@@ -10,6 +11,10 @@ export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, 'merchant-confirm', 30);
   if (limited) {
     return limited;
+  }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
   }
 
   const invalidContentType = requireJsonRequest(request);
@@ -28,11 +33,17 @@ export async function POST(request: NextRequest) {
   }
   const code = parsed.value.code;
   const staffPin = staffPinFromRequest(request, body);
-  const expectedStaffPin = process.env.LAUNCH_STAFF_PIN || 'DEMO-PIN';
   const normalizedCode = normalizeRedeemCode(code);
+  const staffDevicePublicKey = staffDeviceFromRequest(request);
+  const merchantAuth = await requireMerchantRequestRole(request, ['staff']);
+  const localDemoAllowed = !merchantAuth.ok && demoPinAccepted(staffPin);
 
-  if (!staffPin || staffPin !== expectedStaffPin) {
-    return jsonError('Staff authorization is required to confirm a redemption.', 401);
+  if (!merchantAuth.ok && !localDemoAllowed) {
+    return merchantAuth.response;
+  }
+
+  if (isProductionRuntime() && !staffDevicePublicKey) {
+    return jsonError('An enrolled staff device is required to confirm a redemption in production.', 403, 'staff_device_required', requestId(request));
   }
 
   if (!normalizedCode || !isValidRedeemCode(normalizedCode)) {
@@ -44,7 +55,8 @@ export async function POST(request: NextRequest) {
     staffPin,
     requestId: requestId(request),
     idempotencyKey: idempotencyKey(request, `confirm:${normalizedCode}`),
-    staffDevicePublicKey: staffDeviceFromRequest(request),
+    staffSessionId: merchantAuth.ok ? merchantAuth.session.id : undefined,
+    staffDevicePublicKey,
     manualReceiptId: parsed.value.manualReceiptId,
   });
   return withSecurityHeaders(NextResponse.json(result, { status: result.ok ? 200 : 409 }));

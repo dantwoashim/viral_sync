@@ -8,6 +8,7 @@ pub mod instructions;
 pub mod state;
 
 use instructions::*;
+use state::{CausalMerchantStatus, GrowthCampaignStatus};
 
 declare_id!("8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9");
 
@@ -169,6 +170,20 @@ pub mod viral_sync {
         instructions::causal_commerce::register_merchant(ctx, org_id_hash)
     }
 
+    pub fn set_causal_merchant_status(
+        ctx: Context<SetCausalMerchantStatus>,
+        status: CausalMerchantStatus,
+    ) -> Result<()> {
+        instructions::causal_commerce::set_causal_merchant_status(ctx, status)
+    }
+
+    pub fn set_growth_campaign_status(
+        ctx: Context<SetGrowthCampaignStatus>,
+        status: GrowthCampaignStatus,
+    ) -> Result<()> {
+        instructions::causal_commerce::set_growth_campaign_status(ctx, status)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn create_growth_campaign(
         ctx: Context<CreateGrowthCampaign>,
@@ -196,6 +211,10 @@ pub mod viral_sync {
 
     pub fn fund_growth_bounty(ctx: Context<FundGrowthBounty>, amount: u64) -> Result<()> {
         instructions::causal_commerce::fund_growth_bounty(ctx, amount)
+    }
+
+    pub fn close_growth_bounty(ctx: Context<CloseGrowthBounty>) -> Result<()> {
+        instructions::causal_commerce::close_growth_bounty(ctx)
     }
 
     #[allow(clippy::too_many_arguments)]

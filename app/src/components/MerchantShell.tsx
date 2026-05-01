@@ -40,7 +40,31 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
   const { displayName, loading, setRole } = useAuth();
 
   const hideChrome = pathname === '/login';
-  const immersiveHome = ['/', '/invite', '/redeem', '/passbook', '/profile', '/routes', '/merchant/today', '/merchant/scan'].includes(pathname);
+  const immersiveExactRoutes = [
+    '/',
+    '/admin/relayer',
+    '/causal-graph',
+    '/demo',
+    '/design-system',
+    '/developer',
+    '/examples',
+    '/example-receipt-graph',
+    '/invite',
+    '/pricing',
+    '/merchant/campaigns',
+    '/merchant/ledger',
+    '/merchant/scan',
+    '/merchant/today',
+    '/passbook',
+    '/premium-scorecard',
+    '/profile',
+    '/redeem',
+    '/routes',
+    '/security',
+    '/support',
+  ];
+  const immersivePrefixes = ['/offer/', '/receipts/'];
+  const immersiveHome = immersiveExactRoutes.includes(pathname) || immersivePrefixes.some((prefix) => pathname.startsWith(prefix));
   const mode = pathname.startsWith('/merchant') ? 'merchant' : 'consumer';
   const tabs = mode === 'merchant' ? merchantTabs : consumerTabs;
 

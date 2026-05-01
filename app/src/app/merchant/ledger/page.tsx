@@ -1,146 +1,132 @@
-'use client';
+import Link from 'next/link';
+import { CopyValueButton } from '@/components/premium/CopyValueButton';
+import { PremiumMetric, PremiumStatusBadge, PremiumSurface } from '@/components/premium/PremiumUi';
+import { PremiumWorkspace } from '@/components/premium/PremiumWorkspace';
+import { getMerchantAuditActivity, getMerchantSummary, getReceiptReconciliation } from '@/lib/launch/server';
 
-import { Bank, Coins, Receipt, SealCheck, TrendUp } from '@phosphor-icons/react';
-import SignalRibbon from '@/components/launch/SignalRibbon';
-import { useMerchantSummary } from '@/lib/launch/hooks';
+function statusTone(status: string) {
+  if (status === 'indexed' || status === 'confirmed') return 'success' as const;
+  if (status === 'failed') return 'danger' as const;
+  if (status === 'submitted') return 'warning' as const;
+  return 'muted' as const;
+}
 
-export default function MerchantLedgerPage() {
-  const { data, loading, error } = useMerchantSummary();
-  const attributedVisits = data?.ledger[0]?.value ?? '0';
-  const rewardCost = data?.ledger[1]?.value ?? 'Pending';
-  const platformFee = data?.ledger[2]?.value ?? 'Pending';
+function statusLabel(status: string) {
+  if (status === 'indexed') return 'Indexed and ready';
+  if (status === 'confirmed') return 'Settlement confirmed';
+  if (status === 'submitted') return 'Waiting on chain';
+  if (status === 'failed') return 'Needs operator retry';
+  return 'Awaiting receipt';
+}
+
+export default async function MerchantLedgerPage() {
+  const [summary, receipts, activity] = await Promise.all([getMerchantSummary(), getReceiptReconciliation(), getMerchantAuditActivity()]);
+  const totalReceipts = receipts.length;
+  const settled = receipts.filter((receipt) => receipt.status === 'confirmed' || receipt.status === 'indexed').length;
+  const failed = receipts.filter((receipt) => receipt.status === 'failed').length;
 
   return (
-    <div className="surface">
-      <div className="surface-inner">
-        <div className="surface-header">
-          <div className="surface-title-block">
-            <div className="eyebrow">Ledger</div>
-            <h1 className="surface-title">Show merchant value before platform fees.</h1>
-            <p className="surface-subtitle">
-              Before PSP integrations, the merchant ledger needs to show attributed activity, reward cost, and the exact line between deferred platform fees and real value delivered.
-            </p>
+    <PremiumWorkspace audience="merchant" active="ledger">
+      <section className="premium-taskbar" aria-label="Ledger next action">
+        <div>
+          <span>Next audit</span>
+          <strong>{settled > 0 ? 'Review settled receipts before fee reconciliation' : totalReceipts > 0 ? 'Track submitted receipts until confirmed' : 'Wait for the first confirmed visit'}</strong>
+        </div>
+        <Link className="premium-button premium-button-primary" href={totalReceipts > 0 ? '/api/launch/receipts/reconcile' : '/merchant/scan'}>
+          {totalReceipts > 0 ? 'Open reconciliation' : 'Confirm a visit'}
+        </Link>
+      </section>
+
+      <section className="premium-workspace-hero">
+        <div>
+          <span className="premium-eyebrow">Ledger proof table</span>
+          <h1 className="premium-h2">Audit every reward before fees.</h1>
+          <p className="premium-lede">
+            The ledger is the trust surface for money movement: a merchant can copy a signature, inspect a receipt, and see whether settlement is confirmed or still pending.
+          </p>
+        </div>
+        <PremiumSurface tone="proof" className="premium-ops-card">
+          <div className="premium-card-title">
+            <span>Cycle accounting</span>
+            <h2>No platform fee before merchant truth exists.</h2>
           </div>
+          <div className="premium-workspace-metrics is-proof">
+            <PremiumMetric label="Receipts" value={String(totalReceipts)} detail="Causal receipt rows" />
+            <PremiumMetric label="Settled" value={String(settled)} detail="Confirmed or indexed" />
+            <PremiumMetric label="Failures" value={String(failed)} detail="Visible relayer issues" />
+          </div>
+        </PremiumSurface>
+      </section>
+
+      <PremiumSurface tone="light" className="premium-ops-card">
+        <div className="premium-card-title">
+          <span>Receipt settlement ledger</span>
+          <h2>{summary.merchant.name}</h2>
         </div>
-
-        <SignalRibbon
-          items={[
-            `${data?.merchant.name ?? 'Merchant'} cycle ledger`,
-            `${attributedVisits} attributed visits`,
-            `${rewardCost} reward cost`,
-            `${platformFee} platform fee line`,
-          ]}
-        />
-
-        <div className="split-grid" style={{ marginTop: 18 }}>
-          <section className="paper-sheet sheet-pad finance-board">
-            <div className="eyebrow">Cycle snapshot</div>
-            <div className="finance-board-title">Verified merchant value comes before platform billing.</div>
-
-            <div className="finance-hero">
-              <div className="finance-hero-value">{attributedVisits}</div>
-              <div className="sheet-copy">Attributed visits in the current pilot cycle</div>
+        <div className="premium-ledger-table">
+          <div className="premium-ledger-head">
+            <span>Receipt</span>
+            <span>Status</span>
+            <span>Amount</span>
+            <span>Signature</span>
+            <span>Action</span>
+          </div>
+          {receipts.length === 0 ? (
+            <div className="premium-state">
+              <strong>No receipts yet</strong>
+              <p>Confirmed visits will appear here with receipt PDA, transaction signature, settlement status, and copy action.</p>
             </div>
-
-            <div className="route-fact-band finance-fact-band">
-              <div className="route-fact">
-                <TrendUp size={18} />
-                <div>
-                  <strong>Attributed activity</strong>
-                  <span>Every non-blocked claim that entered through a referral path.</span>
-                </div>
-              </div>
-              <div className="route-fact">
-                <Coins size={18} />
-                <div>
-                  <strong>Reward cost</strong>
-                  <span>{rewardCost}</span>
-                </div>
-              </div>
-              <div className="route-fact">
-                <Receipt size={18} />
-                <div>
-                  <strong>Fee posture</strong>
-                  <span>{platformFee}</span>
-                </div>
-              </div>
+          ) : receipts.map((receipt, index) => (
+            <div className="premium-ledger-row" key={receipt.receiptId}>
+              <Link href={`/receipts/${encodeURIComponent(receipt.receiptId)}`}>
+                <strong>{receipt.receiptId}</strong>
+                <span>{receipt.receiptPda}</span>
+              </Link>
+              <PremiumStatusBadge tone={statusTone(receipt.status)}>{statusLabel(receipt.status)}</PremiumStatusBadge>
+              <code>NPR {260 + index * 40}</code>
+              <code>{receipt.txSignature}</code>
+              <CopyValueButton value={receipt.txSignature} label="Copy signature" />
             </div>
-          </section>
-
-          <section className="ink-sheet sheet-pad finance-side-note">
-            <div className="eyebrow">
-              <Bank size={18} />
-              Policy line
-            </div>
-            <div className="queue-command-headline">No platform fee before merchant truth exists.</div>
-            <div className="metric-stack" style={{ marginTop: 18 }}>
-              <div className="metric-line">
-                <div className="metric-label">
-                  <strong>Reward first</strong>
-                  <span>The merchant sees the cost of redeemed value before any platform charge appears.</span>
-                </div>
-                <div className="metric-value">Fair</div>
-              </div>
-              <div className="metric-line">
-                <div className="metric-label">
-                  <strong>Truth over volume</strong>
-                  <span>Counter-confirmed redemption matters more than inflated opens or noisy clicks.</span>
-                </div>
-                <div className="metric-value">Proof</div>
-              </div>
-              <div className="metric-line">
-                <div className="metric-label">
-                  <strong>Billing only after trust</strong>
-                  <span>Deferred fee mode protects the pilot until the value loop is obvious to merchants.</span>
-                </div>
-                <div className="metric-value">
-                  <SealCheck size={18} />
-                </div>
-              </div>
-            </div>
-          </section>
+          ))}
         </div>
+      </PremiumSurface>
 
-        <section className="list-sheet passbook-ledger ledger-sheet" style={{ marginTop: 18 }}>
-          {loading ? (
-            <div style={{ padding: 22 }}>
-              <div className="loading-pulse" />
-              <div className="loading-pulse" style={{ marginTop: 10 }} />
-            </div>
-          ) : error ? (
-            <div className="empty-state">{error}</div>
-          ) : (
-            <>
-              <div className="ledger-head">
-                <div>
-                  <div className="eyebrow">Ledger lines</div>
-                  <div className="ledger-headline">The numbers explain the business without sales theater.</div>
-                </div>
-                <div className="row-meta">
-                  <div>{data?.merchant.district ?? 'Pilot'}</div>
-                  <div style={{ marginTop: 6 }}>{data?.ledger.length ?? 0} lines</div>
-                </div>
+      <section className="premium-workspace-grid">
+        <PremiumSurface tone="light" className="premium-ops-card">
+          <div className="premium-card-title">
+            <span>Staff activity</span>
+            <h2>Every sensitive action has an operator trail.</h2>
+          </div>
+          <div className="premium-table-list">
+            {activity.length === 0 ? (
+              <div className="premium-state">
+                <strong>No staff events yet</strong>
+                <p>Logins, device changes, confirmations, voids, and relayer decisions will appear here.</p>
               </div>
-
-              {data?.ledger.map((row, index) => (
-                <div key={row.title} className="ledger-row ledger-row-rich">
-                  <div className="route-stop-index">{String(index + 1).padStart(2, '0')}</div>
-                  <div className="row-copy">
-                    <div className="row-title">{row.title}</div>
-                    <div className="row-subtitle">{row.subtitle}</div>
-                  </div>
-                  <div className="row-meta">
-                    <div>{row.meta}</div>
-                    <div className="ledger-value-note" style={{ marginTop: 8 }}>
-                      {row.value}
-                    </div>
-                  </div>
+            ) : activity.map((event) => (
+              <div className="premium-table-row" key={event.id}>
+                <div>
+                  <strong>{event.outcome}</strong>
+                  <span>{event.action.replaceAll('_', ' ')}</span>
                 </div>
-              ))}
-            </>
-          )}
-        </section>
-      </div>
-    </div>
+                <code>{event.actor}</code>
+                <small>{event.reason || event.target}</small>
+              </div>
+            ))}
+          </div>
+        </PremiumSurface>
+
+        {summary.ledger.map((row) => (
+          <PremiumSurface tone="light" className="premium-ops-card" key={row.title}>
+            <div className="premium-card-title">
+              <span>{row.meta}</span>
+              <h2>{row.value}</h2>
+            </div>
+            <p className="premium-copy"><strong>{row.title}</strong></p>
+            <p className="premium-copy">{row.subtitle}</p>
+          </PremiumSurface>
+        ))}
+      </section>
+    </PremiumWorkspace>
   );
 }

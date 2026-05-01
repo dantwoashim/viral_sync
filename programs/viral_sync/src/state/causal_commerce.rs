@@ -70,6 +70,7 @@ pub struct RewardEscrow {
     pub bump: u8,
     pub campaign: Pubkey,
     pub reward_mint: Pubkey,
+    pub reward_vault: Pubkey,
     pub total_funded: u64,
     pub total_reserved: u64,
     pub total_settled: u64,
@@ -79,7 +80,7 @@ pub struct RewardEscrow {
 
 impl RewardEscrow {
     pub const SEED_PREFIX: &'static [u8] = b"reward_escrow";
-    pub const SIZE: usize = 8 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 8;
+    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]

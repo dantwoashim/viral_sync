@@ -50,16 +50,25 @@ export function validateRedeemCodeBody(body: unknown): ValidationResult<{ code: 
   };
 }
 
-export function validateMerchantLogin(body: unknown): ValidationResult<{ staffPin: string; role: 'owner' | 'admin' | 'staff'; label: string }> {
+export function validateMerchantLogin(body: unknown): ValidationResult<{ staffPin: string; accessToken: string; role: 'owner' | 'admin' | 'manager' | 'staff' | 'support' | 'auditor'; label: string }> {
   if (!isRecord(body)) {
     return { ok: false, message: 'JSON body is required.' };
   }
   const staffPin = stringField(body, 'staffPin', 80);
+  const accessToken = stringField(body, 'accessToken', 160, false);
   const rawRole = stringField(body, 'role', 16, false);
-  const role = rawRole === 'owner' || rawRole === 'admin' || rawRole === 'staff' ? rawRole : 'staff';
+  const role =
+    rawRole === 'owner' ||
+    rawRole === 'admin' ||
+    rawRole === 'manager' ||
+    rawRole === 'staff' ||
+    rawRole === 'support' ||
+    rawRole === 'auditor'
+      ? rawRole
+      : 'staff';
   const label = stringField(body, 'label', 48, false) || 'Front counter staff';
-  if (!staffPin) {
-    return { ok: false, message: 'staffPin is required.' };
+  if (!staffPin && !accessToken) {
+    return { ok: false, message: 'accessToken is required for production login; staffPin is allowed only in local demo mode.' };
   }
-  return { ok: true, value: { staffPin, role, label } };
+  return { ok: true, value: { staffPin: staffPin ?? '', accessToken: accessToken ?? '', role, label } };
 }

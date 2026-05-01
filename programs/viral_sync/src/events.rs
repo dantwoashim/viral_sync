@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::state::causal_commerce::{CausalMerchantStatus, GrowthCampaignStatus};
 use crate::state::token_generation::GenSource;
 
 #[event]
@@ -69,6 +70,16 @@ pub struct GrowthBountyFunded {
 }
 
 #[event]
+pub struct GrowthBountyClosed {
+    pub growth_campaign: Pubkey,
+    pub reward_escrow: Pubkey,
+    pub reward_vault: Pubkey,
+    pub merchant_reward_account: Pubkey,
+    pub reclaimed_amount: u64,
+    pub closed_at: i64,
+}
+
+#[event]
 pub struct CausalReceiptRecorded {
     pub causal_receipt: Pubkey,
     pub growth_campaign: Pubkey,
@@ -85,4 +96,20 @@ pub struct ReceiptRewardSettled {
     pub referrer_amount: u64,
     pub visitor_amount: u64,
     pub settled_amount: u64,
+}
+
+#[event]
+pub struct CausalMerchantStatusUpdated {
+    pub merchant_config: Pubkey,
+    pub merchant_authority: Pubkey,
+    pub status: CausalMerchantStatus,
+    pub updated_at: i64,
+}
+
+#[event]
+pub struct GrowthCampaignStatusUpdated {
+    pub growth_campaign: Pubkey,
+    pub merchant_authority: Pubkey,
+    pub status: GrowthCampaignStatus,
+    pub updated_at: i64,
 }

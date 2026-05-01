@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import { createMerchantSession } from '@/lib/launch/server';
 import { validateMerchantLogin } from '@/lib/launch/validation';
 
@@ -10,6 +10,10 @@ export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, 'merchant-login', 20);
   if (limited) {
     return limited;
+  }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
   }
 
   const invalidContentType = requireJsonRequest(request);
@@ -28,6 +32,7 @@ export async function POST(request: NextRequest) {
   }
   const result = await createMerchantSession({
     staffPin: parsed.value.staffPin,
+    accessToken: parsed.value.accessToken,
     role: parsed.value.role,
     label: parsed.value.label,
     requestId: requestId(request),

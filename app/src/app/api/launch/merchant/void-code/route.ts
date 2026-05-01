@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, merchantSessionFromRequest, readJsonBody, requestId, requireJsonRequest, requireSameOrigin } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, merchantSessionFromRequest, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import { voidRedeemCode } from '@/lib/launch/server';
 import { validateRedeemCodeBody } from '@/lib/launch/validation';
 
@@ -10,6 +10,10 @@ export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, 'merchant-void-code', 20);
   if (limited) {
     return limited;
+  }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
   }
 
   const invalidContentType = requireJsonRequest(request);
@@ -39,5 +43,5 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await voidRedeemCode({ code, reason, managerSessionId, requestId: requestId(request) });
-  return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  return withSecurityHeaders(NextResponse.json(result, { status: result.ok ? 200 : 409 }));
 }

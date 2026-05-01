@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireMerchantRequestRole, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import { publishCampaignDraft } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
   if (limited) {
     return limited;
   }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
+  }
 
   const invalidContentType = requireJsonRequest(request);
   if (invalidContentType) {
@@ -36,6 +40,10 @@ export async function POST(request: NextRequest) {
   const invalidOrigin = requireSameOrigin(request);
   if (invalidOrigin) {
     return invalidOrigin;
+  }
+  const merchantAuth = await requireMerchantRequestRole(request, ['manager']);
+  if (!merchantAuth.ok) {
+    return merchantAuth.response;
   }
 
   const body = await readJsonBody(request) as Record<string, unknown> | null;
@@ -49,6 +57,7 @@ export async function POST(request: NextRequest) {
     description: readString(body, 'description'),
     referralGoal: readInteger(body, 'referralGoal'),
     redemptionWindowHours: readInteger(body, 'redemptionWindowHours'),
+    merchantSessionId: merchantAuth.session.id,
     requestId: requestId(request),
   });
 

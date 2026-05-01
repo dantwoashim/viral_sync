@@ -52,6 +52,16 @@ import {
   SignedActionIntent,
   VisitChallengeRecord,
 } from '@/lib/launch/types';
+import {
+  demoPinAccepted,
+  getIntentSecret,
+  getMerchantAccessToken,
+  getProductionReadinessSnapshot,
+  getRelayerApiKey,
+  getWebhookSecret,
+  merchantRoleAllowed,
+  normalizeMerchantRole,
+} from '@/lib/launch/security';
 
 const DATA_DIR = process.env.LAUNCH_LEDGER_DIR
   ? path.resolve(process.env.LAUNCH_LEDGER_DIR)
@@ -195,15 +205,26 @@ export function createOrResumeGuestSession(existingSessionId?: string | null) {
 }
 
 export async function createMerchantSession(params: {
-  staffPin: string;
+  staffPin?: string;
+  accessToken?: string;
   role?: MerchantRole;
   label?: string;
   requestId: string;
 }) {
-  const expectedStaffPin = process.env.LAUNCH_STAFF_PIN || 'DEMO-PIN';
   return withLedgerMutation((ledger) => {
     const { merchant } = getPilotMerchantAndOffer(ledger);
-    const allowed = params.staffPin === expectedStaffPin;
+    let allowed = false;
+    let denialReason = 'Merchant login token is required.';
+
+    try {
+      allowed = Boolean(params.accessToken && params.accessToken === getMerchantAccessToken());
+      if (!allowed && params.staffPin && demoPinAccepted(params.staffPin)) {
+        allowed = true;
+      }
+      denialReason = 'Invalid merchant login credential.';
+    } catch (error) {
+      denialReason = error instanceof Error ? error.message : denialReason;
+    }
 
     if (!allowed) {
       appendAuditEvent(ledger, {
@@ -214,16 +235,17 @@ export async function createMerchantSession(params: {
         targetType: 'merchant_session',
         action: 'merchant_login',
         result: 'denied',
-        reason: 'Invalid staff PIN.',
+        reason: denialReason,
       });
       return { ok: false, reason: 'Merchant authorization failed.' };
     }
 
     const now = new Date();
+    const role = normalizeMerchantRole(params.role);
     const session: MerchantSessionRecord = {
       id: randomId('merchant-session'),
       merchantId: merchant.id,
-      role: params.role ?? 'staff',
+      role,
       label: sanitizeDisplayName(params.label ?? 'Front counter staff'),
       createdAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + MERCHANT_SESSION_TTL_HOURS * 60 * 60 * 1000).toISOString(),
@@ -252,7 +274,7 @@ export async function requireMerchantRole(sessionId: string, allowedRoles: Merch
     item.merchantId === merchant.id &&
     !item.revokedAt &&
     new Date(item.expiresAt).getTime() > Date.now());
-  const allowed = Boolean(session && allowedRoles.includes(session.role));
+  const allowed = Boolean(session && merchantRoleAllowed(session.role, allowedRoles));
 
   if (!allowed) {
     await withLedgerMutation((mutableLedger) => {
@@ -300,25 +322,26 @@ export async function requireStaffDevice(publicKey: string, merchantId: string, 
 }
 
 export async function enrollStaffDevice(params: {
-  staffPin: string;
+  staffPin?: string;
+  authorizedActorId?: string;
   label: string;
   locationLabel: string;
   requestId: string;
 }) {
-  const expectedStaffPin = process.env.LAUNCH_STAFF_PIN || 'DEMO-PIN';
   return withLedgerMutation((ledger) => {
     const { merchant } = getPilotMerchantAndOffer(ledger);
+    const allowed = Boolean(params.authorizedActorId) || demoPinAccepted(params.staffPin ?? '');
 
-    if (params.staffPin !== expectedStaffPin) {
+    if (!allowed) {
       appendAuditEvent(ledger, {
         requestId: params.requestId,
         actorType: 'staff',
-        actorId: 'unknown',
+        actorId: params.authorizedActorId ?? 'unknown',
         merchantId: merchant.id,
         targetType: 'staff_device',
         action: 'enroll_staff_device',
         result: 'denied',
-        reason: 'Invalid staff PIN.',
+        reason: 'Manager authorization is required to enroll a staff device.',
       });
       return { ok: false, reason: 'Staff device enrollment is not authorized.' };
     }
@@ -336,7 +359,7 @@ export async function enrollStaffDevice(params: {
     appendAuditEvent(ledger, {
       requestId: params.requestId,
       actorType: 'staff',
-      actorId: device.publicKey,
+      actorId: params.authorizedActorId ?? device.publicKey,
       merchantId: merchant.id,
       targetType: 'staff_device',
       targetId: device.id,
@@ -347,22 +370,22 @@ export async function enrollStaffDevice(params: {
   });
 }
 
-export async function revokeStaffDevice(params: { staffPin: string; deviceId: string; requestId: string; }) {
-  const expectedStaffPin = process.env.LAUNCH_STAFF_PIN || 'DEMO-PIN';
+export async function revokeStaffDevice(params: { staffPin?: string; authorizedActorId?: string; deviceId: string; requestId: string; }) {
   return withLedgerMutation((ledger) => {
     const { merchant } = getPilotMerchantAndOffer(ledger);
+    const allowed = Boolean(params.authorizedActorId) || demoPinAccepted(params.staffPin ?? '');
 
-    if (params.staffPin !== expectedStaffPin) {
+    if (!allowed) {
       appendAuditEvent(ledger, {
         requestId: params.requestId,
         actorType: 'staff',
-        actorId: 'unknown',
+        actorId: params.authorizedActorId ?? 'unknown',
         merchantId: merchant.id,
         targetType: 'staff_device',
         targetId: params.deviceId,
         action: 'revoke_staff_device',
         result: 'denied',
-        reason: 'Invalid staff PIN.',
+        reason: 'Manager authorization is required to revoke a staff device.',
       });
       return { ok: false, reason: 'Staff device revocation is not authorized.' };
     }
@@ -376,7 +399,7 @@ export async function revokeStaffDevice(params: { staffPin: string; deviceId: st
     appendAuditEvent(ledger, {
       requestId: params.requestId,
       actorType: 'staff',
-      actorId: device.publicKey,
+      actorId: params.authorizedActorId ?? device.publicKey,
       merchantId: merchant.id,
       targetType: 'staff_device',
       targetId: device.id,
@@ -1613,11 +1636,11 @@ function submitCausalReceipt(params: {
   code: RedeemCodeRecord;
   referral: ReferralLinkRecord;
   challenge: VisitChallengeRecord;
-  staffPin: string;
+  staffAttestationSecret: string;
   manualReceiptId?: string;
 }) {
   const customerSignature = signCustomerChallenge(params.challenge.challengeHash, params.claim.deviceFingerprint);
-  const staffSignature = signStaffChallenge(params.challenge.challengeHash, params.staffPin);
+  const staffSignature = signStaffChallenge(params.challenge.challengeHash, params.staffAttestationSecret);
   const inviteHash = params.referral.causalInvite ? hashCausalInvite(params.referral.causalInvite) : sha256Hex(params.referral.token);
   const visitAttestationHash = sha256Hex(`${params.challenge.challengeHash}:${customerSignature}:${staffSignature}`);
   const receiptIdHash = sha256Hex(`${params.manualReceiptId || params.claim.id}:${params.code.id}:${visitAttestationHash}`);
@@ -1706,7 +1729,8 @@ export async function createVisitChallengeForRedeemCode(params: { code: string; 
 
 export async function confirmRedeemCode(params: {
   code: string;
-  staffPin: string;
+  staffPin?: string;
+  staffSessionId?: string;
   requestId?: string;
   idempotencyKey?: string;
   staffDevicePublicKey?: string;
@@ -1719,6 +1743,22 @@ export async function confirmRedeemCode(params: {
 
   return withLedgerMutation<MerchantConfirmResult>((ledger) => {
     const { merchant, offer } = getPilotMerchantAndOffer(ledger);
+    const staffActor = params.staffDevicePublicKey || params.staffSessionId || 'staff-pin';
+
+    if (!params.staffDevicePublicKey && !demoPinAccepted(params.staffPin ?? '')) {
+      appendAuditEvent(ledger, {
+        requestId: params.requestId ?? randomId('req'),
+        actorType: 'staff',
+        actorId: staffActor,
+        merchantId: merchant.id,
+        targetType: 'redemption',
+        action: 'confirm_redeem_code',
+        result: 'denied',
+        reason: 'Enrolled staff device or local demo PIN is required.',
+      });
+      return { ok: false, reason: 'Staff device authorization is required.' } satisfies MerchantConfirmResult;
+    }
+
     if (params.staffDevicePublicKey) {
       const device = (ledger.staffDevices ?? []).find((item) =>
         item.publicKey === params.staffDevicePublicKey &&
@@ -1795,7 +1835,7 @@ export async function confirmRedeemCode(params: {
       code,
       referral,
       challenge,
-      staffPin: params.staffPin,
+      staffAttestationSecret: params.staffDevicePublicKey || params.staffSessionId || params.staffPin || 'staff-attestation',
       manualReceiptId: params.manualReceiptId,
     });
     challenge.status = 'confirmed';
@@ -1835,7 +1875,7 @@ export async function confirmRedeemCode(params: {
     appendAuditEvent(ledger, {
       requestId: params.requestId ?? randomId('req'),
       actorType: 'staff',
-      actorId: params.staffDevicePublicKey || 'staff-pin',
+      actorId: staffActor,
       merchantId: merchant.id,
       targetType: 'redemption',
       targetId: code.id,
@@ -2006,6 +2046,29 @@ export async function getMerchantSummary() {
   };
 
   return summary;
+}
+
+export async function getMerchantAuditActivity(limit = 8) {
+  const ledger = await loadLedger();
+  const { merchant } = getPilotMerchantAndOffer(ledger);
+
+  return (ledger.auditEvents ?? [])
+    .filter((event) => event.merchantId === merchant.id)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, limit)
+    .map((event) => ({
+      id: event.id,
+      actor: event.actorId,
+      action: event.action,
+      outcome: event.result === 'allowed' || event.result === 'created' || event.result === 'updated'
+        ? 'Completed'
+        : event.result === 'denied'
+          ? 'Denied'
+          : 'Needs review',
+      target: event.targetType,
+      reason: event.reason ?? '',
+      createdAt: event.createdAt,
+    }));
 }
 
 export async function getReceiptExplorer(receiptLookup: string) {
@@ -2294,6 +2357,7 @@ export async function publishCampaignDraft(params: {
   referralGoal: number;
   redemptionWindowHours: number;
   description?: string;
+  merchantSessionId?: string;
   requestId: string;
 }): Promise<CampaignPublishResult> {
   if (!Number.isInteger(params.referralGoal) || params.referralGoal < 1 || params.referralGoal > 12) {
@@ -2314,7 +2378,7 @@ export async function publishCampaignDraft(params: {
     appendAuditEvent(ledger, {
       requestId: params.requestId,
       actorType: 'merchant',
-      actorId: 'campaign-builder',
+      actorId: params.merchantSessionId ?? 'campaign-builder',
       merchantId: merchant.id,
       targetType: 'offer',
       targetId: offer.id,
@@ -2901,15 +2965,41 @@ export function getThreatModelV2() {
 export function getSecurityGate() {
   const unresolved = [
     { id: 'P0-external-audit', priority: 'P0', status: 'open', note: 'External audit/review required before uncapped real funds.' },
-    { id: 'P1-real-login', priority: 'P1', status: 'open', note: 'Temporary staff PIN must be replaced before broad beta.' },
+    { id: 'P1-real-login', priority: 'P1', status: 'mitigated', note: 'Production login now requires a non-demo merchant access token, scoped session, role authorization, and enrolled staff device. Replace with SSO before broad enterprise rollout.' },
     { id: 'P2-pos-webhook', priority: 'P2', status: 'open', note: 'POS webhook can remain deferred for capped beta.' },
   ];
-  const blocking = unresolved.filter((item) => item.priority === 'P0' || item.priority === 'P1');
+  const readiness = getProductionReadinessSnapshot();
+  const configBlockers = readiness.missing.map((name) => ({
+    id: `config-${name}`,
+    priority: 'P1',
+    status: 'open',
+    note: `${name} is required for production readiness.`,
+  }));
+  const blockers = [...unresolved, ...configBlockers].filter((item) =>
+    item.status === 'open' && (item.priority === 'P0' || item.priority === 'P1'));
   return {
-    mainnetAllowed: blocking.length === 0,
-    blocking,
-    unresolved,
+    mainnetAllowed: blockers.length === 0,
+    blocking: blockers,
+    unresolved: [...unresolved, ...configBlockers],
+    readiness,
     rule: 'Block mainnet if any unresolved P0 or P1 remains.',
+  };
+}
+
+export function getProductionReadiness() {
+  const readiness = getProductionReadinessSnapshot();
+  const gate = getSecurityGate();
+  return {
+    ok: readiness.launchAllowed && gate.mainnetAllowed,
+    readiness,
+    gate,
+    releaseClassification: gate.mainnetAllowed ? 'eligible-for-capped-production-review' : 'blocked-from-mainnet',
+    requiredHumanSignoffs: [
+      'external Solana program audit',
+      'backend/security review',
+      'merchant agreement and promotion terms review',
+      'incident response rehearsal owner signoff',
+    ],
   };
 }
 
@@ -3662,11 +3752,11 @@ export function getExampleReceiptGraphApp() {
   };
 }
 
-export function signWebhookPayload(payload: string, secret = process.env.LAUNCH_WEBHOOK_SECRET || 'viral-sync-demo-webhook-secret') {
+export function signWebhookPayload(payload: string, secret = getWebhookSecret()) {
   return sha256Hex(`${secret}:${payload}`);
 }
 
-export function verifyWebhookSignature(payload: string, signature: string, secret = process.env.LAUNCH_WEBHOOK_SECRET || 'viral-sync-demo-webhook-secret') {
+export function verifyWebhookSignature(payload: string, signature: string, secret = getWebhookSecret()) {
   return signature.length > 0 && signature === signWebhookPayload(payload, secret);
 }
 
@@ -5522,14 +5612,42 @@ export async function runRelayerAttackSimulation() {
 }
 
 export function getRelayerPolicy(): RelayerPolicy {
+  const integerCap = (name: string, fallback: number) => {
+    const parsed = Number.parseInt(process.env[name] ?? '', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, fallback) : fallback;
+  };
+
   return {
     allowedPrograms: [VIRAL_SYNC_PROGRAM_ID],
-    allowedInstructions: ['verify_causal_receipt'],
-    allowedAccounts: ['causal_receipt', 'growth_campaign', 'merchant_config', 'system_program'],
-    dailySponsoredTxCap: 250,
-    perMerchantDailyCap: 100,
-    perCampaignDailyCap: 50,
-    perWalletDailyCap: 5,
+    allowedInstructions: [
+      'verify_causal_receipt',
+      'register_merchant',
+      'create_growth_campaign',
+      'fund_growth_bounty',
+      'record_causal_receipt',
+      'settle_receipt_reward',
+      'close_growth_bounty',
+    ],
+    allowedAccounts: [
+      'merchant_config',
+      'growth_campaign',
+      'reward_escrow',
+      'reward_vault',
+      'merchant_reward_account',
+      'referrer_reward_account',
+      'visitor_reward_account',
+      'causal_receipt',
+      'nullifier_record',
+      'settlement_record',
+      'reward_mint',
+      'token_program',
+      'associated_token_program',
+      'system_program',
+    ],
+    dailySponsoredTxCap: integerCap('LAUNCH_DAILY_SPONSORED_TX_CAP', 100),
+    perMerchantDailyCap: integerCap('LAUNCH_MERCHANT_DAILY_SPONSORED_TX_CAP', 25),
+    perCampaignDailyCap: integerCap('LAUNCH_CAMPAIGN_DAILY_SPONSORED_TX_CAP', 15),
+    perWalletDailyCap: integerCap('LAUNCH_WALLET_DAILY_SPONSORED_TX_CAP', 3),
     simulationRequired: true,
     serviceAuthRequired: true,
   };
@@ -5577,12 +5695,103 @@ export async function getReceiptActionMetadata(receiptLookup: string): Promise<B
 }
 
 function signActionIntentPayload(payload: string) {
-  const secret = process.env.LAUNCH_INTENT_SECRET || 'viral-sync-demo-intent-secret';
+  const secret = getIntentSecret();
   return sha256Hex(`${secret}:${payload}`);
 }
 
 function isLikelySolanaAddress(value: string) {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
+}
+
+const CAUSAL_COMMERCE_ACTION_COMPUTE_UNITS: Record<string, number> = {
+  register_merchant: 80_000,
+  create_growth_campaign: 120_000,
+  fund_growth_bounty: 140_000,
+  record_causal_receipt: 130_000,
+  settle_receipt_reward: 150_000,
+  close_growth_bounty: 110_000,
+};
+
+const CAUSAL_COMMERCE_REQUIRED_ACCOUNTS: Record<string, string[]> = {
+  register_merchant: ['merchant_config', 'merchant_authority', 'system_program'],
+  create_growth_campaign: ['merchant_config', 'growth_campaign', 'merchant_authority', 'reward_mint', 'system_program'],
+  fund_growth_bounty: [
+    'growth_campaign',
+    'reward_escrow',
+    'merchant_reward_account',
+    'reward_vault',
+    'reward_mint',
+    'merchant_authority',
+    'system_program',
+    'token_program',
+    'associated_token_program',
+  ],
+  record_causal_receipt: [
+    'growth_campaign',
+    'reward_escrow',
+    'reward_vault',
+    'causal_receipt',
+    'nullifier_record',
+    'receipt_authority',
+    'system_program',
+  ],
+  settle_receipt_reward: [
+    'growth_campaign',
+    'reward_escrow',
+    'reward_vault',
+    'causal_receipt',
+    'settlement_record',
+    'referrer_reward_account',
+    'visitor_reward_account',
+    'reward_mint',
+    'settlement_authority',
+    'system_program',
+    'token_program',
+  ],
+  close_growth_bounty: [
+    'growth_campaign',
+    'reward_escrow',
+    'reward_vault',
+    'merchant_reward_account',
+    'reward_mint',
+    'merchant_authority',
+    'token_program',
+  ],
+};
+
+function normalizeAccountMap(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+}
+
+function validateCausalCommerceIntent(action: string, account: string, accounts: Record<string, string>) {
+  const policy = getRelayerPolicy();
+  const requiredAccounts = CAUSAL_COMMERCE_REQUIRED_ACCOUNTS[action] ?? [];
+  const missingAccounts = requiredAccounts.filter((name) => !accounts[name]);
+  const invalidAccounts = Object.entries(accounts)
+    .filter(([name, address]) => !policy.allowedAccounts.includes(name) && !name.endsWith('_authority') || !isLikelySolanaAddress(address))
+    .map(([name]) => name);
+
+  if (!policy.allowedInstructions.includes(action)) {
+    return { allowed: false, reason: `Instruction ${action} is not in the relayer allowlist.` };
+  }
+  if (!isLikelySolanaAddress(account)) {
+    return { allowed: false, reason: 'A valid wallet account is required.' };
+  }
+  if (missingAccounts.length > 0) {
+    return { allowed: false, reason: `Missing required accounts: ${missingAccounts.join(', ')}.` };
+  }
+  if (invalidAccounts.length > 0) {
+    return { allowed: false, reason: `Invalid or disallowed accounts: ${invalidAccounts.join(', ')}.` };
+  }
+
+  return { allowed: true, reason: '' };
 }
 
 export async function createReceiptVerificationIntent(params: {
@@ -5655,6 +5864,60 @@ export async function createReceiptVerificationIntent(params: {
   };
 }
 
+export async function createCausalCommerceSponsoredIntent(params: {
+  action: string;
+  account: string;
+  accounts?: Record<string, unknown>;
+  receiptId?: string;
+  campaignId?: string;
+}): Promise<SignedActionIntent> {
+  const accounts = normalizeAccountMap(params.accounts);
+  const validation = validateCausalCommerceIntent(params.action, params.account, accounts);
+  const accountList = Object.values(accounts);
+  const simulation = {
+    allowed: validation.allowed,
+    programId: VIRAL_SYNC_PROGRAM_ID,
+    instruction: params.action,
+    accounts: accountList,
+    computeUnitLimit: validation.allowed ? CAUSAL_COMMERCE_ACTION_COMPUTE_UNITS[params.action] ?? 80_000 : 0,
+  };
+
+  if (!validation.allowed) {
+    return {
+      ok: false,
+      action: params.action as SignedActionIntent['action'],
+      receiptId: params.receiptId ?? params.campaignId ?? 'causal-commerce',
+      account: params.account,
+      intent: '',
+      signature: '',
+      simulation,
+      reason: validation.reason,
+    };
+  }
+
+  const intent = JSON.stringify({
+    action: params.action,
+    account: params.account,
+    accounts,
+    receiptId: params.receiptId,
+    campaignId: params.campaignId,
+    programId: VIRAL_SYNC_PROGRAM_ID,
+    issuedAt: new Date().toISOString(),
+  });
+  const signature = signActionIntentPayload(intent);
+
+  return {
+    ok: true,
+    action: params.action as SignedActionIntent['action'],
+    receiptId: params.receiptId ?? params.campaignId ?? 'causal-commerce',
+    account: params.account,
+    intent,
+    signature,
+    simulation,
+    transaction: Buffer.from(JSON.stringify({ intent, signature, relayer: 'viral-sync-hosted-app' })).toString('base64'),
+  };
+}
+
 export async function simulateSponsoredTransaction(params: {
   apiKey: string;
   intent: string;
@@ -5662,7 +5925,7 @@ export async function simulateSponsoredTransaction(params: {
   account: string;
   nonce?: string;
 }) {
-  const expectedApiKey = process.env.LAUNCH_RELAYER_API_KEY || 'DEMO-RELAYER-KEY';
+  const expectedApiKey = getRelayerApiKey();
   if (params.apiKey !== expectedApiKey) {
     return { ok: false, reason: 'Service auth failed.', status: 401 as const };
   }
@@ -5672,7 +5935,7 @@ export async function simulateSponsoredTransaction(params: {
   }
 
   const policy = getRelayerPolicy();
-  let decoded: { action?: string; receiptId?: string; receiptPda?: string; account?: string };
+  let decoded: { action?: string; receiptId?: string; receiptPda?: string; account?: string; accounts?: Record<string, string>; campaignId?: string };
   try {
     decoded = JSON.parse(params.intent);
   } catch {
@@ -5710,16 +5973,24 @@ export async function simulateSponsoredTransaction(params: {
     const campaignDaily = receipt
       ? dailyEvents.filter((event) => event.targetId === receipt.id).length
       : 0;
-    const allowed = decoded.action === 'verify_causal_receipt' &&
-      decoded.account === params.account &&
-      Boolean(decoded.receiptPda) &&
-      Boolean(receipt) &&
+    const causalValidation = decoded.action && decoded.action !== 'verify_causal_receipt'
+      ? validateCausalCommerceIntent(decoded.action, params.account, normalizeAccountMap(decoded.accounts))
+      : { allowed: false, reason: '' };
+    const allowed = decoded.account === params.account &&
       dailyEvents.length < policy.dailySponsoredTxCap &&
       walletDaily < policy.perWalletDailyCap &&
       merchantDaily < policy.perMerchantDailyCap &&
       campaignDaily < policy.perCampaignDailyCap &&
       policy.allowedPrograms.includes(VIRAL_SYNC_PROGRAM_ID) &&
-      policy.allowedInstructions.includes('verify_causal_receipt');
+      (
+        (
+          decoded.action === 'verify_causal_receipt' &&
+          Boolean(decoded.receiptPda) &&
+          Boolean(receipt) &&
+          policy.allowedInstructions.includes('verify_causal_receipt')
+        ) ||
+        causalValidation.allowed
+      );
 
     if (allowed) {
       rememberIdempotency(ledger, {
