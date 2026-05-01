@@ -1,10 +1,16 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::Mint;
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{
+        close_account, transfer_checked, CloseAccount, Mint, TokenAccount, TokenInterface,
+        TransferChecked,
+    },
+};
 
 use crate::errors::ViralSyncError;
 use crate::events::{
-    CausalReceiptRecorded, GrowthBountyFunded, GrowthCampaignCreated, MerchantRegistered,
-    ReceiptRewardSettled,
+    CausalMerchantStatusUpdated, CausalReceiptRecorded, GrowthBountyClosed, GrowthBountyFunded,
+    GrowthCampaignCreated, GrowthCampaignStatusUpdated, MerchantRegistered, ReceiptRewardSettled,
 };
 use crate::state::{
     CausalMerchantConfig, CausalMerchantStatus, CausalReceipt, CausalReceiptStatus,
@@ -40,7 +46,7 @@ pub struct FundGrowthBounty<'info> {
         has_one = merchant_authority @ ViralSyncError::AccessDenied,
         constraint = growth_campaign.status == GrowthCampaignStatus::Active @ ViralSyncError::InvalidState,
     )]
-    pub growth_campaign: Account<'info, GrowthCampaign>,
+    pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
 
     #[account(
         init_if_needed,
@@ -53,16 +59,42 @@ pub struct FundGrowthBounty<'info> {
         ],
         bump
     )]
-    pub reward_escrow: Account<'info, RewardEscrow>,
+    pub reward_escrow: Box<Account<'info, RewardEscrow>>,
+
+    #[account(
+        mut,
+        constraint = merchant_reward_account.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+        constraint = merchant_reward_account.owner == merchant_authority.key() @ ViralSyncError::AccessDenied,
+    )]
+    pub merchant_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        init_if_needed,
+        payer = merchant_authority,
+        associated_token::mint = reward_mint,
+        associated_token::authority = reward_escrow,
+        associated_token::token_program = token_program,
+    )]
+    pub reward_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub reward_mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(mut)]
     pub merchant_authority: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 pub fn fund_growth_bounty(ctx: Context<FundGrowthBounty>, amount: u64) -> Result<()> {
     require!(amount > 0, ViralSyncError::InvalidConfig);
+    require!(
+        ctx.accounts.reward_mint.key() == ctx.accounts.growth_campaign.reward_mint,
+        ViralSyncError::InvalidConfig
+    );
 
     let campaign = &mut ctx.accounts.growth_campaign;
     let escrow = &mut ctx.accounts.reward_escrow;
@@ -82,11 +114,26 @@ pub fn fund_growth_bounty(ctx: Context<FundGrowthBounty>, amount: u64) -> Result
         escrow.bump = ctx.bumps.reward_escrow;
         escrow.campaign = campaign.key();
         escrow.reward_mint = campaign.reward_mint;
+        escrow.reward_vault = ctx.accounts.reward_vault.key();
         escrow.total_funded = 0;
         escrow.total_reserved = 0;
         escrow.total_settled = 0;
         escrow.created_at = now;
+    } else {
+        require!(
+            escrow.reward_vault == ctx.accounts.reward_vault.key(),
+            ViralSyncError::InvalidState
+        );
     }
+
+    let cpi_accounts = TransferChecked {
+        from: ctx.accounts.merchant_reward_account.to_account_info(),
+        mint: ctx.accounts.reward_mint.to_account_info(),
+        to: ctx.accounts.reward_vault.to_account_info(),
+        authority: ctx.accounts.merchant_authority.to_account_info(),
+    };
+    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+    transfer_checked(cpi_ctx, amount, ctx.accounts.reward_mint.decimals)?;
 
     escrow.total_funded = escrow
         .total_funded
@@ -107,13 +154,135 @@ pub fn fund_growth_bounty(ctx: Context<FundGrowthBounty>, amount: u64) -> Result
 }
 
 #[derive(Accounts)]
-#[instruction(receipt_id_hash: [u8; 32], claimer_nullifier_hash: [u8; 32])]
+pub struct CloseGrowthBounty<'info> {
+    #[account(
+        mut,
+        has_one = merchant_authority @ ViralSyncError::AccessDenied,
+        constraint = (
+            growth_campaign.status == GrowthCampaignStatus::Active ||
+            growth_campaign.status == GrowthCampaignStatus::Paused
+        ) @ ViralSyncError::InvalidState,
+    )]
+    pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
+
+    #[account(
+        mut,
+        seeds = [
+            RewardEscrow::SEED_PREFIX,
+            growth_campaign.key().as_ref(),
+            growth_campaign.reward_mint.as_ref(),
+        ],
+        bump = reward_escrow.bump,
+        constraint = reward_escrow.campaign == growth_campaign.key() @ ViralSyncError::InvalidState,
+    )]
+    pub reward_escrow: Box<Account<'info, RewardEscrow>>,
+
+    #[account(
+        mut,
+        constraint = reward_vault.key() == reward_escrow.reward_vault @ ViralSyncError::InvalidState,
+        constraint = reward_vault.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+        constraint = reward_vault.owner == reward_escrow.key() @ ViralSyncError::AccessDenied,
+    )]
+    pub reward_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = merchant_reward_account.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+        constraint = merchant_reward_account.owner == merchant_authority.key() @ ViralSyncError::AccessDenied,
+    )]
+    pub merchant_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub reward_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(mut)]
+    pub merchant_authority: Signer<'info>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+pub fn close_growth_bounty(ctx: Context<CloseGrowthBounty>) -> Result<()> {
+    require!(
+        ctx.accounts.reward_mint.key() == ctx.accounts.growth_campaign.reward_mint,
+        ViralSyncError::InvalidConfig
+    );
+
+    let campaign = &mut ctx.accounts.growth_campaign;
+    let escrow = &mut ctx.accounts.reward_escrow;
+    require!(escrow.total_reserved == 0, ViralSyncError::UnsettledSlotsRemain);
+
+    let now = Clock::get()?.unix_timestamp;
+    let reclaimable = escrow
+        .total_funded
+        .checked_sub(escrow.total_settled)
+        .ok_or(ViralSyncError::MathOverflow)?;
+    let campaign_key = campaign.key();
+    let reward_mint_key = campaign.reward_mint;
+    let signer_seeds: &[&[&[u8]]] = &[&[
+        RewardEscrow::SEED_PREFIX,
+        campaign_key.as_ref(),
+        reward_mint_key.as_ref(),
+        &[escrow.bump],
+    ]];
+
+    if reclaimable > 0 {
+        let transfer_accounts = TransferChecked {
+            from: ctx.accounts.reward_vault.to_account_info(),
+            mint: ctx.accounts.reward_mint.to_account_info(),
+            to: ctx.accounts.merchant_reward_account.to_account_info(),
+            authority: escrow.to_account_info(),
+        };
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_accounts,
+                signer_seeds,
+            ),
+            reclaimable,
+            ctx.accounts.reward_mint.decimals,
+        )?;
+    }
+
+    let close_accounts = CloseAccount {
+        account: ctx.accounts.reward_vault.to_account_info(),
+        destination: ctx.accounts.merchant_authority.to_account_info(),
+        authority: escrow.to_account_info(),
+    };
+    close_account(CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        close_accounts,
+        signer_seeds,
+    ))?;
+
+    escrow.total_funded = escrow.total_settled;
+    escrow.updated_at = now;
+    campaign.status = GrowthCampaignStatus::Closed;
+    campaign.updated_at = now;
+
+    emit!(GrowthBountyClosed {
+        growth_campaign: campaign.key(),
+        reward_escrow: escrow.key(),
+        reward_vault: ctx.accounts.reward_vault.key(),
+        merchant_reward_account: ctx.accounts.merchant_reward_account.key(),
+        reclaimed_amount: reclaimable,
+        closed_at: now,
+    });
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(
+    receipt_id_hash: [u8; 32],
+    parent_receipt_id_hash: [u8; 32],
+    referrer_commitment: [u8; 32],
+    claimer_nullifier_hash: [u8; 32]
+)]
 pub struct RecordCausalReceipt<'info> {
     #[account(
         mut,
         constraint = growth_campaign.status == GrowthCampaignStatus::Active @ ViralSyncError::InvalidState,
     )]
-    pub growth_campaign: Account<'info, GrowthCampaign>,
+    pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
 
     #[account(
         mut,
@@ -124,7 +293,13 @@ pub struct RecordCausalReceipt<'info> {
         ],
         bump = reward_escrow.bump,
     )]
-    pub reward_escrow: Account<'info, RewardEscrow>,
+    pub reward_escrow: Box<Account<'info, RewardEscrow>>,
+
+    #[account(
+        constraint = reward_vault.key() == reward_escrow.reward_vault @ ViralSyncError::InvalidState,
+        constraint = reward_vault.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+    )]
+    pub reward_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -137,7 +312,7 @@ pub struct RecordCausalReceipt<'info> {
         ],
         bump
     )]
-    pub causal_receipt: Account<'info, CausalReceipt>,
+    pub causal_receipt: Box<Account<'info, CausalReceipt>>,
 
     #[account(
         init,
@@ -150,7 +325,7 @@ pub struct RecordCausalReceipt<'info> {
         ],
         bump
     )]
-    pub nullifier_record: Account<'info, NullifierRecord>,
+    pub nullifier_record: Box<Account<'info, NullifierRecord>>,
 
     #[account(mut)]
     pub receipt_authority: Signer<'info>,
@@ -228,7 +403,7 @@ pub fn record_causal_receipt(
 #[derive(Accounts)]
 pub struct SettleReceiptReward<'info> {
     #[account(mut)]
-    pub growth_campaign: Account<'info, GrowthCampaign>,
+    pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
 
     #[account(
         mut,
@@ -239,14 +414,21 @@ pub struct SettleReceiptReward<'info> {
         ],
         bump = reward_escrow.bump,
     )]
-    pub reward_escrow: Account<'info, RewardEscrow>,
+    pub reward_escrow: Box<Account<'info, RewardEscrow>>,
+
+    #[account(
+        mut,
+        constraint = reward_vault.key() == reward_escrow.reward_vault @ ViralSyncError::InvalidState,
+        constraint = reward_vault.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+    )]
+    pub reward_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
         constraint = causal_receipt.campaign == growth_campaign.key() @ ViralSyncError::InvalidState,
         constraint = causal_receipt.status == CausalReceiptStatus::Recorded @ ViralSyncError::SlotAlreadySettled,
     )]
-    pub causal_receipt: Account<'info, CausalReceipt>,
+    pub causal_receipt: Box<Account<'info, CausalReceipt>>,
 
     #[account(
         init,
@@ -258,12 +440,28 @@ pub struct SettleReceiptReward<'info> {
         ],
         bump
     )]
-    pub settlement_record: Account<'info, SettlementRecord>,
+    pub settlement_record: Box<Account<'info, SettlementRecord>>,
+
+    #[account(
+        mut,
+        constraint = referrer_reward_account.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+    )]
+    pub referrer_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        constraint = visitor_reward_account.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+    )]
+    pub visitor_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub reward_mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(mut)]
     pub settlement_authority: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 pub fn settle_receipt_reward(ctx: Context<SettleReceiptReward>) -> Result<()> {
@@ -283,6 +481,47 @@ pub fn settle_receipt_reward(ctx: Context<SettleReceiptReward>) -> Result<()> {
         .reward_amount
         .checked_sub(referrer_amount)
         .ok_or(ViralSyncError::MathOverflow)?;
+
+    let campaign_key = campaign.key();
+    let reward_mint_key = campaign.reward_mint;
+    let signer_seeds: &[&[&[u8]]] = &[&[
+        RewardEscrow::SEED_PREFIX,
+        campaign_key.as_ref(),
+        reward_mint_key.as_ref(),
+        &[escrow.bump],
+    ]];
+
+    let referrer_transfer_accounts = TransferChecked {
+        from: ctx.accounts.reward_vault.to_account_info(),
+        mint: ctx.accounts.reward_mint.to_account_info(),
+        to: ctx.accounts.referrer_reward_account.to_account_info(),
+        authority: escrow.to_account_info(),
+    };
+    transfer_checked(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            referrer_transfer_accounts,
+            signer_seeds,
+        ),
+        referrer_amount,
+        ctx.accounts.reward_mint.decimals,
+    )?;
+
+    let visitor_transfer_accounts = TransferChecked {
+        from: ctx.accounts.reward_vault.to_account_info(),
+        mint: ctx.accounts.reward_mint.to_account_info(),
+        to: ctx.accounts.visitor_reward_account.to_account_info(),
+        authority: escrow.to_account_info(),
+    };
+    transfer_checked(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            visitor_transfer_accounts,
+            signer_seeds,
+        ),
+        visitor_amount,
+        ctx.accounts.reward_mint.decimals,
+    )?;
 
     escrow.total_reserved = escrow
         .total_reserved
@@ -348,13 +587,78 @@ pub fn register_merchant(ctx: Context<RegisterMerchant>, org_id_hash: [u8; 32]) 
 }
 
 #[derive(Accounts)]
+pub struct SetCausalMerchantStatus<'info> {
+    #[account(
+        mut,
+        has_one = merchant_authority @ ViralSyncError::AccessDenied,
+    )]
+    pub merchant_config: Account<'info, CausalMerchantConfig>,
+
+    pub merchant_authority: Signer<'info>,
+}
+
+pub fn set_causal_merchant_status(
+    ctx: Context<SetCausalMerchantStatus>,
+    status: CausalMerchantStatus,
+) -> Result<()> {
+    let now = Clock::get()?.unix_timestamp;
+    let config = &mut ctx.accounts.merchant_config;
+
+    config.status = status;
+    config.updated_at = now;
+
+    emit!(CausalMerchantStatusUpdated {
+        merchant_config: config.key(),
+        merchant_authority: ctx.accounts.merchant_authority.key(),
+        status,
+        updated_at: now,
+    });
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct SetGrowthCampaignStatus<'info> {
+    #[account(
+        mut,
+        has_one = merchant_authority @ ViralSyncError::AccessDenied,
+        constraint = growth_campaign.status != GrowthCampaignStatus::Closed @ ViralSyncError::InvalidState,
+    )]
+    pub growth_campaign: Account<'info, GrowthCampaign>,
+
+    pub merchant_authority: Signer<'info>,
+}
+
+pub fn set_growth_campaign_status(
+    ctx: Context<SetGrowthCampaignStatus>,
+    status: GrowthCampaignStatus,
+) -> Result<()> {
+    require!(status != GrowthCampaignStatus::Closed, ViralSyncError::InvalidState);
+
+    let now = Clock::get()?.unix_timestamp;
+    let campaign = &mut ctx.accounts.growth_campaign;
+
+    campaign.status = status;
+    campaign.updated_at = now;
+
+    emit!(GrowthCampaignStatusUpdated {
+        growth_campaign: campaign.key(),
+        merchant_authority: ctx.accounts.merchant_authority.key(),
+        status,
+        updated_at: now,
+    });
+
+    Ok(())
+}
+
+#[derive(Accounts)]
 #[instruction(campaign_id_hash: [u8; 32])]
 pub struct CreateGrowthCampaign<'info> {
     #[account(
         has_one = merchant_authority @ ViralSyncError::AccessDenied,
         constraint = merchant_config.status == CausalMerchantStatus::Active @ ViralSyncError::InvalidState,
     )]
-    pub merchant_config: Account<'info, CausalMerchantConfig>,
+    pub merchant_config: Box<Account<'info, CausalMerchantConfig>>,
 
     #[account(
         init,
@@ -367,12 +671,12 @@ pub struct CreateGrowthCampaign<'info> {
         ],
         bump
     )]
-    pub growth_campaign: Account<'info, GrowthCampaign>,
+    pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
 
     #[account(mut)]
     pub merchant_authority: Signer<'info>,
 
-    pub reward_mint: InterfaceAccount<'info, Mint>,
+    pub reward_mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub system_program: Program<'info, System>,
 }

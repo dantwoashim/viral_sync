@@ -1,19 +1,18 @@
 import type { Metadata, Viewport } from 'next';
-import { Anek_Devanagari, IBM_Plex_Mono } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
 import MerchantShell from '@/components/MerchantShell';
 
-const sans = Anek_Devanagari({
-  subsets: ['latin', 'devanagari'],
+const sans = Geist({
+  subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
 });
 
-const mono = IBM_Plex_Mono({
+const mono = Geist_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
-  weight: ['400', '500', '600'],
   display: 'swap',
 });
 
@@ -28,7 +27,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#f4efe6',
+  themeColor: '#f7f8f5',
 };
 
 export default function RootLayout({

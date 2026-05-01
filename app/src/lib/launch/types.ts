@@ -127,7 +127,7 @@ export interface CausalReceiptRecord {
   settledAt?: string;
 }
 
-export type MerchantRole = 'owner' | 'admin' | 'staff';
+export type MerchantRole = 'owner' | 'admin' | 'manager' | 'staff' | 'support' | 'auditor';
 
 export interface MerchantSessionRecord {
   id: string;
@@ -359,7 +359,7 @@ export interface BlinkActionMetadata {
 
 export interface SignedActionIntent {
   ok: boolean;
-  action: 'verify_causal_receipt';
+  action: 'verify_causal_receipt' | 'register_merchant' | 'create_growth_campaign' | 'fund_growth_bounty' | 'record_causal_receipt' | 'settle_receipt_reward' | 'close_growth_bounty';
   receiptId: string;
   account: string;
   intent: string;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import {
   claimReferral,
   isValidReferralToken,
@@ -19,10 +19,18 @@ export async function POST(
   if (limited) {
     return limited;
   }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
+  }
 
   const invalidContentType = requireJsonRequest(request);
   if (invalidContentType) {
     return invalidContentType;
+  }
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) {
+    return invalidOrigin;
   }
 
   const { token } = await context.params;
@@ -42,5 +50,5 @@ export async function POST(
     deviceFingerprint,
   });
 
-  return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  return withSecurityHeaders(NextResponse.json(result, { status: result.ok ? 200 : 409 }));
 }

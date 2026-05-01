@@ -1,0 +1,13 @@
+{
+  "name": "viral-sync-receipt-verifier-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "verify": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "viral-sync-sdk": "file:../../sdk",
+    "tsx": "^4.20.6"
+  }
+}

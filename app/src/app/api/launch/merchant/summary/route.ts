@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { enforceRateLimit } from '@/lib/launch/api';
+import { enforceRateLimit, requireMerchantRequestRole, withSecurityHeaders } from '@/lib/launch/api';
 import { getMerchantSummary } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
@@ -11,7 +11,11 @@ export async function GET(request: NextRequest) {
   if (limited) {
     return limited;
   }
+  const merchantAuth = await requireMerchantRequestRole(request, ['auditor']);
+  if (!merchantAuth.ok) {
+    return merchantAuth.response;
+  }
 
   const summary = await getMerchantSummary();
-  return NextResponse.json(summary);
+  return withSecurityHeaders(NextResponse.json(summary));
 }

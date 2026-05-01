@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, withSecurityHeaders } from '@/lib/launch/api';
 import { getConsumerSummary, isValidSessionId } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
@@ -18,5 +18,5 @@ export async function GET(request: NextRequest) {
   }
 
   const summary = await getConsumerSummary(sessionId);
-  return NextResponse.json(summary);
+  return withSecurityHeaders(NextResponse.json(summary));
 }

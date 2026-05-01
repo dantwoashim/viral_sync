@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import { generateRedeemCode, isValidSessionId } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
@@ -10,10 +10,18 @@ export async function POST(request: NextRequest) {
   if (limited) {
     return limited;
   }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
+  }
 
   const invalidContentType = requireJsonRequest(request);
   if (invalidContentType) {
     return invalidContentType;
+  }
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) {
+    return invalidOrigin;
   }
 
   const body = await readJsonBody(request);
@@ -24,5 +32,5 @@ export async function POST(request: NextRequest) {
   }
 
   const result = await generateRedeemCode({ sessionId });
-  return NextResponse.json(result, { status: result.ok ? 200 : 409 });
+  return withSecurityHeaders(NextResponse.json(result, { status: result.ok ? 200 : 409 }));
 }

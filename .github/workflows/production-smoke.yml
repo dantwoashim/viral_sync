@@ -14,4 +14,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm run production:readiness
       - run: node scripts/check-production.mjs

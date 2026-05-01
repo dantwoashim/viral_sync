@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { MerchantRole } from '@/lib/launch/types';
+import { requireMerchantRole } from '@/lib/launch/server';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_JSON_BODY_BYTES = 32_000;
 const RATE_LIMIT_BUCKETS = new Map<string, number[]>();
 
 export function jsonError(message: string, status: number, code = 'request_error', reqId?: string, details?: Record<string, unknown>) {
-  return NextResponse.json({
+  return withSecurityHeaders(NextResponse.json({
     ok: false,
     error: {
       code,
@@ -12,7 +15,7 @@ export function jsonError(message: string, status: number, code = 'request_error
       details,
       requestId: reqId,
     },
-  }, { status });
+  }, { status }));
 }
 
 export async function readJsonBody(request: NextRequest) {
@@ -27,6 +30,10 @@ export function requireJsonRequest(request: NextRequest) {
   const contentType = request.headers.get('content-type') ?? '';
   if (!contentType.toLowerCase().includes('application/json')) {
     return jsonError('Content-Type must be application/json.', 415, 'invalid_content_type', requestId(request));
+  }
+  const contentLength = Number.parseInt(request.headers.get('content-length') ?? '0', 10);
+  if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BODY_BYTES) {
+    return jsonError('JSON body is too large.', 413, 'body_too_large', requestId(request), { maxBytes: MAX_JSON_BODY_BYTES });
   }
 
   return null;
@@ -61,7 +68,36 @@ export function withSecurityHeaders(response: NextResponse) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Permissions-Policy', 'camera=(self), geolocation=(), microphone=()');
+  response.headers.set('Cache-Control', response.headers.get('Cache-Control') ?? 'no-store');
   return response;
+}
+
+export function requireLaunchOpen(request: NextRequest) {
+  if (process.env.LAUNCH_PAUSED !== 'true') {
+    return null;
+  }
+
+  return jsonError('Viral Sync launch mutations are paused. Try again after the incident window clears.', 503, 'launch_paused', requestId(request));
+}
+
+export async function requireMerchantRequestRole(request: NextRequest, allowedRoles: MerchantRole[]) {
+  const sessionId = merchantSessionFromRequest(request);
+  if (!sessionId) {
+    return {
+      ok: false as const,
+      response: jsonError('Merchant session is required.', 401, 'merchant_session_required', requestId(request)),
+    };
+  }
+
+  const auth = await requireMerchantRole(sessionId, allowedRoles, requestId(request));
+  if (!auth.ok) {
+    return {
+      ok: false as const,
+      response: jsonError(auth.reason, 403, 'merchant_role_denied', requestId(request)),
+    };
+  }
+
+  return { ok: true as const, session: auth.session };
 }
 
 export function idempotencyKey(request: NextRequest, fallbackScope: string) {
@@ -97,7 +133,9 @@ export function enforceRateLimit(request: NextRequest, scope: string, maxRequest
   const recent = (RATE_LIMIT_BUCKETS.get(key) ?? []).filter((stamp) => now - stamp < RATE_LIMIT_WINDOW_MS);
 
   if (recent.length >= maxRequests) {
-    return jsonError('Too many requests. Try again shortly.', 429, 'rate_limited', requestId(request), { scope });
+    const response = jsonError('Too many requests. Try again shortly.', 429, 'rate_limited', requestId(request), { scope });
+    response.headers.set('Retry-After', '60');
+    return response;
   }
 
   recent.push(now);

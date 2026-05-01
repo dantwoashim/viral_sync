@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import { simulateSponsoredTransaction } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
@@ -9,6 +9,10 @@ export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, 'sponsored-tx', 60);
   if (limited) {
     return limited;
+  }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
   }
 
   const invalidContentType = requireJsonRequest(request);

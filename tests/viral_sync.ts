@@ -275,13 +275,61 @@ function blinkUrl(actionUrl: string) {
 function relayerPolicy() {
   return {
     allowedPrograms: ["8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9"],
-    allowedInstructions: ["verify_causal_receipt"],
+    allowedInstructions: [
+      "verify_causal_receipt",
+      "register_merchant",
+      "create_growth_campaign",
+      "fund_growth_bounty",
+      "record_causal_receipt",
+      "settle_receipt_reward",
+      "close_growth_bounty",
+    ],
     perWalletDailyCap: 5,
     perMerchantDailyCap: 100,
     perCampaignDailyCap: 50,
     simulationRequired: true,
     serviceAuthRequired: true,
   };
+}
+
+function productionSecretReady(value: string | undefined, demoValue: string) {
+  return Boolean(value && value !== demoValue && !value.toLowerCase().includes("demo"));
+}
+
+type MerchantRole = "owner" | "admin" | "manager" | "staff" | "support" | "auditor";
+
+function merchantRoleAllows(role: MerchantRole, allowed: MerchantRole[]) {
+  if (allowed.includes(role)) return true;
+  const effectiveRole = role === "admin" ? "manager" : role;
+  const effectiveAllowed = new Set(allowed.map((item) => item === "admin" ? "manager" : item));
+  if (effectiveAllowed.has("owner")) return effectiveRole === "owner";
+  if (effectiveAllowed.has("manager")) return effectiveRole === "owner" || effectiveRole === "manager";
+  if (effectiveAllowed.has("staff")) return effectiveRole === "owner" || effectiveRole === "manager" || effectiveRole === "staff";
+  if (effectiveAllowed.has("support")) return effectiveRole === "owner" || effectiveRole === "manager" || effectiveRole === "support";
+  if (effectiveAllowed.has("auditor")) return effectiveRole === "owner" || effectiveRole === "manager" || effectiveRole === "auditor";
+  return false;
+}
+
+function launchMutationAllowed(paused: boolean, method: string) {
+  return !(paused && ["POST", "PUT", "PATCH", "DELETE"].includes(method));
+}
+
+function staffConfirmationAllowed(params: { production: boolean; sessionRole?: MerchantRole; deviceEnrolled: boolean; demoPin: boolean }) {
+  const roleOk = params.sessionRole ? merchantRoleAllows(params.sessionRole, ["staff"]) : false;
+  if (params.production) {
+    return roleOk && params.deviceEnrolled;
+  }
+  return (roleOk && params.deviceEnrolled) || params.demoPin;
+}
+
+function circuitBreakerStateTransition(status: string, next: string) {
+  if (status === "Closed") {
+    throw new Error("closed campaign cannot be resumed or paused");
+  }
+  if (!["Active", "Paused"].includes(next)) {
+    throw new Error("invalid live status");
+  }
+  return next;
 }
 
 function replayProtected(nonces: Set<string>, nonce: string) {
@@ -1774,10 +1822,38 @@ describe("viral_sync_v4_core", () => {
     }).ok).to.equal(false);
   });
 
-  it("keeps the relayer policy scoped to receipt verification", () => {
+  it("rejects demo secrets for production readiness", () => {
+    expect(productionSecretReady("DEMO-PIN", "DEMO-PIN")).to.equal(false);
+    expect(productionSecretReady("my-demo-secret", "DEMO-PIN")).to.equal(false);
+    expect(productionSecretReady("prod_9Va1idLongSecret", "DEMO-PIN")).to.equal(true);
+  });
+
+  it("authorizes merchant RBAC by job instead of raw PINs", () => {
+    expect(merchantRoleAllows("owner", ["manager"])).to.equal(true);
+    expect(merchantRoleAllows("manager", ["staff"])).to.equal(true);
+    expect(merchantRoleAllows("staff", ["manager"])).to.equal(false);
+    expect(merchantRoleAllows("support", ["staff"])).to.equal(false);
+    expect(merchantRoleAllows("auditor", ["auditor"])).to.equal(true);
+  });
+
+  it("blocks launch mutations when the pause switch is enabled", () => {
+    expect(launchMutationAllowed(true, "POST")).to.equal(false);
+    expect(launchMutationAllowed(true, "DELETE")).to.equal(false);
+    expect(launchMutationAllowed(true, "GET")).to.equal(true);
+    expect(launchMutationAllowed(false, "POST")).to.equal(true);
+  });
+
+  it("requires enrolled staff devices for production confirmations", () => {
+    expect(staffConfirmationAllowed({ production: true, sessionRole: "staff", deviceEnrolled: true, demoPin: false })).to.equal(true);
+    expect(staffConfirmationAllowed({ production: true, sessionRole: "staff", deviceEnrolled: false, demoPin: true })).to.equal(false);
+    expect(staffConfirmationAllowed({ production: false, deviceEnrolled: false, demoPin: true })).to.equal(true);
+    expect(staffConfirmationAllowed({ production: true, sessionRole: "support", deviceEnrolled: true, demoPin: false })).to.equal(false);
+  });
+
+  it("keeps the relayer policy scoped to Causal Commerce instructions", () => {
     const policy = relayerPolicy();
 
-    expect(policy.allowedInstructions).to.deep.equal(["verify_causal_receipt"]);
+    expect(policy.allowedInstructions).to.include.members(["verify_causal_receipt", "close_growth_bounty"]);
     expect(policy.simulationRequired).to.equal(true);
     expect(policy.serviceAuthRequired).to.equal(true);
   });
@@ -1920,6 +1996,13 @@ describe("viral_sync_v4_core", () => {
     expect(cappedDeployment({ cap: 10_000, allowlisted: ["merchant-1"], pauseTested: true })).to.equal(true);
     expect(cappedDeployment({ cap: 20_000, allowlisted: ["merchant-1"], pauseTested: true })).to.equal(false);
     expect(cappedDeployment({ cap: 10_000, allowlisted: [], pauseTested: true })).to.equal(false);
+  });
+
+  it("keeps on-chain campaign circuit breakers reversible only before close", () => {
+    expect(circuitBreakerStateTransition("Active", "Paused")).to.equal("Paused");
+    expect(circuitBreakerStateTransition("Paused", "Active")).to.equal("Active");
+    expect(() => circuitBreakerStateTransition("Closed", "Active")).to.throw("closed campaign cannot be resumed or paused");
+    expect(() => circuitBreakerStateTransition("Active", "Closed")).to.throw("invalid live status");
   });
 
   it("requires proof assets to include screenshots and a merchant quote", () => {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireSameOrigin } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import {
   ensureReferralLink,
   isValidSessionId,
@@ -15,6 +15,10 @@ export async function POST(request: NextRequest) {
   const limited = enforceRateLimit(request, 'referrals-create', 20);
   if (limited) {
     return limited;
+  }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
   }
 
   const invalidContentType = requireJsonRequest(request);
@@ -40,5 +44,5 @@ export async function POST(request: NextRequest) {
   }
 
   const referral = await ensureReferralLink({ sessionId, displayName, deviceFingerprint });
-  return NextResponse.json(referral);
+  return withSecurityHeaders(NextResponse.json(referral));
 }
