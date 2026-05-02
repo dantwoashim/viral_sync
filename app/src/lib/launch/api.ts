@@ -6,6 +6,7 @@ import { isProductionRuntime } from '@/lib/launch/security';
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_JSON_BODY_BYTES = 32_000;
 const RATE_LIMIT_BUCKETS = new Map<string, number[]>();
+const TRUST_PROXY_HEADERS = process.env.LAUNCH_TRUST_PROXY_HEADERS === 'true';
 
 export function jsonError(message: string, status: number, code = 'request_error', reqId?: string, details?: Record<string, unknown>) {
   return withSecurityHeaders(NextResponse.json({
@@ -21,7 +22,11 @@ export function jsonError(message: string, status: number, code = 'request_error
 
 export async function readJsonBody(request: NextRequest) {
   try {
-    return await request.json();
+    const raw = await request.text();
+    if (new TextEncoder().encode(raw).byteLength > MAX_JSON_BODY_BYTES) {
+      return null;
+    }
+    return JSON.parse(raw);
   } catch {
     return null;
   }
@@ -32,11 +37,6 @@ export function requireJsonRequest(request: NextRequest) {
   if (!contentType.toLowerCase().includes('application/json')) {
     return jsonError('Content-Type must be application/json.', 415, 'invalid_content_type', requestId(request));
   }
-  const contentLength = Number.parseInt(request.headers.get('content-length') ?? '0', 10);
-  if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BODY_BYTES) {
-    return jsonError('JSON body is too large.', 413, 'body_too_large', requestId(request), { maxBytes: MAX_JSON_BODY_BYTES });
-  }
-
   return null;
 }
 
@@ -116,9 +116,11 @@ export function staffPinFromRequest(request: NextRequest, body?: unknown) {
 }
 
 export function merchantSessionFromRequest(request: NextRequest) {
-  return request.cookies.get('vs_merchant_session')?.value
-    ?? request.headers.get('x-viral-sync-merchant-session')
-    ?? '';
+  const cookieSession = request.cookies.get('vs_merchant_session')?.value ?? '';
+  if (cookieSession || isProductionRuntime()) {
+    return cookieSession;
+  }
+  return request.headers.get('x-viral-sync-merchant-session') ?? '';
 }
 
 export function guestSessionFromRequest(request: NextRequest) {
@@ -139,12 +141,22 @@ export function staffDeviceProofFromRequest(request: NextRequest) {
 }
 
 function getClientKey(request: NextRequest, scope: string) {
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  const realIp = request.headers.get('x-real-ip')?.trim();
+  const forwarded = TRUST_PROXY_HEADERS ? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() : '';
+  const realIp = TRUST_PROXY_HEADERS ? request.headers.get('x-real-ip')?.trim() : '';
   return `${scope}:${forwarded || realIp || 'unknown'}`;
 }
 
 export function enforceRateLimit(request: NextRequest, scope: string, maxRequests: number) {
+  if (isProductionRuntime() && process.env.LAUNCH_RATE_LIMIT_BACKEND !== 'external') {
+    return jsonError(
+      'Production rate limiting requires an external shared backend.',
+      503,
+      'rate_limit_backend_required',
+      requestId(request),
+      { scope },
+    );
+  }
+
   const now = Date.now();
   const key = getClientKey(request, scope);
   const recent = (RATE_LIMIT_BUCKETS.get(key) ?? []).filter((stamp) => now - stamp < RATE_LIMIT_WINDOW_MS);

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_2022;
+use anchor_spl::token_2022::{self, spl_token_2022::{extension::{transfer_hook, PodStateWithExtensions}, pod::PodMint}};
 use anchor_spl::token_interface::Mint;
 use crate::errors::ViralSyncError;
 use crate::state::merchant_config::MerchantConfig;
@@ -38,6 +38,15 @@ pub fn create_mint_and_config(
         ctx.accounts.mint.to_account_info().owner == &token_2022::ID,
         ViralSyncError::InvalidConfig
     );
+    {
+        let mint_info = ctx.accounts.mint.to_account_info();
+        let mint_data = mint_info.try_borrow_data()?;
+        let mint_state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
+            .map_err(|_| ViralSyncError::InvalidConfig)?;
+        let hook_program = transfer_hook::get_program_id(&mint_state)
+            .ok_or(ViralSyncError::InvalidConfig)?;
+        require!(hook_program == crate::ID, ViralSyncError::InvalidConfig);
+    }
 
     let config = &mut ctx.accounts.merchant_config;
     

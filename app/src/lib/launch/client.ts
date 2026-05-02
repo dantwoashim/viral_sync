@@ -25,13 +25,15 @@ async function parseJson<T>(response: Response) {
   return payload as T;
 }
 
-const STAFF_DEVICE_STORAGE_KEY = 'viral-sync-staff-device';
+const STAFF_DEVICE_STORAGE_KEY = 'viral-sync-staff-device-session';
+const STAFF_DEVICE_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
 type StoredStaffDevice = {
   publicKey: string;
   algorithm: 'ecdsa-p256' | 'hmac-sha256-demo';
   privateKeyJwk?: JsonWebKey;
   secret?: string;
+  expiresAt: number;
 };
 
 function normalizeCodeForSignature(code: string) {
@@ -71,13 +73,14 @@ async function staffDeviceHeaders(action: string, code?: string, staffPin?: stri
     return {};
   }
 
-  const raw = window.localStorage.getItem(STAFF_DEVICE_STORAGE_KEY);
+  const raw = window.sessionStorage.getItem(STAFF_DEVICE_STORAGE_KEY);
   if (!raw) {
     return {};
   }
 
   const device = JSON.parse(raw) as Partial<StoredStaffDevice>;
-  if (!device.publicKey || (!device.privateKeyJwk && !device.secret)) {
+  if (!device.publicKey || (!device.privateKeyJwk && !device.secret) || !device.expiresAt || device.expiresAt < Date.now()) {
+    window.sessionStorage.removeItem(STAFF_DEVICE_STORAGE_KEY);
     return {};
   }
 
@@ -144,7 +147,7 @@ export function rememberStaffDevice(device: StoredStaffDevice) {
     return;
   }
 
-  window.localStorage.setItem(STAFF_DEVICE_STORAGE_KEY, JSON.stringify(device));
+  window.sessionStorage.setItem(STAFF_DEVICE_STORAGE_KEY, JSON.stringify(device));
 }
 
 export async function enrollStaffDeviceTerminal(params: {
@@ -172,6 +175,7 @@ export async function enrollStaffDeviceTerminal(params: {
       publicKey: generated.publicKey,
       algorithm: 'ecdsa-p256',
       privateKeyJwk: generated.privateKeyJwk,
+      expiresAt: Date.now() + STAFF_DEVICE_SESSION_TTL_MS,
     });
   }
   return result;
@@ -181,13 +185,13 @@ export function hasRememberedStaffDevice() {
   if (typeof window === 'undefined') {
     return false;
   }
-  const raw = window.localStorage.getItem(STAFF_DEVICE_STORAGE_KEY);
+  const raw = window.sessionStorage.getItem(STAFF_DEVICE_STORAGE_KEY);
   if (!raw) {
     return false;
   }
   try {
     const device = JSON.parse(raw) as Partial<StoredStaffDevice>;
-    return Boolean(device.publicKey && (device.privateKeyJwk || device.secret));
+    return Boolean(device.publicKey && (device.privateKeyJwk || device.secret) && device.expiresAt && device.expiresAt > Date.now());
   } catch {
     return false;
   }

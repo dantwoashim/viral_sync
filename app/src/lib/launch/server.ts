@@ -74,7 +74,6 @@ const DATA_DIR = process.env.LAUNCH_LEDGER_DIR
 const LEDGER_PATH = path.join(DATA_DIR, 'launch-ledger.json');
 const DATABASE_URL = process.env.LAUNCH_DATABASE_URL || process.env.DATABASE_URL;
 const STAFF_DEVICE_SIGNATURE_TTL_MS = 5 * 60 * 1000;
-const LEDGER_ROW_ID = 'default';
 const LEDGER_LOCK_KEY = 2_886_412;
 let persistChain: Promise<void> = Promise.resolve();
 let mutationChain: Promise<void> = Promise.resolve();
@@ -1587,14 +1586,6 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
       )
     `);
 
-    await queryWithOptionalClient(client, `
-      CREATE TABLE IF NOT EXISTS launch_ledger (
-        id TEXT PRIMARY KEY,
-        data JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-
     await queryWithOptionalClient(client, `ALTER TABLE causal_invites ADD COLUMN IF NOT EXISTS referrer_display_name TEXT NOT NULL DEFAULT 'Referrer'`);
     await queryWithOptionalClient(client, `ALTER TABLE causal_invites ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'`);
     await queryWithOptionalClient(client, `ALTER TABLE causal_invites ADD COLUMN IF NOT EXISTS open_count INTEGER NOT NULL DEFAULT 0`);
@@ -1611,12 +1602,6 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
     await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS payment_reference TEXT`);
     await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS customer_signature TEXT NOT NULL DEFAULT ''`);
     await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS staff_signature TEXT NOT NULL DEFAULT ''`);
-
-    await queryWithOptionalClient(client, `
-      INSERT INTO launch_ledger (id, data)
-      VALUES ($1, $2::jsonb)
-      ON CONFLICT (id) DO NOTHING
-    `, [LEDGER_ROW_ID, JSON.stringify(createInitialLedger())]);
   };
 
   await run();
@@ -2202,8 +2187,7 @@ async function loadLedgerFromDatabase() {
     return normalizedLedger;
   }
 
-  const result = await dbPool!.query('SELECT data FROM launch_ledger WHERE id = $1', [LEDGER_ROW_ID]);
-  const ledger = (result.rows[0]?.data as LaunchLedger | undefined) ?? createInitialLedger();
+  const ledger = createInitialLedger();
   normalizeLedgerState(ledger);
   await syncNormalizedLaunchTables(null, ledger);
   return ledger;
@@ -3040,7 +3024,7 @@ export async function confirmRedeemCode(params: {
     const code = findRedeemCodeByNormalizedCode(ledger, normalizedCode, offer.id);
 
     if (!code) {
-      return { ok: false, reason: 'This code is not recognized by the launch ledger.' } satisfies MerchantConfirmResult;
+      return { ok: false, reason: 'This code cannot be confirmed.' } satisfies MerchantConfirmResult;
     }
 
     if (code.status === 'confirmed' || code.status === 'redeemed') {
@@ -3048,11 +3032,11 @@ export async function confirmRedeemCode(params: {
     }
 
     if (code.status === 'expired') {
-      return { ok: false, reason: 'This code has expired.' } satisfies MerchantConfirmResult;
+      return { ok: false, reason: 'This code cannot be confirmed.' } satisfies MerchantConfirmResult;
     }
 
     if (code.status === 'voided') {
-      return { ok: false, reason: 'This code was voided by a manager.' } satisfies MerchantConfirmResult;
+      return { ok: false, reason: 'This code cannot be confirmed.' } satisfies MerchantConfirmResult;
     }
 
     const claim = ledger.claims.find((item) => item.id === code.claimId);
@@ -3067,7 +3051,7 @@ export async function confirmRedeemCode(params: {
 
     if (!isInsideRedemptionWindow(claim.claimedAt, offer.redemptionWindowHours)) {
       code.status = 'expired';
-      return { ok: false, reason: 'This reward window has expired.' } satisfies MerchantConfirmResult;
+      return { ok: false, reason: 'This code cannot be confirmed.' } satisfies MerchantConfirmResult;
     }
 
     const activeChallenge = (ledger.visitChallenges ?? [])
@@ -3493,9 +3477,20 @@ export async function runProgramEventIndexer() {
     const indexed: Array<{ receiptId: string; txSignature: string; status: string }> = [];
     for (const job of ledger.outbox ?? []) {
       if ((job.topic === 'receipt.index' || job.topic === 'receipt.submit') && job.status !== 'succeeded') {
-        markOutboxAttempt(job, true);
         const receiptId = String(job.payload.receiptId ?? '');
         const receipt = (ledger.causalReceipts ?? []).find((item) => item.id === receiptId);
+        const chainVerified = job.payload.chainVerified === true && receipt?.txSignature && !receipt.txSignature.startsWith('signed_app_intent_');
+        if (!chainVerified) {
+          markOutboxAttempt(job, false, 'Chain verification is required before settlement indexing.');
+          indexed.push({
+            receiptId,
+            txSignature: receipt?.txSignature ?? '',
+            status: 'chain-verification-required',
+          });
+          continue;
+        }
+
+        markOutboxAttempt(job, true);
         if (receipt && job.topic === 'receipt.submit') {
           receipt.status = 'settled';
           receipt.settledAt = receipt.settledAt ?? new Date().toISOString();
