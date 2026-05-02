@@ -4,7 +4,9 @@
     "name": "viral_sync",
     "version": "0.1.0",
     "spec": "0.1.0",
-    "description": "Viral Sync Solana program"
+    "description": "Archival devnet IDL snapshot from 2026-04-30. Do not use for current integrations.",
+    "archival": true,
+    "supersededBy": "target/idl/viral_sync.json"
   },
   "instructions": [
     {

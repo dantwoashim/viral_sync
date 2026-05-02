@@ -5,9 +5,11 @@
 Viral Sync is not audited for mainnet funds. The Frontier build now includes a P0 auth baseline:
 
 - server-issued guest session cookie;
-- temporary merchant/staff PIN gate;
-- merchant session records with roles;
+- production merchant login requires a non-demo access token;
+- local demo staff PIN fallback is disabled in production by default;
+- merchant session records with owner, manager, staff, support, and auditor roles;
 - staff device enrollment/revocation records;
+- production staff confirmation requires an enrolled staff device;
 - audit events for sensitive actions;
 - append-only reward ledger entries;
 - idempotency records for retry-sensitive mutations.
@@ -18,13 +20,14 @@ Viral Sync is not audited for mainnet funds. The Frontier build now includes a P
 
 Remaining production work:
 
-- replace temporary PIN with real merchant login;
+- replace pilot access-token login with SSO/passwordless auth before broad enterprise rollout;
 - store sessions and staff devices in normalized Postgres tables;
 - use enrolled device signatures instead of demo HMAC signatures;
 - complete external audit before mainnet funds;
 - wire live on-chain receipt submission and settlement monitoring.
 - keep the Day 140 security gate blocked while unresolved P0/P1 issues remain;
 - move upgrade authority to multisig before uncapped beta.
+- keep `docs/production-readiness.md` and `docs/auditor-start-here.md` current for every release candidate.
 
 ## Day 134-144 Security Gate
 

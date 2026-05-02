@@ -106,8 +106,11 @@ describe('production security hardening guards', () => {
     expect(hook).to.include('destination_hook.transferring');
     expect(hook).to.include('source_token_account.owner == &token_2022::ID');
     expect(hook).to.include('dest_token_account.owner == &token_2022::ID');
-    expect(hook).to.include('require_source_authority_matches');
+    expect(hook).to.include('require_source_authority_or_session');
     expect(hook).to.include('token_account.owner == source_authority.key()');
+    expect(hook).to.include('SessionKey');
+    expect(hook).to.include('session.tokens_spent.checked_add(amount)');
+    expect(hook).to.include('next_spent <= session.max_tokens_per_session');
     expect(hook).to.include('seeds = [b"extra-account-metas", mint.key().as_ref()]');
     expect(hook).to.include('transfer_hook::get_program_id');
     expect(merchantInit).to.include('transfer_hook::get_program_id');

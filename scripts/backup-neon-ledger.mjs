@@ -57,17 +57,39 @@ const pool = new Pool({
 });
 
 try {
-  const result = await pool.query(`
-    SELECT id, data, updated_at
-    FROM launch_ledger
-    ORDER BY id
-  `);
+  const tables = [
+    'merchant_orgs',
+    'merchants',
+    'campaigns',
+    'causal_invites',
+    'claims',
+    'redemptions',
+    'visit_challenges',
+    'causal_receipts',
+    'merchant_sessions',
+    'staff_devices',
+    'staff_device_nonces',
+    'audit_events',
+    'reward_ledger_entries',
+    'outbox_jobs',
+    'app_events',
+    'idempotency_records',
+  ];
+  const rows = {};
+  let rowCount = 0;
+
+  for (const table of tables) {
+    const result = await pool.query(`SELECT * FROM ${table} ORDER BY 1`);
+    rows[table] = result.rows;
+    rowCount += result.rowCount ?? 0;
+  }
 
   const backup = {
     generatedAt: new Date().toISOString(),
     source: 'neon',
-    table: 'launch_ledger',
-    rows: result.rows,
+    schema: 'normalized_launch_tables',
+    tables,
+    rows,
   };
 
   const backupDir = path.join(rootDir, 'backups', 'neon');
@@ -77,7 +99,7 @@ try {
 
   console.log(JSON.stringify({
     ok: true,
-    rows: result.rowCount,
+    rows: rowCount,
     outputPath,
   }, null, 2));
 } finally {
