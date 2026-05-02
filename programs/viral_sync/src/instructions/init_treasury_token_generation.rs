@@ -1,12 +1,23 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::Mint;
-use crate::state::token_generation::{TokenGeneration, INBOUND_BUFFER_SIZE, InboundEntry, ReferrerSlot};
+use crate::errors::ViralSyncError;
+use crate::state::{
+    merchant_config::MerchantConfig,
+    token_generation::{TokenGeneration, INBOUND_BUFFER_SIZE, InboundEntry, ReferrerSlot},
+};
 
 #[derive(Accounts)]
 pub struct InitTreasuryGen<'info> {
     #[account(
+        has_one = merchant @ ViralSyncError::AccessDenied,
+        constraint = merchant_config.mint == mint.key() @ ViralSyncError::InvalidState,
+        constraint = merchant_config.merchant == treasury_owner.key() @ ViralSyncError::AccessDenied,
+    )]
+    pub merchant_config: Account<'info, MerchantConfig>,
+
+    #[account(
         init,
-        payer = payer,
+        payer = merchant,
         space = 8 + 1700, 
         seeds = [b"gen_v4", mint.key().as_ref(), treasury_owner.key().as_ref()],
         bump
@@ -14,7 +25,7 @@ pub struct InitTreasuryGen<'info> {
     pub treasury_generation: Box<Account<'info, TokenGeneration>>,
     
     #[account(mut)]
-    pub payer: Signer<'info>,
+    pub merchant: Signer<'info>,
     
     /// CHECK: Token account owner for the merchant treasury authority.
     pub treasury_owner: UncheckedAccount<'info>,
@@ -37,8 +48,7 @@ pub fn handler(ctx: Context<InitTreasuryGen>) -> Result<()> {
     gen.is_treasury = true;       
     gen.is_intermediary = false;
     
-    // Symbolic infinite balance logic
-    gen.gen1_balance = u64::MAX;  
+    gen.gen1_balance = 0;
     gen.gen2_balance = 0;
     gen.dead_balance = 0;
     gen.total_lifetime = 0;

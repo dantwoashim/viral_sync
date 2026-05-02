@@ -12,7 +12,11 @@ pub struct CreateEscrowShare<'info> {
     )]
     pub source_generation: Box<Account<'info, TokenGeneration>>,
     
-    #[account(mut, constraint = escrow_generation.mint == mint.key() @ ViralSyncError::InvalidState)]
+    #[account(
+        mut,
+        constraint = escrow_generation.owner == escrow_authority.key() @ ViralSyncError::AccessDenied,
+        constraint = escrow_generation.mint == mint.key() @ ViralSyncError::InvalidState
+    )]
     pub escrow_generation: Box<Account<'info, TokenGeneration>>,
     
     #[account(
@@ -24,12 +28,14 @@ pub struct CreateEscrowShare<'info> {
     
     #[account(
         mut,
-        constraint = escrow_ata.owner == escrow_generation.owner @ ViralSyncError::InvalidTokenAccount,
+        constraint = escrow_ata.owner == escrow_authority.key() @ ViralSyncError::InvalidTokenAccount,
         constraint = escrow_ata.mint == mint.key() @ ViralSyncError::InvalidTokenAccount
     )]
     pub escrow_ata: InterfaceAccount<'info, TokenAccount>,
     
     pub source: Signer<'info>,
+
+    pub escrow_authority: Signer<'info>,
     
     pub mint: InterfaceAccount<'info, Mint>,
     

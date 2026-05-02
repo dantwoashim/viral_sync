@@ -11,7 +11,10 @@ pub struct ProcessRedemptionSlot<'info> {
     #[account(mut)]
     pub redeemer: Signer<'info>, // Often relay/crank executing it
     
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = redeemer_generation.mint == referral_record.mint @ ViralSyncError::InvalidState
+    )]
     pub redeemer_generation: Box<Account<'info, TokenGeneration>>,
     
     #[account(mut)]
@@ -54,25 +57,38 @@ pub fn process_redemption_slot(ctx: Context<ProcessRedemptionSlot>, slot_idx: u8
         let commission_whole = (commission_exact_u128 / 10_000) as u64;
         let commission_dust_tenths = (commission_exact_u128 % 10_000) as u32; // dust in 10^-4 tokens
         
-        ledger.claimable = ledger.claimable.checked_add(commission_whole).ok_or(ViralSyncError::MathOverflow)?;
-        ledger.dust_tenths_accumulated = ledger.dust_tenths_accumulated.checked_add(commission_dust_tenths).ok_or(ViralSyncError::MathOverflow)?;
+        let remaining_cap = referral.max_commission_cap
+            .saturating_sub(referral.commission_earned);
+        let payable_whole = commission_whole.min(remaining_cap);
+        ledger.claimable = ledger.claimable.checked_add(payable_whole).ok_or(ViralSyncError::MathOverflow)?;
+
+        if payable_whole == commission_whole && remaining_cap > payable_whole {
+            ledger.dust_tenths_accumulated = ledger.dust_tenths_accumulated.checked_add(commission_dust_tenths).ok_or(ViralSyncError::MathOverflow)?;
+        }
         
         // Overflow fractional dust into a whole token
-        if ledger.dust_tenths_accumulated >= 10_000 {
+        if ledger.dust_tenths_accumulated >= 10_000 && referral.commission_earned
+            .checked_add(payable_whole)
+            .ok_or(ViralSyncError::MathOverflow)? < referral.max_commission_cap {
             let bonus_whole = ledger.dust_tenths_accumulated / 10_000;
-            ledger.claimable = ledger.claimable.checked_add(bonus_whole as u64).ok_or(ViralSyncError::MathOverflow)?;
+            let remaining_after_whole = referral.max_commission_cap
+                .saturating_sub(referral.commission_earned)
+                .saturating_sub(payable_whole);
+            let payable_bonus = (bonus_whole as u64).min(remaining_after_whole);
+            ledger.claimable = ledger.claimable.checked_add(payable_bonus).ok_or(ViralSyncError::MathOverflow)?;
             ledger.dust_tenths_accumulated %= 10_000;
-            ledger.total_earned = ledger.total_earned.checked_add(bonus_whole as u64).ok_or(ViralSyncError::MathOverflow)?;
+            ledger.total_earned = ledger.total_earned.checked_add(payable_bonus).ok_or(ViralSyncError::MathOverflow)?;
+            referral.commission_earned = referral.commission_earned.checked_add(payable_bonus).ok_or(ViralSyncError::MathOverflow)?;
         }
         
-        ledger.total_earned = ledger.total_earned.checked_add(commission_whole).ok_or(ViralSyncError::MathOverflow)?;
+        ledger.total_earned = ledger.total_earned.checked_add(payable_whole).ok_or(ViralSyncError::MathOverflow)?;
         ledger.total_redemptions_driven = ledger.total_redemptions_driven.checked_add(1).ok_or(ViralSyncError::MathOverflow)?;
         
-        if commission_whole > ledger.highest_single_commission {
-            ledger.highest_single_commission = commission_whole;
+        if payable_whole > ledger.highest_single_commission {
+            ledger.highest_single_commission = payable_whole;
         }
         
-        referral.commission_earned = referral.commission_earned.checked_add(commission_whole).ok_or(ViralSyncError::MathOverflow)?;
+        referral.commission_earned = referral.commission_earned.checked_add(payable_whole).ok_or(ViralSyncError::MathOverflow)?;
     }
     
     // Mark slot as settled
