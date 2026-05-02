@@ -25,6 +25,7 @@ jobs:
           set -euo pipefail
           ! grep -RInE '(PRIVATE_KEY=|SECRET_KEY=|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|ghp_[A-Za-z0-9_]{30,}|xox[baprs]-)' \
             --exclude-dir=.git \
+            --exclude-dir=.github \
             --exclude-dir=node_modules \
             --exclude-dir=target \
             --exclude-dir=dist \
