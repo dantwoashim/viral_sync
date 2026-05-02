@@ -1,4 +1,6 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::program_pack::Pack;
+use anchor_spl::token_2022::spl_token_2022::state::{Account as SplTokenAccount, AccountState};
 use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
 use crate::state::{merchant_config::{MerchantConfig, VaultEntry}, token_generation::{TokenGeneration, InboundEntry, GenSource, INBOUND_BUFFER_SIZE}};
@@ -309,20 +311,18 @@ pub fn execute_transfer_hook(ctx: Context<ExecuteHook>, amount: u64) -> Result<(
 
 fn read_owner_from_token_account(account: &UncheckedAccount) -> Result<Pubkey> {
     let data = account.try_borrow_data()?;
-    require!(data.len() >= 64, ViralSyncError::InvalidTokenAccount);
-    let owner_bytes: [u8; 32] = data[32..64]
-        .try_into()
+    let token_account = SplTokenAccount::unpack(&data)
         .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
-    Ok(Pubkey::new_from_array(owner_bytes))
+    require!(token_account.state == AccountState::Initialized, ViralSyncError::InvalidTokenAccount);
+    Ok(token_account.owner)
 }
 
 fn read_mint_from_token_account(account: &UncheckedAccount) -> Result<Pubkey> {
     let data = account.try_borrow_data()?;
-    require!(data.len() >= 32, ViralSyncError::InvalidTokenAccount);
-    let mint_bytes: [u8; 32] = data[0..32]
-        .try_into()
+    let token_account = SplTokenAccount::unpack(&data)
         .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
-    Ok(Pubkey::new_from_array(mint_bytes))
+    require!(token_account.state == AccountState::Initialized, ViralSyncError::InvalidTokenAccount);
+    Ok(token_account.mint)
 }
 
 fn is_registered_vault(vault_account: &UncheckedAccount, expected_vault: Pubkey, expected_merchant: Pubkey) -> bool {

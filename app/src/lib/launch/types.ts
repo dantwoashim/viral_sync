@@ -151,6 +151,18 @@ export interface StaffDeviceRecord {
   revokedAt?: string;
 }
 
+export interface StaffDeviceNonceRecord {
+  id: string;
+  merchantId: string;
+  staffDevicePublicKey: string;
+  action: string;
+  code?: string;
+  nonce: string;
+  issuedAt: string;
+  expiresAt: string;
+  consumedAt?: string;
+}
+
 export interface AuditEventRecord {
   id: string;
   requestId: string;
@@ -219,6 +231,7 @@ export interface LaunchLedger {
   causalReceipts?: CausalReceiptRecord[];
   merchantSessions?: MerchantSessionRecord[];
   staffDevices?: StaffDeviceRecord[];
+  staffDeviceNonces?: StaffDeviceNonceRecord[];
   auditEvents?: AuditEventRecord[];
   rewardLedgerEntries?: RewardLedgerEntryRecord[];
   idempotencyRecords?: IdempotencyRecord[];

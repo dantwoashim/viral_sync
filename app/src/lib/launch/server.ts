@@ -51,6 +51,7 @@ import {
   SupportSearchResult,
   RelayerPolicy,
   SignedActionIntent,
+  StaffDeviceNonceRecord,
   VisitChallengeRecord,
 } from '@/lib/launch/types';
 import {
@@ -156,6 +157,7 @@ const SESSION_PATTERN = /^[a-z0-9:_-]{3,96}$/i;
 const CODE_PATTERN = /^[a-z0-9]{3}-?[a-z0-9]{3}$/i;
 const VISIT_CHALLENGE_TTL_SECONDS = 120;
 const MERCHANT_SESSION_TTL_HOURS = 12;
+const STAFF_DEVICE_NONCE_TTL_MS = 5 * 60 * 1000;
 const VIRAL_SYNC_PROGRAM_ID = '8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9';
 const ACTION_ICON_PATH = '/icon-192.png';
 const DEFAULT_REWARD_COST_NPR = 150;
@@ -228,14 +230,36 @@ function findRedeemCodeByNormalizedCode(ledger: LaunchLedger, normalizedCode: st
   });
 }
 
-export function staffDeviceSigningMessage(params: { publicKey: string; timestamp: string; action: string; code?: string; }) {
+export function staffDeviceSigningMessage(params: { publicKey: string; timestamp: string; action: string; code?: string; nonce?: string; }) {
   return [
     'viral-sync-staff-device-v1',
     params.publicKey,
     params.timestamp,
     params.action,
     params.code ? normalizeRedeemCode(params.code) : '',
+    params.nonce ?? '',
   ].join(':');
+}
+
+function activeStaffDeviceNonce(
+  ledger: LaunchLedger,
+  params: { publicKey: string; merchantId: string; action: string; code?: string; nonce?: string },
+) {
+  const normalizedCode = params.code ? normalizeRedeemCode(params.code) : undefined;
+  return (ledger.staffDeviceNonces ?? []).find((item) =>
+    item.nonce === params.nonce &&
+    item.staffDevicePublicKey === params.publicKey &&
+    item.merchantId === params.merchantId &&
+    item.action === params.action &&
+    (item.code ?? '') === (normalizedCode ?? '') &&
+    !item.consumedAt &&
+    new Date(item.expiresAt).getTime() > Date.now());
+}
+
+function pruneStaffDeviceNonces(ledger: LaunchLedger) {
+  const cutoff = Date.now() - STAFF_DEVICE_NONCE_TTL_MS;
+  ledger.staffDeviceNonces = (ledger.staffDeviceNonces ?? []).filter((item) =>
+    !item.consumedAt && new Date(item.expiresAt).getTime() > cutoff);
 }
 
 function defaultStaffPublicKey() {
@@ -364,16 +388,17 @@ export async function requireStaffDevice(params: {
   code?: string;
   signature?: string;
   timestamp?: string;
+  nonce?: string;
 }) {
-  const ledger = await loadLedger();
-  const device = (ledger.staffDevices ?? []).find((item) =>
-    item.publicKey === params.publicKey &&
-    item.merchantId === params.merchantId &&
-    !item.revokedAt);
+  return withLedgerMutation((ledger) => {
+    pruneStaffDeviceNonces(ledger);
+    const device = (ledger.staffDevices ?? []).find((item) =>
+      item.publicKey === params.publicKey &&
+      item.merchantId === params.merchantId &&
+      !item.revokedAt);
 
-  if (!device) {
-    await withLedgerMutation((mutableLedger) => {
-      appendAuditEvent(mutableLedger, {
+    if (!device) {
+      appendAuditEvent(ledger, {
         requestId: params.requestId,
         actorType: 'staff',
         actorId: params.publicKey || 'missing',
@@ -383,25 +408,29 @@ export async function requireStaffDevice(params: {
         result: 'denied',
         reason: 'Staff device is missing or revoked.',
       });
-    });
-    return { ok: false as const, reason: 'Staff device is not authorized.' };
-  }
+      return { ok: false as const, reason: 'Staff device is not authorized.' };
+    }
 
-  const timestampMs = Number(params.timestamp);
-  const fresh = Number.isFinite(timestampMs) && Math.abs(Date.now() - timestampMs) <= STAFF_DEVICE_SIGNATURE_TTL_MS;
-  const expected = device.secret
-    ? hmacStaffDevice(device.secret, staffDeviceSigningMessage({
+    const nonce = activeStaffDeviceNonce(ledger, {
       publicKey: params.publicKey,
-      timestamp: params.timestamp ?? '',
+      merchantId: params.merchantId,
       action: params.action,
       code: params.code,
-    }))
-    : '';
-  const signed = Boolean(params.signature && expected && fresh && constantTimeHexEqual(expected, params.signature));
-
-  if (!signed) {
-    await withLedgerMutation((mutableLedger) => {
-      appendAuditEvent(mutableLedger, {
+      nonce: params.nonce,
+    });
+    const timestampMs = Number(params.timestamp);
+    const fresh = Number.isFinite(timestampMs) && Math.abs(Date.now() - timestampMs) <= STAFF_DEVICE_SIGNATURE_TTL_MS;
+    const expected = device.secret
+      ? hmacStaffDevice(device.secret, staffDeviceSigningMessage({
+        publicKey: params.publicKey,
+        timestamp: params.timestamp ?? '',
+        action: params.action,
+        code: params.code,
+        nonce: params.nonce,
+      }))
+      : '';
+    if (!params.signature || !expected || !nonce || !fresh || !constantTimeHexEqual(expected, params.signature)) {
+      appendAuditEvent(ledger, {
         requestId: params.requestId,
         actorType: 'staff',
         actorId: params.publicKey || 'missing',
@@ -410,13 +439,85 @@ export async function requireStaffDevice(params: {
         targetId: device.id,
         action: 'authorize_staff_device',
         result: 'denied',
-        reason: 'Staff device signature is missing, expired, or invalid.',
+        reason: 'Staff device signature nonce is missing, expired, consumed, or invalid.',
       });
-    });
-    return { ok: false as const, reason: 'Staff device signature is required.' };
-  }
+      return { ok: false as const, reason: 'Staff device signature nonce is required.' };
+    }
 
-  return { ok: true as const, device };
+    nonce.consumedAt = new Date().toISOString();
+    return { ok: true as const, device };
+  });
+}
+
+export async function issueStaffDeviceNonce(params: {
+  staffPin?: string;
+  authorizedActorId?: string;
+  publicKey: string;
+  action: string;
+  code?: string;
+  requestId: string;
+}) {
+  return withLedgerMutation((ledger) => {
+    const { merchant } = getPilotMerchantAndOffer(ledger);
+    const allowed = Boolean(params.authorizedActorId) || demoPinAccepted(params.staffPin ?? '');
+    if (!allowed) {
+      appendAuditEvent(ledger, {
+        requestId: params.requestId,
+        actorType: 'staff',
+        actorId: params.publicKey || 'missing',
+        merchantId: merchant.id,
+        targetType: 'staff_device_nonce',
+        action: 'issue_staff_device_nonce',
+        result: 'denied',
+        reason: 'Merchant staff session or local demo PIN is required.',
+      });
+      return { ok: false, reason: 'Staff authorization is required.' };
+    }
+
+    const device = (ledger.staffDevices ?? []).find((item) =>
+      item.publicKey === params.publicKey &&
+      item.merchantId === merchant.id &&
+      !item.revokedAt);
+    if (!device) {
+      appendAuditEvent(ledger, {
+        requestId: params.requestId,
+        actorType: 'staff',
+        actorId: params.publicKey || 'missing',
+        merchantId: merchant.id,
+        targetType: 'staff_device_nonce',
+        action: 'issue_staff_device_nonce',
+        result: 'denied',
+        reason: 'Staff device is missing or revoked.',
+      });
+      return { ok: false, reason: 'Staff device is not authorized.' };
+    }
+
+    pruneStaffDeviceNonces(ledger);
+    const issuedAt = new Date();
+    const nonce: StaffDeviceNonceRecord = {
+      id: randomId('staff-nonce'),
+      merchantId: merchant.id,
+      staffDevicePublicKey: params.publicKey,
+      action: params.action,
+      code: params.code ? normalizeRedeemCode(params.code) : undefined,
+      nonce: randomBytes(24).toString('hex'),
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: new Date(issuedAt.getTime() + STAFF_DEVICE_NONCE_TTL_MS).toISOString(),
+    };
+    ledger.staffDeviceNonces = ledger.staffDeviceNonces ?? [];
+    ledger.staffDeviceNonces.push(nonce);
+    appendAuditEvent(ledger, {
+      requestId: params.requestId,
+      actorType: 'staff',
+      actorId: params.publicKey,
+      merchantId: merchant.id,
+      targetType: 'staff_device_nonce',
+      targetId: nonce.id,
+      action: 'issue_staff_device_nonce',
+      result: 'created',
+    });
+    return { ok: true, nonce: nonce.nonce, expiresAt: nonce.expiresAt };
+  });
 }
 
 export async function enrollStaffDevice(params: {
@@ -673,18 +774,27 @@ function normalizeLedgerState(ledger: LaunchLedger) {
       ledger.staffDevices = [];
       changed = true;
     } else {
-    ledger.staffDevices = [{
-      id: 'staff-device-front-counter',
-      merchantId: PILOT_MERCHANT_ID,
-      locationLabel: 'Thamel Coffee Lane',
-      label: 'Front counter terminal',
-      publicKey: defaultStaffPublicKey(),
-      secret: defaultStaffSecret(),
-      secretHash: sha256Hex(defaultStaffSecret()),
-      enrolledAt: iso(new Date()),
-    }];
-    changed = true;
+      ledger.staffDevices = [{
+        id: 'staff-device-front-counter',
+        merchantId: PILOT_MERCHANT_ID,
+        locationLabel: 'Thamel Coffee Lane',
+        label: 'Front counter terminal',
+        publicKey: defaultStaffPublicKey(),
+        secret: defaultStaffSecret(),
+        secretHash: sha256Hex(defaultStaffSecret()),
+        enrolledAt: iso(new Date()),
+      }];
+      changed = true;
     }
+  }
+
+  if (!ledger.staffDeviceNonces) {
+    ledger.staffDeviceNonces = [];
+    changed = true;
+  } else {
+    const before = ledger.staffDeviceNonces.length;
+    pruneStaffDeviceNonces(ledger);
+    changed = changed || ledger.staffDeviceNonces.length !== before;
   }
 
   if (!ledger.auditEvents) {
@@ -866,6 +976,7 @@ function createInitialLedger(): LaunchLedger {
       secretHash: sha256Hex(defaultStaffSecret()),
       enrolledAt: createdAt,
     }],
+    staffDeviceNonces: [],
     auditEvents: [],
     rewardLedgerEntries: [{
       id: 'reward-ledger-launch-bounty',
@@ -1871,6 +1982,7 @@ export async function confirmRedeemCode(params: {
   staffDevicePublicKey?: string;
   staffDeviceSignature?: string;
   staffDeviceTimestamp?: string;
+  staffDeviceNonce?: string;
   manualReceiptId?: string;
 }) {
   const normalizedCode = normalizeRedeemCode(params.code);
@@ -1930,15 +2042,23 @@ export async function confirmRedeemCode(params: {
       }
       const timestampMs = Number(params.staffDeviceTimestamp);
       const signatureFresh = Number.isFinite(timestampMs) && Math.abs(Date.now() - timestampMs) <= STAFF_DEVICE_SIGNATURE_TTL_MS;
+      const nonce = activeStaffDeviceNonce(ledger, {
+        publicKey: params.staffDevicePublicKey,
+        merchantId: merchant.id,
+        action: 'merchant-confirm',
+        code: normalizedCode,
+        nonce: params.staffDeviceNonce,
+      });
       const expectedSignature = device.secret
         ? hmacStaffDevice(device.secret, staffDeviceSigningMessage({
           publicKey: params.staffDevicePublicKey,
           timestamp: params.staffDeviceTimestamp ?? '',
           action: 'merchant-confirm',
           code: normalizedCode,
+          nonce: params.staffDeviceNonce,
         }))
         : '';
-      if (!params.staffDeviceSignature || !expectedSignature || !signatureFresh || !constantTimeHexEqual(expectedSignature, params.staffDeviceSignature)) {
+      if (!params.staffDeviceSignature || !expectedSignature || !nonce || !signatureFresh || !constantTimeHexEqual(expectedSignature, params.staffDeviceSignature)) {
         appendAuditEvent(ledger, {
           requestId: params.requestId ?? randomId('req'),
           actorType: 'staff',
@@ -1947,10 +2067,11 @@ export async function confirmRedeemCode(params: {
           targetType: 'redemption',
           action: 'confirm_redeem_code',
           result: 'denied',
-          reason: 'Staff device signature is missing, expired, or invalid.',
+          reason: 'Staff device signature nonce is missing, expired, consumed, or invalid.',
         });
-        return { ok: false, reason: 'Staff device signature is required.' } satisfies MerchantConfirmResult;
+        return { ok: false, reason: 'Staff device signature nonce is required.' } satisfies MerchantConfirmResult;
       }
+      nonce.consumedAt = new Date().toISOString();
     }
 
     const code = findRedeemCodeByNormalizedCode(ledger, normalizedCode, offer.id);

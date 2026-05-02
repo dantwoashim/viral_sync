@@ -502,9 +502,9 @@ pub fn settle_receipt_reward(ctx: Context<SettleReceiptReward>) -> Result<()> {
 
     let referrer_amount = receipt
         .reward_amount
-        .checked_mul(80)
+        .checked_mul(campaign.referrer_split_bps as u64)
         .ok_or(ViralSyncError::MathOverflow)?
-        .checked_div(100)
+        .checked_div(10_000)
         .ok_or(ViralSyncError::MathOverflow)?;
     let visitor_amount = receipt
         .reward_amount
@@ -717,6 +717,7 @@ pub fn create_growth_campaign(
     reward_per_verified_visit: u64,
     max_redemptions: u32,
     max_depth: u8,
+    referrer_split_bps: u16,
     split_rules_hash: [u8; 32],
     fraud_policy_hash: [u8; 32],
     starts_at: i64,
@@ -726,6 +727,7 @@ pub fn create_growth_campaign(
     require!(reward_per_verified_visit > 0, ViralSyncError::InvalidConfig);
     require!(max_redemptions > 0, ViralSyncError::InvalidConfig);
     require!(max_depth > 0, ViralSyncError::InvalidConfig);
+    require!(referrer_split_bps <= 10_000, ViralSyncError::InvalidConfig);
     require!(split_rules_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(fraud_policy_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(expires_at > starts_at, ViralSyncError::InvalidConfig);
@@ -741,6 +743,7 @@ pub fn create_growth_campaign(
     campaign.reward_per_verified_visit = reward_per_verified_visit;
     campaign.max_redemptions = max_redemptions;
     campaign.max_depth = max_depth;
+    campaign.referrer_split_bps = referrer_split_bps;
     campaign.split_rules_hash = split_rules_hash;
     campaign.fraud_policy_hash = fraud_policy_hash;
     campaign.starts_at = starts_at;

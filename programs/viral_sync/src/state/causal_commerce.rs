@@ -49,6 +49,7 @@ pub struct GrowthCampaign {
     pub reward_per_verified_visit: u64,
     pub max_redemptions: u32,
     pub max_depth: u8,
+    pub referrer_split_bps: u16,
     pub split_rules_hash: [u8; 32],
     pub fraud_policy_hash: [u8; 32],
     pub starts_at: i64,
@@ -63,7 +64,7 @@ pub struct GrowthCampaign {
 
 impl GrowthCampaign {
     pub const SEED_PREFIX: &'static [u8] = b"growth_campaign";
-    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 32 + 8 + 4 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 4 + GrowthCampaignStatus::SIZE + 8 + 8;
+    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 32 + 8 + 4 + 1 + 2 + 32 + 32 + 8 + 8 + 8 + 8 + 4 + GrowthCampaignStatus::SIZE + 8 + 8;
 }
 
 #[account]

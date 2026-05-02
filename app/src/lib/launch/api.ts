@@ -134,6 +134,7 @@ export function staffDeviceProofFromRequest(request: NextRequest) {
     publicKey: request.headers.get('x-viral-sync-staff-device') ?? '',
     signature: request.headers.get('x-viral-sync-staff-signature') ?? '',
     timestamp: request.headers.get('x-viral-sync-staff-timestamp') ?? '',
+    nonce: request.headers.get('x-viral-sync-staff-nonce') ?? '',
   };
 }
 

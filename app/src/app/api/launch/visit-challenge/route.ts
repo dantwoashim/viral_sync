@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       code,
       signature: staffDeviceProof.signature,
       timestamp: staffDeviceProof.timestamp,
+      nonce: staffDeviceProof.nonce,
     });
     if (!proof.ok) {
       return jsonError(proof.reason, 403, 'staff_device_signature_required', requestId(request));

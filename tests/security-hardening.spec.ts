@@ -15,6 +15,8 @@ describe('production security hardening guards', () => {
     expect(causalCommerce).to.include('now <= campaign.expires_at');
     expect(causalCommerce).to.include('checked_add(escrow.total_settled)');
     expect(causalCommerce).to.include('campaign.total_recorded < campaign.max_redemptions');
+    expect(causalCommerce).to.include('campaign.referrer_split_bps as u64');
+    expect(causalCommerce).to.include('referrer_split_bps <= 10_000');
     expect(causalCommerce).to.include('referrer_reward_account.owner == causal_receipt.referrer_beneficiary');
     expect(causalCommerce).to.include('visitor_reward_account.owner == causal_receipt.visitor_beneficiary');
     expect(causalCommerce).to.include('reward_mint.key() == growth_campaign.reward_mint');
@@ -43,6 +45,8 @@ describe('production security hardening guards', () => {
     expect(client).to.include('x-viral-sync-staff-device');
     expect(client).to.include('x-viral-sync-staff-signature');
     expect(client).to.include('crypto.subtle.sign');
+    expect(client).to.include("action: 'challenge'");
+    expect(client).to.include('x-viral-sync-staff-nonce');
   });
 
   it('requires staff-device proof of possession instead of bearer-only staff headers', () => {
@@ -51,7 +55,10 @@ describe('production security hardening guards', () => {
 
     expect(api).to.include('x-viral-sync-staff-signature');
     expect(api).to.include('x-viral-sync-staff-timestamp');
+    expect(api).to.include('x-viral-sync-staff-nonce');
     expect(server).to.include('staffDeviceSigningMessage');
+    expect(server).to.include('activeStaffDeviceNonce');
+    expect(server).to.include('nonce.consumedAt = new Date().toISOString()');
     expect(server).to.include('constantTimeHexEqual(expectedSignature, params.staffDeviceSignature)');
     expect(server).to.include('STAFF_DEVICE_SIGNATURE_TTL_MS');
   });
