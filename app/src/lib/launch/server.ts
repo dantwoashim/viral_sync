@@ -34,6 +34,7 @@ import {
   MerchantConfirmResult,
   MerchantMetric,
   MerchantRow,
+  MerchantRecord,
   MerchantRole,
   MerchantSessionRecord,
   MerchantSummary,
@@ -78,6 +79,14 @@ const LEDGER_LOCK_KEY = 2_886_412;
 let persistChain: Promise<void> = Promise.resolve();
 let mutationChain: Promise<void> = Promise.resolve();
 let schemaReadyPromise: Promise<void> | null = null;
+
+function shouldUseDatabaseLedger() {
+  return Boolean(dbPool && process.env.NEXT_PHASE !== 'phase-production-build');
+}
+
+function isProductionBuildPhase() {
+  return process.env.NEXT_PHASE === 'phase-production-build';
+}
 
 function shouldUseDatabaseSsl(connectionString: string) {
   if (process.env.LAUNCH_DATABASE_SSL === 'false') {
@@ -1234,7 +1243,27 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
     return;
   }
 
+  if (!client) {
+    schemaReadyPromise = schemaReadyPromise ?? (async () => {
+      const schemaClient = await dbPool!.connect();
+      try {
+        await schemaClient.query('BEGIN');
+        await ensureDatabaseLedger(schemaClient);
+        await schemaClient.query('COMMIT');
+      } catch (error) {
+        await schemaClient.query('ROLLBACK').catch(() => undefined);
+        throw error;
+      } finally {
+        schemaClient.release();
+      }
+    })();
+    await schemaReadyPromise;
+    return;
+  }
+
   const run = async () => {
+    await queryWithOptionalClient(client, 'SELECT pg_advisory_xact_lock($1)', [LEDGER_LOCK_KEY]);
+
     await queryWithOptionalClient(client, `
       CREATE TABLE IF NOT EXISTS merchant_orgs (
         id TEXT PRIMARY KEY,
@@ -1313,11 +1342,14 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
         campaign_id TEXT NOT NULL REFERENCES campaigns(id),
         merchant_id TEXT NOT NULL REFERENCES merchants(id),
         referrer_session_id TEXT NOT NULL,
+        referrer_display_name TEXT NOT NULL DEFAULT 'Referrer',
         referrer_device_fingerprint TEXT NOT NULL,
         referrer_commitment TEXT NOT NULL,
         invite_nonce TEXT NOT NULL,
         expires_at TIMESTAMPTZ NOT NULL,
         signature TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        open_count INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL
       )
     `);
@@ -1328,9 +1360,13 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
         campaign_id TEXT NOT NULL REFERENCES campaigns(id),
         invite_token TEXT NOT NULL REFERENCES causal_invites(token),
         referrer_session_id TEXT NOT NULL,
+        referrer_display_name TEXT NOT NULL DEFAULT 'Referrer',
         claimer_session_id TEXT NOT NULL,
+        claimer_display_name TEXT NOT NULL DEFAULT 'Visitor',
         device_fingerprint TEXT NOT NULL,
         campaign_nullifier_hash TEXT NOT NULL,
+        lifecycle_status TEXT,
+        blocked_reason TEXT,
         status TEXT NOT NULL,
         claimed_at TIMESTAMPTZ NOT NULL,
         redeemed_at TIMESTAMPTZ,
@@ -1343,6 +1379,7 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
         id TEXT PRIMARY KEY,
         claim_id TEXT NOT NULL REFERENCES claims(id),
         merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        code TEXT NOT NULL DEFAULT '',
         code_hash TEXT NOT NULL UNIQUE,
         status TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL,
@@ -1373,15 +1410,36 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
         campaign_id TEXT NOT NULL REFERENCES campaigns(id),
         claim_id TEXT NOT NULL REFERENCES claims(id),
         referral_token TEXT NOT NULL REFERENCES causal_invites(token),
+        manual_receipt_id TEXT,
+        evidence_level TEXT,
+        spend_npr NUMERIC,
+        payment_reference TEXT,
         receipt_id_hash TEXT NOT NULL UNIQUE,
         campaign_nullifier_hash TEXT NOT NULL,
         invite_hash TEXT NOT NULL,
         visit_attestation_hash TEXT NOT NULL,
+        customer_signature TEXT NOT NULL DEFAULT '',
+        staff_signature TEXT NOT NULL DEFAULT '',
         receipt_pda TEXT NOT NULL,
         tx_signature TEXT NOT NULL,
         status TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL,
         settled_at TIMESTAMPTZ
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS app_events (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        merchant_id TEXT,
+        offer_id TEXT,
+        referral_token TEXT,
+        claim_id TEXT,
+        redeem_code_id TEXT,
+        actor_session_id TEXT,
+        payload JSONB
       )
     `);
 
@@ -1447,6 +1505,21 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
       )
     `);
 
+    await queryWithOptionalClient(client, `ALTER TABLE causal_invites ADD COLUMN IF NOT EXISTS referrer_display_name TEXT NOT NULL DEFAULT 'Referrer'`);
+    await queryWithOptionalClient(client, `ALTER TABLE causal_invites ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'`);
+    await queryWithOptionalClient(client, `ALTER TABLE causal_invites ADD COLUMN IF NOT EXISTS open_count INTEGER NOT NULL DEFAULT 0`);
+    await queryWithOptionalClient(client, `ALTER TABLE claims ADD COLUMN IF NOT EXISTS referrer_display_name TEXT NOT NULL DEFAULT 'Referrer'`);
+    await queryWithOptionalClient(client, `ALTER TABLE claims ADD COLUMN IF NOT EXISTS claimer_display_name TEXT NOT NULL DEFAULT 'Visitor'`);
+    await queryWithOptionalClient(client, `ALTER TABLE claims ADD COLUMN IF NOT EXISTS lifecycle_status TEXT`);
+    await queryWithOptionalClient(client, `ALTER TABLE claims ADD COLUMN IF NOT EXISTS blocked_reason TEXT`);
+    await queryWithOptionalClient(client, `ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS code TEXT NOT NULL DEFAULT ''`);
+    await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS manual_receipt_id TEXT`);
+    await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS evidence_level TEXT`);
+    await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS spend_npr NUMERIC`);
+    await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS payment_reference TEXT`);
+    await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS customer_signature TEXT NOT NULL DEFAULT ''`);
+    await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS staff_signature TEXT NOT NULL DEFAULT ''`);
+
     await queryWithOptionalClient(client, `
       INSERT INTO launch_ledger (id, data)
       VALUES ($1, $2::jsonb)
@@ -1454,13 +1527,7 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
     `, [LEDGER_ROW_ID, JSON.stringify(createInitialLedger())]);
   };
 
-  if (client) {
-    await run();
-    return;
-  }
-
-  schemaReadyPromise = schemaReadyPromise ?? run();
-  await schemaReadyPromise;
+  await run();
 }
 
 function redeemCodeExpiresAt(code: RedeemCodeRecord, ledger: LaunchLedger) {
@@ -1547,24 +1614,32 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
     const offer = ledger.offers.find((item) => item.id === referral.offerId);
     await queryWithOptionalClient(client, `
       INSERT INTO causal_invites (
-        token, campaign_id, merchant_id, referrer_session_id, referrer_device_fingerprint,
-        referrer_commitment, invite_nonce, expires_at, signature, created_at
+        token, campaign_id, merchant_id, referrer_session_id, referrer_display_name,
+        referrer_device_fingerprint, referrer_commitment, invite_nonce, expires_at,
+        signature, status, open_count, created_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, to_timestamp($8 / 1000.0), $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, to_timestamp($9 / 1000.0), $10, $11, $12, $13)
       ON CONFLICT (token) DO UPDATE SET
+        referrer_display_name = EXCLUDED.referrer_display_name,
+        referrer_device_fingerprint = EXCLUDED.referrer_device_fingerprint,
         referrer_commitment = EXCLUDED.referrer_commitment,
         expires_at = EXCLUDED.expires_at,
-        signature = EXCLUDED.signature
+        signature = EXCLUDED.signature,
+        status = EXCLUDED.status,
+        open_count = EXCLUDED.open_count
     `, [
       referral.token,
       referral.offerId,
       offer?.merchantId ?? referral.causalInvite.merchantId,
       referral.referrerSessionId,
+      referral.referrerDisplayName,
       referral.referrerDeviceFingerprint,
       referral.causalInvite.referrerCommitment,
       referral.causalInvite.inviteNonce,
       referral.causalInvite.expiresAt,
       referral.causalInvite.signature,
+      referral.status ?? 'active',
+      referral.openCount,
       referral.createdAt,
     ]);
   }
@@ -1575,11 +1650,16 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
     }
     await queryWithOptionalClient(client, `
       INSERT INTO claims (
-        id, campaign_id, invite_token, referrer_session_id, claimer_session_id, device_fingerprint,
-        campaign_nullifier_hash, status, claimed_at, redeemed_at
+        id, campaign_id, invite_token, referrer_session_id, referrer_display_name,
+        claimer_session_id, claimer_display_name, device_fingerprint, campaign_nullifier_hash,
+        lifecycle_status, blocked_reason, status, claimed_at, redeemed_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       ON CONFLICT (id) DO UPDATE SET
+        referrer_display_name = EXCLUDED.referrer_display_name,
+        claimer_display_name = EXCLUDED.claimer_display_name,
+        lifecycle_status = EXCLUDED.lifecycle_status,
+        blocked_reason = EXCLUDED.blocked_reason,
         status = EXCLUDED.status,
         redeemed_at = EXCLUDED.redeemed_at
     `, [
@@ -1587,9 +1667,13 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
       claim.offerId,
       claim.referralToken,
       claim.referrerSessionId,
+      claim.referrerDisplayName,
       claim.claimerSessionId,
+      claim.claimerDisplayName,
       claim.deviceFingerprint,
       claim.campaignNullifierHash ?? '',
+      claim.lifecycleStatus ?? null,
+      claim.blockedReason ?? null,
       claim.status,
       claim.claimedAt,
       claim.redeemedAt ?? null,
@@ -1601,12 +1685,13 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
       continue;
     }
     await queryWithOptionalClient(client, `
-      INSERT INTO redemptions (id, claim_id, merchant_id, code_hash, status, created_at, expires_at, redeemed_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO redemptions (id, claim_id, merchant_id, code, code_hash, status, created_at, expires_at, redeemed_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ON CONFLICT (id) DO UPDATE SET
+        code = EXCLUDED.code,
         status = EXCLUDED.status,
         redeemed_at = EXCLUDED.redeemed_at
-    `, [code.id, code.claimId, code.merchantId, code.codeHash, code.status, code.createdAt, redeemCodeExpiresAt(code, ledger), code.redeemedAt ?? null]);
+    `, [code.id, code.claimId, code.merchantId, code.code, code.codeHash, code.status, code.createdAt, redeemCodeExpiresAt(code, ledger), code.redeemedAt ?? null]);
   }
 
   for (const challenge of ledger.visitChallenges ?? []) {
@@ -1637,12 +1722,16 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
   for (const receipt of ledger.causalReceipts ?? []) {
     await queryWithOptionalClient(client, `
       INSERT INTO causal_receipts (
-        id, merchant_id, campaign_id, claim_id, referral_token, receipt_id_hash,
-        campaign_nullifier_hash, invite_hash, visit_attestation_hash, receipt_pda,
-        tx_signature, status, created_at, settled_at
+        id, merchant_id, campaign_id, claim_id, referral_token, manual_receipt_id,
+        evidence_level, spend_npr, payment_reference, receipt_id_hash, campaign_nullifier_hash,
+        invite_hash, visit_attestation_hash, customer_signature, staff_signature,
+        receipt_pda, tx_signature, status, created_at, settled_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       ON CONFLICT (id) DO UPDATE SET
+        evidence_level = EXCLUDED.evidence_level,
+        spend_npr = EXCLUDED.spend_npr,
+        payment_reference = EXCLUDED.payment_reference,
         status = EXCLUDED.status,
         settled_at = EXCLUDED.settled_at,
         tx_signature = EXCLUDED.tx_signature
@@ -1652,10 +1741,16 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
       receipt.offerId,
       receipt.claimId,
       receipt.referralToken,
+      receipt.manualReceiptId ?? null,
+      receipt.evidenceLevel ?? null,
+      receipt.spendNpr ?? null,
+      receipt.paymentReference ?? null,
       receipt.receiptIdHash,
       receipt.campaignNullifierHash,
       receipt.inviteHash,
       receipt.visitAttestationHash,
+      receipt.customerSignature,
+      receipt.staffSignature,
       receipt.receiptPda,
       receipt.txSignature,
       receipt.status,
@@ -1700,25 +1795,319 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
         last_error = EXCLUDED.last_error
     `, [job.id, job.topic, JSON.stringify(job.payload), job.status, job.attempts, job.nextRunAt, job.createdAt, job.updatedAt, job.lastError ?? null]);
   }
+
+  for (const event of ledger.events) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO app_events (
+        id, type, created_at, merchant_id, offer_id, referral_token, claim_id,
+        redeem_code_id, actor_session_id, payload
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+      ON CONFLICT (id) DO NOTHING
+    `, [
+      event.id,
+      event.type,
+      event.createdAt,
+      event.merchantId ?? null,
+      event.offerId ?? null,
+      event.referralToken ?? null,
+      event.claimId ?? null,
+      event.redeemCodeId ?? null,
+      event.actorSessionId ?? null,
+      JSON.stringify(event.payload ?? {}),
+    ]);
+  }
+}
+
+function isoFromDb(value: unknown) {
+  if (!value) {
+    return undefined;
+  }
+  return value instanceof Date ? value.toISOString() : new Date(String(value)).toISOString();
+}
+
+function numberFromDb(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+async function loadLedgerFromNormalizedTables(client: PoolClient | null = null) {
+  const [
+    merchantsResult,
+    offersResult,
+    invitesResult,
+    claimsResult,
+    redemptionsResult,
+    challengesResult,
+    receiptsResult,
+    sessionsResult,
+    devicesResult,
+    noncesResult,
+    auditResult,
+    rewardsResult,
+    idempotencyResult,
+    outboxResult,
+    eventsResult,
+  ] = await Promise.all([
+    queryWithOptionalClient(client, 'SELECT * FROM merchants ORDER BY created_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM campaigns ORDER BY created_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM causal_invites ORDER BY created_at, token'),
+    queryWithOptionalClient(client, 'SELECT * FROM claims ORDER BY claimed_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM redemptions ORDER BY created_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM visit_challenges ORDER BY issued_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM causal_receipts ORDER BY created_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM merchant_sessions ORDER BY created_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM staff_devices ORDER BY enrolled_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM staff_device_nonces ORDER BY issued_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM audit_events ORDER BY created_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM reward_ledger_entries ORDER BY created_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM idempotency_records ORDER BY created_at, scope, key'),
+    queryWithOptionalClient(client, 'SELECT * FROM outbox_jobs ORDER BY created_at, id'),
+    queryWithOptionalClient(client, 'SELECT * FROM app_events ORDER BY created_at, id'),
+  ]);
+
+  if (merchantsResult.rowCount === 0 && offersResult.rowCount === 0) {
+    return null;
+  }
+
+  const offerById = new Map<string, OfferRecord>();
+  const claimById = new Map<string, ClaimRecord>();
+  const merchants: MerchantRecord[] = merchantsResult.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    district: row.district,
+    city: row.city,
+    locationLabel: row.location_label,
+  }));
+  const offers: OfferRecord[] = offersResult.rows.map((row) => {
+    const offer: OfferRecord = {
+      id: row.id,
+      merchantId: row.merchant_id,
+      slug: row.id,
+      title: row.title,
+      description: '',
+      reward: row.reward,
+      referralGoal: numberFromDb(row.referral_goal, 1),
+      redemptionWindowHours: numberFromDb(row.redemption_window_hours, 24),
+      active: Boolean(row.active),
+      createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+    };
+    offerById.set(offer.id, offer);
+    return offer;
+  });
+  const referralLinks: ReferralLinkRecord[] = invitesResult.rows.map((row) => {
+    const causalInvite = {
+      version: '0.1' as const,
+      campaignId: row.campaign_id,
+      merchantId: row.merchant_id,
+      referrerCommitment: row.referrer_commitment,
+      inviteNonce: row.invite_nonce,
+      expiresAt: new Date(row.expires_at).getTime(),
+      signature: row.signature,
+    };
+    return {
+      token: row.token,
+      offerId: row.campaign_id,
+      referrerSessionId: row.referrer_session_id,
+      referrerDisplayName: row.referrer_display_name,
+      referrerDeviceFingerprint: row.referrer_device_fingerprint,
+      causalInvite,
+      status: row.status,
+      createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+      openCount: numberFromDb(row.open_count),
+    };
+  });
+  const claims: ClaimRecord[] = claimsResult.rows.map((row) => {
+    const claim: ClaimRecord = {
+      id: row.id,
+      offerId: row.campaign_id,
+      referralToken: row.invite_token,
+      referrerSessionId: row.referrer_session_id,
+      referrerDisplayName: row.referrer_display_name,
+      claimerSessionId: row.claimer_session_id,
+      claimerDisplayName: row.claimer_display_name,
+      deviceFingerprint: row.device_fingerprint,
+      campaignNullifierHash: row.campaign_nullifier_hash,
+      lifecycleStatus: row.lifecycle_status ?? undefined,
+      claimedAt: isoFromDb(row.claimed_at) ?? new Date().toISOString(),
+      status: row.status,
+      blockedReason: row.blocked_reason ?? undefined,
+      redeemedAt: isoFromDb(row.redeemed_at),
+    };
+    claimById.set(claim.id, claim);
+    return claim;
+  });
+  const redeemCodes: RedeemCodeRecord[] = redemptionsResult.rows.map((row) => ({
+    id: row.id,
+    claimId: row.claim_id,
+    merchantId: row.merchant_id,
+    code: row.code,
+    codeHash: row.code_hash,
+    status: row.status,
+    createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+    redeemedAt: isoFromDb(row.redeemed_at),
+  }));
+  const visitChallenges: VisitChallengeRecord[] = challengesResult.rows.map((row) => ({
+    id: row.id,
+    merchantId: row.merchant_id,
+    offerId: row.campaign_id,
+    claimId: row.claim_id,
+    redeemCodeId: row.redeem_code_id,
+    challengeHash: row.challenge_hash,
+    nonce: row.nonce,
+    issuedAt: isoFromDb(row.issued_at) ?? new Date().toISOString(),
+    expiresAt: isoFromDb(row.expires_at) ?? new Date().toISOString(),
+    status: row.status,
+  }));
+  const causalReceipts: CausalReceiptRecord[] = receiptsResult.rows.map((row) => ({
+    id: row.id,
+    merchantId: row.merchant_id,
+    offerId: row.campaign_id,
+    claimId: row.claim_id,
+    referralToken: row.referral_token,
+    manualReceiptId: row.manual_receipt_id ?? undefined,
+    evidenceLevel: row.evidence_level ?? undefined,
+    spendNpr: row.spend_npr === null ? undefined : numberFromDb(row.spend_npr),
+    paymentReference: row.payment_reference ?? undefined,
+    receiptIdHash: row.receipt_id_hash,
+    campaignNullifierHash: row.campaign_nullifier_hash,
+    inviteHash: row.invite_hash,
+    visitAttestationHash: row.visit_attestation_hash,
+    customerSignature: row.customer_signature,
+    staffSignature: row.staff_signature,
+    receiptPda: row.receipt_pda,
+    txSignature: row.tx_signature,
+    status: row.status,
+    createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+    settledAt: isoFromDb(row.settled_at),
+  }));
+  const merchantSessions: MerchantSessionRecord[] = sessionsResult.rows.map((row) => ({
+    id: row.id,
+    merchantId: row.merchant_id,
+    role: row.role,
+    label: row.label,
+    createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+    expiresAt: isoFromDb(row.expires_at) ?? new Date().toISOString(),
+    revokedAt: isoFromDb(row.revoked_at),
+  }));
+  const staffDevices: StaffDeviceRecord[] = devicesResult.rows.map((row) => ({
+    id: row.id,
+    merchantId: row.merchant_id,
+    locationLabel: row.location_label,
+    label: row.label,
+    publicKey: row.public_key,
+    secretHash: row.secret_hash ?? undefined,
+    enrolledAt: isoFromDb(row.enrolled_at) ?? new Date().toISOString(),
+    revokedAt: isoFromDb(row.revoked_at),
+  }));
+  const staffDeviceNonces: StaffDeviceNonceRecord[] = noncesResult.rows.map((row) => ({
+    id: row.id,
+    merchantId: row.merchant_id,
+    staffDevicePublicKey: row.staff_device_public_key,
+    action: row.action,
+    code: row.code ?? undefined,
+    nonce: row.nonce,
+    issuedAt: isoFromDb(row.issued_at) ?? new Date().toISOString(),
+    expiresAt: isoFromDb(row.expires_at) ?? new Date().toISOString(),
+    consumedAt: isoFromDb(row.consumed_at),
+  }));
+  const auditEvents: AuditEventRecord[] = auditResult.rows.map((row) => ({
+    id: row.id,
+    requestId: row.request_id,
+    actorType: row.actor_type,
+    actorId: row.actor_id,
+    merchantId: row.merchant_id ?? undefined,
+    targetType: row.target_type,
+    targetId: row.target_id ?? undefined,
+    action: row.action,
+    result: row.result,
+    reason: row.reason ?? undefined,
+    createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+  }));
+  const rewardLedgerEntries: RewardLedgerEntryRecord[] = rewardsResult.rows.map((row) => ({
+    id: row.id,
+    merchantId: row.merchant_id,
+    receiptId: row.receipt_id ?? undefined,
+    actorSessionId: row.actor_session_id ?? undefined,
+    entryType: row.entry_type,
+    amount: numberFromDb(row.amount),
+    balanceAfter: numberFromDb(row.balance_after),
+    idempotencyKey: row.idempotency_key,
+    createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+  }));
+  const idempotencyRecords: IdempotencyRecord[] = idempotencyResult.rows.map((row) => ({
+    scope: row.scope,
+    key: row.key,
+    resultId: row.result_id,
+    createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+  }));
+  const outbox: OutboxRecord[] = outboxResult.rows.map((row) => ({
+    id: row.id,
+    topic: row.topic,
+    payload: row.payload ?? {},
+    status: row.status,
+    attempts: numberFromDb(row.attempts),
+    nextRunAt: isoFromDb(row.next_run_at) ?? new Date().toISOString(),
+    createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+    updatedAt: isoFromDb(row.updated_at) ?? new Date().toISOString(),
+    lastError: row.last_error ?? undefined,
+  }));
+  const events: EventRecord[] = eventsResult.rows.map((row) => ({
+    id: row.id,
+    type: row.type,
+    createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
+    merchantId: row.merchant_id ?? undefined,
+    offerId: row.offer_id ?? undefined,
+    referralToken: row.referral_token ?? undefined,
+    claimId: row.claim_id ?? undefined,
+    redeemCodeId: row.redeem_code_id ?? undefined,
+    actorSessionId: row.actor_session_id ?? undefined,
+    payload: row.payload ?? undefined,
+  }));
+
+  const ledger: LaunchLedger = {
+    merchants,
+    offers,
+    referralLinks,
+    claims,
+    redeemCodes,
+    visitChallenges,
+    causalReceipts,
+    merchantSessions,
+    staffDevices,
+    staffDeviceNonces,
+    auditEvents,
+    rewardLedgerEntries,
+    idempotencyRecords,
+    outbox,
+    events,
+  };
+  normalizeLedgerState(ledger);
+  return ledger;
 }
 
 async function loadLedgerFromDatabase() {
   await ensureDatabaseLedger();
+  const normalizedLedger = await loadLedgerFromNormalizedTables();
+  if (normalizedLedger) {
+    return normalizedLedger;
+  }
+
   const result = await dbPool!.query('SELECT data FROM launch_ledger WHERE id = $1', [LEDGER_ROW_ID]);
-  if (result.rowCount === 0) {
-    return createInitialLedger();
-  }
-
-  const ledger = result.rows[0].data as LaunchLedger;
-  if (normalizeLedgerState(ledger)) {
-    await saveLedger(ledger);
-  }
-
+  const ledger = (result.rows[0]?.data as LaunchLedger | undefined) ?? createInitialLedger();
+  normalizeLedgerState(ledger);
+  await syncNormalizedLaunchTables(null, ledger);
   return ledger;
 }
 
 async function loadLedger() {
-  if (dbPool) {
+  if (isProductionBuildPhase()) {
+    const ledger = createInitialLedger();
+    normalizeLedgerState(ledger);
+    return ledger;
+  }
+
+  if (shouldUseDatabaseLedger()) {
     return loadLedgerFromDatabase();
   }
 
@@ -1750,13 +2139,17 @@ async function loadLedger() {
 }
 
 async function saveLedger(ledger: LaunchLedger) {
-  if (dbPool) {
+  if (isProductionBuildPhase()) {
+    return;
+  }
+
+  if (shouldUseDatabaseLedger()) {
     await ensureDatabaseLedger();
     const normalized = normalizeLedgerState(ledger);
     if (normalized) {
       ledger = { ...ledger };
     }
-    await dbPool.query(`
+    await dbPool!.query(`
       UPDATE launch_ledger
       SET data = $2::jsonb,
           updated_at = NOW()
@@ -1779,19 +2172,22 @@ async function saveLedger(ledger: LaunchLedger) {
 }
 
 async function withLedgerMutation<T>(mutator: (ledger: LaunchLedger) => T | Promise<T>) {
-  if (dbPool) {
-    const client = await dbPool.connect();
+  if (isProductionBuildPhase()) {
+    const ledger = createInitialLedger();
+    normalizeLedgerState(ledger);
+    return mutator(ledger);
+  }
+
+  if (shouldUseDatabaseLedger()) {
+    const client = await dbPool!.connect();
 
     try {
       await client.query('BEGIN');
       await ensureDatabaseLedger(client);
       await client.query('SELECT pg_advisory_xact_lock($1)', [LEDGER_LOCK_KEY]);
 
-      const result = await client.query(
-        'SELECT data FROM launch_ledger WHERE id = $1 FOR UPDATE',
-        [LEDGER_ROW_ID],
-      );
-      const ledger = (result.rows[0]?.data as LaunchLedger | undefined) ?? createInitialLedger();
+      await client.query('SELECT data FROM launch_ledger WHERE id = $1 FOR UPDATE', [LEDGER_ROW_ID]);
+      const ledger = (await loadLedgerFromNormalizedTables(client)) ?? createInitialLedger();
       normalizeLedgerState(ledger);
       const mutationResult = await mutator(ledger);
 
