@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   const body = await readJsonBody(request) as Record<string, unknown> | null;
   if (!body) {
-    return jsonError('Sponsored transaction payload is required.', 400, 'invalid_request', requestId(request));
+    return jsonError('Signed app intent payload is required.', 400, 'invalid_request', requestId(request));
   }
 
   const result = await simulateSponsoredTransaction({

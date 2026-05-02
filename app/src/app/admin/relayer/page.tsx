@@ -17,9 +17,9 @@ export default async function RelayerOpsPage() {
       <section className="premium-workspace-hero">
         <div>
           <span className="premium-eyebrow">Relayer operations</span>
-          <h1 className="premium-h2">Keep sponsored transactions capped, visible, and retryable.</h1>
+          <h1 className="premium-h2">Keep signed app intents capped, visible, and retryable.</h1>
           <p className="premium-lede">
-            Sponsored transaction UX only earns trust if policy, replay protection, queue health, and errors are boringly visible to operators.
+            The app intent simulation only earns trust if policy, replay protection, queue health, and errors are boringly visible to operators.
           </p>
         </div>
         <PremiumSurface tone="proof" className="premium-ops-card">
@@ -37,7 +37,7 @@ export default async function RelayerOpsPage() {
         <PremiumMetric label="Sponsored balance" value={String(monitoring.balance.lamports)} detail={monitoring.balance.label} />
         <PremiumMetric label="Success rate" value={`${monitoring.successRate}%`} detail="Sponsored verification intents" />
         <PremiumMetric label="P50 latency" value={`${monitoring.latencyMsP50}ms`} detail="Receipt outbox jobs" />
-        <PremiumMetric label="Daily cap" value={String(policy.dailySponsoredTxCap)} detail="Sponsored transaction ceiling" />
+        <PremiumMetric label="Daily cap" value={String(policy.dailySponsoredTxCap)} detail="Signed intent ceiling" />
       </section>
 
       <section className="premium-workspace-grid">

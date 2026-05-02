@@ -127,7 +127,7 @@ export function deriveReceiptPdaLike(receiptIdHash: string) {
 }
 
 export function deriveTxSignatureLike(receiptIdHash: string, visitAttestationHash: string) {
-  return `demo_tx_${sha256Hex(`${receiptIdHash}:${visitAttestationHash}`).slice(0, 44)}`;
+  return `signed_app_intent_${sha256Hex(`${receiptIdHash}:${visitAttestationHash}`).slice(0, 44)}`;
 }
 
 export function verifyReceiptCommitmentProof(params: {

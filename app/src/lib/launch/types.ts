@@ -145,6 +145,8 @@ export interface StaffDeviceRecord {
   locationLabel: string;
   label: string;
   publicKey: string;
+  publicKeyAlgorithm?: 'ecdsa-p256' | 'hmac-sha256-demo';
+  publicKeyMaterial?: string;
   secret?: string;
   secretHash?: string;
   enrolledAt: string;
@@ -386,7 +388,8 @@ export interface SignedActionIntent {
     accounts: string[];
     computeUnitLimit: number;
   };
-  transaction?: string;
+  signedIntentEnvelope?: string;
+  artifactType?: 'signed_app_intent_simulation';
   reason?: string;
 }
 

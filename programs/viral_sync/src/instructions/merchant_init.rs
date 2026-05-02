@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token_2022;
 use anchor_spl::token_interface::Mint;
 use crate::errors::ViralSyncError;
 use crate::state::merchant_config::MerchantConfig;
@@ -33,6 +34,10 @@ pub fn create_mint_and_config(
     require!(commission_rate_bps <= 10_000, ViralSyncError::InvalidConfig);
     require!(transfer_fee_bps < 10_000, ViralSyncError::InvalidConfig);
     require!(min_hold_before_share_secs >= 0, ViralSyncError::InvalidConfig);
+    require!(
+        ctx.accounts.mint.to_account_info().owner == &token_2022::ID,
+        ViralSyncError::InvalidConfig
+    );
 
     let config = &mut ctx.accounts.merchant_config;
     

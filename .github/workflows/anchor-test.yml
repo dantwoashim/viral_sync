@@ -69,4 +69,19 @@ jobs:
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
           cargo-build-sbf --version
-          npm run verify
+          mkdir -p "$HOME/.config/solana"
+          solana-keygen new --no-bip39-passphrase --silent --force -o "$HOME/.config/solana/id.json"
+          solana-test-validator --reset --quiet > /tmp/viral-sync-validator.log 2>&1 &
+          VALIDATOR_PID=$!
+          trap 'kill "$VALIDATOR_PID" 2>/dev/null || true' EXIT
+          for _ in {1..45}; do
+            if solana cluster-version --url http://127.0.0.1:8899 >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          solana config set --url http://127.0.0.1:8899
+          solana airdrop 10 "$(solana address)" >/dev/null
+          anchor build
+          anchor deploy --provider.cluster localnet
+          RUN_ANCHOR_ATTACK_TESTS=1 npm run verify

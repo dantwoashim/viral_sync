@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Pool, type PoolClient } from 'pg';
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual, webcrypto as nodeWebcrypto } from 'crypto';
 import {
   createCampaignNullifier,
   createCausalInvite,
@@ -200,6 +200,56 @@ function hmacStaffDevice(secret: string, message: string) {
   return createHmac('sha256', secret).update(message).digest('hex');
 }
 
+function staffDevicePublicKeyMaterialValid(material: string) {
+  try {
+    const parsed = JSON.parse(material) as JsonWebKey;
+    return parsed.kty === 'EC' && parsed.crv === 'P-256' && typeof parsed.x === 'string' && typeof parsed.y === 'string';
+  } catch {
+    return false;
+  }
+}
+
+function base64UrlToBytes(value: string) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = `${normalized}${'='.repeat((4 - normalized.length % 4) % 4)}`;
+  return Buffer.from(padded, 'base64');
+}
+
+async function verifyStaffDeviceSignature(params: {
+  device: StaffDeviceRecord;
+  message: string;
+  signature: string;
+}) {
+  if (params.device.publicKeyMaterial) {
+    if (!staffDevicePublicKeyMaterialValid(params.device.publicKeyMaterial)) {
+      return false;
+    }
+    try {
+      const publicKey = await nodeWebcrypto.subtle.importKey(
+        'jwk',
+        JSON.parse(params.device.publicKeyMaterial) as JsonWebKey,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false,
+        ['verify'],
+      );
+      return nodeWebcrypto.subtle.verify(
+        { name: 'ECDSA', hash: 'SHA-256' },
+        publicKey,
+        base64UrlToBytes(params.signature),
+        new TextEncoder().encode(params.message),
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  if (!params.device.secret || params.device.publicKeyAlgorithm !== 'hmac-sha256-demo') {
+    return false;
+  }
+
+  return constantTimeHexEqual(hmacStaffDevice(params.device.secret, params.message), params.signature);
+}
+
 function constantTimeHexEqual(left: string, right: string) {
   const leftBuffer = Buffer.from(left, 'hex');
   const rightBuffer = Buffer.from(right, 'hex');
@@ -306,7 +356,7 @@ export async function createMerchantSession(params: {
   label?: string;
   requestId: string;
 }) {
-  return withLedgerMutation((ledger) => {
+  return withLedgerMutation(async (ledger) => {
     const { merchant } = getPilotMerchantAndOffer(ledger);
     let allowed = false;
     let denialReason = 'Merchant login token is required.';
@@ -400,7 +450,7 @@ export async function requireStaffDevice(params: {
   timestamp?: string;
   nonce?: string;
 }) {
-  return withLedgerMutation((ledger) => {
+  return withLedgerMutation(async (ledger) => {
     pruneStaffDeviceNonces(ledger);
     const device = (ledger.staffDevices ?? []).find((item) =>
       item.publicKey === params.publicKey &&
@@ -430,16 +480,17 @@ export async function requireStaffDevice(params: {
     });
     const timestampMs = Number(params.timestamp);
     const fresh = Number.isFinite(timestampMs) && Math.abs(Date.now() - timestampMs) <= STAFF_DEVICE_SIGNATURE_TTL_MS;
-    const expected = device.secret
-      ? hmacStaffDevice(device.secret, staffDeviceSigningMessage({
-        publicKey: params.publicKey,
-        timestamp: params.timestamp ?? '',
-        action: params.action,
-        code: params.code,
-        nonce: params.nonce,
-      }))
-      : '';
-    if (!params.signature || !expected || !nonce || !fresh || !constantTimeHexEqual(expected, params.signature)) {
+    const message = staffDeviceSigningMessage({
+      publicKey: params.publicKey,
+      timestamp: params.timestamp ?? '',
+      action: params.action,
+      code: params.code,
+      nonce: params.nonce,
+    });
+    const verified = params.signature
+      ? await verifyStaffDeviceSignature({ device, message, signature: params.signature })
+      : false;
+    if (!params.signature || !nonce || !fresh || !verified) {
       appendAuditEvent(ledger, {
         requestId: params.requestId,
         actorType: 'staff',
@@ -535,6 +586,9 @@ export async function enrollStaffDevice(params: {
   authorizedActorId?: string;
   label: string;
   locationLabel: string;
+  publicKey?: string;
+  publicKeyAlgorithm?: string;
+  publicKeyMaterial?: string;
   requestId: string;
 }) {
   return withLedgerMutation((ledger) => {
@@ -555,16 +609,40 @@ export async function enrollStaffDevice(params: {
       return { ok: false, reason: 'Staff device enrollment is not authorized.' };
     }
 
-    const secret = staffDeviceSecret();
-    const publicKey = `staff_${sha256Hex(secret).slice(0, 32)}`;
+    const requestedAlgorithm = params.publicKeyAlgorithm === 'ecdsa-p256' ? 'ecdsa-p256' : undefined;
+    const publicKeyMaterial = typeof params.publicKeyMaterial === 'string' ? params.publicKeyMaterial.trim() : '';
+    const asymmetricDevice = Boolean(requestedAlgorithm && params.publicKey && publicKeyMaterial);
+    if (asymmetricDevice && !staffDevicePublicKeyMaterialValid(publicKeyMaterial)) {
+      return { ok: false, reason: 'Staff device public key material is invalid.' };
+    }
+    if (isProductionRuntime() && !asymmetricDevice) {
+      appendAuditEvent(ledger, {
+        requestId: params.requestId,
+        actorType: 'staff',
+        actorId: params.authorizedActorId ?? 'unknown',
+        merchantId: merchant.id,
+        targetType: 'staff_device',
+        action: 'enroll_staff_device',
+        result: 'denied',
+        reason: 'Production staff devices must register an asymmetric public key.',
+      });
+      return { ok: false, reason: 'Production staff devices must register a public key.' };
+    }
+
+    const demoSecret = asymmetricDevice ? undefined : staffDeviceSecret();
+    const publicKey = asymmetricDevice
+      ? params.publicKey!.slice(0, 96)
+      : `staff_${sha256Hex(demoSecret!).slice(0, 32)}`;
     const device: StaffDeviceRecord = {
       id: randomId('staff-device'),
       merchantId: merchant.id,
       locationLabel: sanitizeDisplayName(params.locationLabel),
       label: sanitizeDisplayName(params.label),
       publicKey,
-      secret,
-      secretHash: sha256Hex(secret),
+      publicKeyAlgorithm: asymmetricDevice ? 'ecdsa-p256' : 'hmac-sha256-demo',
+      publicKeyMaterial: asymmetricDevice ? publicKeyMaterial : undefined,
+      secret: demoSecret,
+      secretHash: demoSecret ? sha256Hex(demoSecret) : undefined,
       enrolledAt: new Date().toISOString(),
     };
     ledger.staffDevices = ledger.staffDevices ?? [];
@@ -790,6 +868,7 @@ function normalizeLedgerState(ledger: LaunchLedger) {
         locationLabel: 'Thamel Coffee Lane',
         label: 'Front counter terminal',
         publicKey: defaultStaffPublicKey(),
+        publicKeyAlgorithm: 'hmac-sha256-demo',
         secret: defaultStaffSecret(),
         secretHash: sha256Hex(defaultStaffSecret()),
         enrolledAt: iso(new Date()),
@@ -893,13 +972,21 @@ function normalizeLedgerState(ledger: LaunchLedger) {
   });
 
   ledger.staffDevices = (ledger.staffDevices ?? []).map((device) => {
-    if (device.secret && device.secretHash) {
+    if (device.publicKeyMaterial && device.publicKeyAlgorithm === 'ecdsa-p256') {
+      if (device.secret || device.secretHash) {
+        changed = true;
+        return { ...device, secret: undefined, secretHash: undefined };
+      }
+      return device;
+    }
+    if (device.secret && device.secretHash && device.publicKeyAlgorithm === 'hmac-sha256-demo') {
       return device;
     }
     if (isProductionRuntime()) {
       changed = true;
       return {
         ...device,
+        publicKeyAlgorithm: device.publicKeyAlgorithm ?? 'hmac-sha256-demo',
         secret: undefined,
         secretHash: device.secretHash,
         revokedAt: device.revokedAt ?? iso(new Date()),
@@ -911,6 +998,7 @@ function normalizeLedgerState(ledger: LaunchLedger) {
     changed = true;
     return {
       ...device,
+      publicKeyAlgorithm: 'hmac-sha256-demo',
       secret,
       secretHash: sha256Hex(secret),
     };
@@ -982,6 +1070,7 @@ function createInitialLedger(): LaunchLedger {
       locationLabel: merchants[0].locationLabel,
       label: 'Front counter terminal',
       publicKey: defaultStaffPublicKey(),
+      publicKeyAlgorithm: 'hmac-sha256-demo',
       secret: defaultStaffSecret(),
       secretHash: sha256Hex(defaultStaffSecret()),
       enrolledAt: createdAt,
@@ -1316,6 +1405,8 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
         location_label TEXT NOT NULL,
         label TEXT NOT NULL,
         public_key TEXT NOT NULL UNIQUE,
+        public_key_algorithm TEXT NOT NULL DEFAULT 'ecdsa-p256',
+        public_key_material TEXT,
         secret_hash TEXT,
         enrolled_at TIMESTAMPTZ NOT NULL,
         revoked_at TIMESTAMPTZ
@@ -1379,7 +1470,6 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
         id TEXT PRIMARY KEY,
         claim_id TEXT NOT NULL REFERENCES claims(id),
         merchant_id TEXT NOT NULL REFERENCES merchants(id),
-        code TEXT NOT NULL DEFAULT '',
         code_hash TEXT NOT NULL UNIQUE,
         status TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL,
@@ -1512,7 +1602,9 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
     await queryWithOptionalClient(client, `ALTER TABLE claims ADD COLUMN IF NOT EXISTS claimer_display_name TEXT NOT NULL DEFAULT 'Visitor'`);
     await queryWithOptionalClient(client, `ALTER TABLE claims ADD COLUMN IF NOT EXISTS lifecycle_status TEXT`);
     await queryWithOptionalClient(client, `ALTER TABLE claims ADD COLUMN IF NOT EXISTS blocked_reason TEXT`);
-    await queryWithOptionalClient(client, `ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS code TEXT NOT NULL DEFAULT ''`);
+    await queryWithOptionalClient(client, `ALTER TABLE staff_devices ADD COLUMN IF NOT EXISTS public_key_algorithm TEXT NOT NULL DEFAULT 'ecdsa-p256'`);
+    await queryWithOptionalClient(client, `ALTER TABLE staff_devices ADD COLUMN IF NOT EXISTS public_key_material TEXT`);
+    await queryWithOptionalClient(client, `ALTER TABLE redemptions DROP COLUMN IF EXISTS code`);
     await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS manual_receipt_id TEXT`);
     await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS evidence_level TEXT`);
     await queryWithOptionalClient(client, `ALTER TABLE causal_receipts ADD COLUMN IF NOT EXISTS spend_npr NUMERIC`);
@@ -1588,15 +1680,31 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
 
   for (const device of ledger.staffDevices ?? []) {
     await queryWithOptionalClient(client, `
-      INSERT INTO staff_devices (id, merchant_id, location_label, label, public_key, secret_hash, enrolled_at, revoked_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO staff_devices (
+        id, merchant_id, location_label, label, public_key, public_key_algorithm,
+        public_key_material, secret_hash, enrolled_at, revoked_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       ON CONFLICT (id) DO UPDATE SET
         location_label = EXCLUDED.location_label,
         label = EXCLUDED.label,
         public_key = EXCLUDED.public_key,
+        public_key_algorithm = EXCLUDED.public_key_algorithm,
+        public_key_material = EXCLUDED.public_key_material,
         secret_hash = EXCLUDED.secret_hash,
         revoked_at = EXCLUDED.revoked_at
-    `, [device.id, device.merchantId, device.locationLabel, device.label, device.publicKey, device.secretHash ?? null, device.enrolledAt, device.revokedAt ?? null]);
+    `, [
+      device.id,
+      device.merchantId,
+      device.locationLabel,
+      device.label,
+      device.publicKey,
+      device.publicKeyAlgorithm ?? (device.publicKeyMaterial ? 'ecdsa-p256' : 'hmac-sha256-demo'),
+      device.publicKeyMaterial ?? null,
+      device.secretHash ?? null,
+      device.enrolledAt,
+      device.revokedAt ?? null,
+    ]);
   }
 
   for (const nonce of ledger.staffDeviceNonces ?? []) {
@@ -1685,13 +1793,12 @@ async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: Lau
       continue;
     }
     await queryWithOptionalClient(client, `
-      INSERT INTO redemptions (id, claim_id, merchant_id, code, code_hash, status, created_at, expires_at, redeemed_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO redemptions (id, claim_id, merchant_id, code_hash, status, created_at, expires_at, redeemed_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (id) DO UPDATE SET
-        code = EXCLUDED.code,
         status = EXCLUDED.status,
         redeemed_at = EXCLUDED.redeemed_at
-    `, [code.id, code.claimId, code.merchantId, code.code, code.codeHash, code.status, code.createdAt, redeemCodeExpiresAt(code, ledger), code.redeemedAt ?? null]);
+    `, [code.id, code.claimId, code.merchantId, code.codeHash, code.status, code.createdAt, redeemCodeExpiresAt(code, ledger), code.redeemedAt ?? null]);
   }
 
   for (const challenge of ledger.visitChallenges ?? []) {
@@ -1941,7 +2048,7 @@ async function loadLedgerFromNormalizedTables(client: PoolClient | null = null) 
     id: row.id,
     claimId: row.claim_id,
     merchantId: row.merchant_id,
-    code: row.code,
+    code: '',
     codeHash: row.code_hash,
     status: row.status,
     createdAt: isoFromDb(row.created_at) ?? new Date().toISOString(),
@@ -1996,6 +2103,8 @@ async function loadLedgerFromNormalizedTables(client: PoolClient | null = null) 
     locationLabel: row.location_label,
     label: row.label,
     publicKey: row.public_key,
+    publicKeyAlgorithm: row.public_key_algorithm ?? (row.public_key_material ? 'ecdsa-p256' : 'hmac-sha256-demo'),
+    publicKeyMaterial: row.public_key_material ?? undefined,
     secretHash: row.secret_hash ?? undefined,
     enrolledAt: isoFromDb(row.enrolled_at) ?? new Date().toISOString(),
     revokedAt: isoFromDb(row.revoked_at),
@@ -2149,12 +2258,6 @@ async function saveLedger(ledger: LaunchLedger) {
     if (normalized) {
       ledger = { ...ledger };
     }
-    await dbPool!.query(`
-      UPDATE launch_ledger
-      SET data = $2::jsonb,
-          updated_at = NOW()
-      WHERE id = $1
-    `, [LEDGER_ROW_ID, JSON.stringify(ledger)]);
     await syncNormalizedLaunchTables(null, ledger);
     return;
   }
@@ -2186,17 +2289,10 @@ async function withLedgerMutation<T>(mutator: (ledger: LaunchLedger) => T | Prom
       await ensureDatabaseLedger(client);
       await client.query('SELECT pg_advisory_xact_lock($1)', [LEDGER_LOCK_KEY]);
 
-      await client.query('SELECT data FROM launch_ledger WHERE id = $1 FOR UPDATE', [LEDGER_ROW_ID]);
       const ledger = (await loadLedgerFromNormalizedTables(client)) ?? createInitialLedger();
       normalizeLedgerState(ledger);
       const mutationResult = await mutator(ledger);
 
-      await client.query(`
-        UPDATE launch_ledger
-        SET data = $2::jsonb,
-            updated_at = NOW()
-        WHERE id = $1
-      `, [LEDGER_ROW_ID, JSON.stringify(ledger)]);
       await syncNormalizedLaunchTables(client, ledger);
       await client.query('COMMIT');
 
@@ -2856,7 +2952,7 @@ export async function confirmRedeemCode(params: {
     return { ok: false, reason: 'Enter a valid six-character code.' } satisfies MerchantConfirmResult;
   }
 
-  return withLedgerMutation<MerchantConfirmResult>((ledger) => {
+  return withLedgerMutation<MerchantConfirmResult>(async (ledger) => {
     const { merchant, offer } = getPilotMerchantAndOffer(ledger);
     const staffActor = params.staffDevicePublicKey || params.staffSessionId || 'staff-pin';
     const idempotencyKey = params.idempotencyKey ?? `confirm:${normalizedCode}`;
@@ -2866,7 +2962,7 @@ export async function confirmRedeemCode(params: {
       const priorCode = priorReceipt ? ledger.redeemCodes.find((item) => item.claimId === priorReceipt.claimId) : null;
       return {
         ok: true,
-        code: priorCode?.code ?? normalizedCode,
+        code: priorCode?.code || normalizedCode,
         status: priorCode?.status ?? 'confirmed',
         receiptId: priorReceipt?.id,
         receiptPda: priorReceipt?.receiptPda,
@@ -2915,16 +3011,17 @@ export async function confirmRedeemCode(params: {
         code: normalizedCode,
         nonce: params.staffDeviceNonce,
       });
-      const expectedSignature = device.secret
-        ? hmacStaffDevice(device.secret, staffDeviceSigningMessage({
-          publicKey: params.staffDevicePublicKey,
-          timestamp: params.staffDeviceTimestamp ?? '',
-          action: 'merchant-confirm',
-          code: normalizedCode,
-          nonce: params.staffDeviceNonce,
-        }))
-        : '';
-      if (!params.staffDeviceSignature || !expectedSignature || !nonce || !signatureFresh || !constantTimeHexEqual(expectedSignature, params.staffDeviceSignature)) {
+      const message = staffDeviceSigningMessage({
+        publicKey: params.staffDevicePublicKey,
+        timestamp: params.staffDeviceTimestamp ?? '',
+        action: 'merchant-confirm',
+        code: normalizedCode,
+        nonce: params.staffDeviceNonce,
+      });
+      const verified = params.staffDeviceSignature
+        ? await verifyStaffDeviceSignature({ device, message, signature: params.staffDeviceSignature })
+        : false;
+      if (!params.staffDeviceSignature || !nonce || !signatureFresh || !verified) {
         appendAuditEvent(ledger, {
           requestId: params.requestId ?? randomId('req'),
           actorType: 'staff',
@@ -2947,7 +3044,7 @@ export async function confirmRedeemCode(params: {
     }
 
     if (code.status === 'confirmed' || code.status === 'redeemed') {
-      return { ok: true, code: code.code, status: code.status } satisfies MerchantConfirmResult;
+      return { ok: true, code: code.code || normalizedCode, status: code.status } satisfies MerchantConfirmResult;
     }
 
     if (code.status === 'expired') {
@@ -4255,7 +4352,7 @@ export function getExternalReviewPacket() {
 
 export function getHighSeverityReviewFixes() {
   return [
-    { issue: 'arbitrary sponsored transaction', severity: 'high', fix: 'allowlisted instruction/program policy plus signed intent simulation', test: 'sponsored tx simulation rejects unauthorized actions' },
+    { issue: 'arbitrary signed app intent', severity: 'high', fix: 'allowlisted instruction/program policy plus signed intent simulation', test: 'signed intent simulation rejects unauthorized actions' },
     { issue: 'receipt replay', severity: 'high', fix: 'nonce idempotency storage', test: 'replay nonce is rejected' },
     { issue: 'uncapped beta spend', severity: 'high', fix: 'wallet, merchant, campaign, and daily caps', test: 'spend limits block cap overflow' },
   ];
@@ -6320,7 +6417,7 @@ export function getDemoDataFreeze() {
   return {
     seed: 'stable pilot roster plus deterministic demo receipt fixtures',
     reset: 'local ledger reset restores merchants, offers, and empty outbox',
-    backupTxs: ['receipt verification intent', 'sponsored transaction simulation', 'manual receipt proof fallback'],
+    backupTxs: ['receipt verification intent', 'signed app intent simulation', 'manual receipt proof fallback'],
     resetTested: true,
   };
 }
@@ -6910,7 +7007,7 @@ const CAUSAL_COMMERCE_REQUIRED_ACCOUNTS: Record<string, string[]> = {
     'reward_vault',
     'causal_receipt',
     'nullifier_record',
-    'receipt_authority',
+    'merchant_authority',
     'system_program',
   ],
   settle_receipt_reward: [
@@ -6922,7 +7019,7 @@ const CAUSAL_COMMERCE_REQUIRED_ACCOUNTS: Record<string, string[]> = {
     'referrer_reward_account',
     'visitor_reward_account',
     'reward_mint',
-    'settlement_authority',
+    'merchant_authority',
     'system_program',
     'token_program',
   ],
@@ -6953,7 +7050,7 @@ function validateCausalCommerceIntent(action: string, account: string, accounts:
   const requiredAccounts = CAUSAL_COMMERCE_REQUIRED_ACCOUNTS[action] ?? [];
   const missingAccounts = requiredAccounts.filter((name) => !accounts[name]);
   const invalidAccounts = Object.entries(accounts)
-    .filter(([name, address]) => !policy.allowedAccounts.includes(name) && !name.endsWith('_authority') || !isLikelySolanaAddress(address))
+    .filter(([name, address]) => (!policy.allowedAccounts.includes(name) && !name.endsWith('_authority')) || !isLikelySolanaAddress(address))
     .map(([name]) => name);
 
   if (!policy.allowedInstructions.includes(action)) {
@@ -7038,7 +7135,8 @@ export async function createReceiptVerificationIntent(params: {
       accounts: [proof.receipt.receiptPda, proof.receipt.txSignature, proof.receipt.merchantId],
       computeUnitLimit: 60_000,
     },
-    transaction: Buffer.from(JSON.stringify({ intent, signature })).toString('base64'),
+    artifactType: 'signed_app_intent_simulation',
+    signedIntentEnvelope: Buffer.from(JSON.stringify({ intent, signature })).toString('base64'),
   };
 }
 
@@ -7092,7 +7190,8 @@ export async function createCausalCommerceSponsoredIntent(params: {
     intent,
     signature,
     simulation,
-    transaction: Buffer.from(JSON.stringify({ intent, signature, relayer: 'viral-sync-hosted-app' })).toString('base64'),
+    artifactType: 'signed_app_intent_simulation',
+    signedIntentEnvelope: Buffer.from(JSON.stringify({ intent, signature, relayer: 'viral-sync-hosted-app' })).toString('base64'),
   };
 }
 

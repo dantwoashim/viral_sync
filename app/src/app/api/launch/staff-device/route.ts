@@ -73,6 +73,9 @@ export async function POST(request: NextRequest) {
     authorizedActorId,
     label: typeof body?.label === 'string' ? body.label : 'Staff terminal',
     locationLabel: typeof body?.locationLabel === 'string' ? body.locationLabel : 'Thamel Coffee Lane',
+    publicKey: typeof body?.publicKey === 'string' ? body.publicKey : undefined,
+    publicKeyAlgorithm: typeof body?.publicKeyAlgorithm === 'string' ? body.publicKeyAlgorithm : undefined,
+    publicKeyMaterial: typeof body?.publicKeyMaterial === 'string' ? body.publicKeyMaterial : undefined,
     requestId: requestId(request),
   });
   return withSecurityHeaders(NextResponse.json(result, { status: result.ok ? 200 : 401 }));

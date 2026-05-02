@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle, Keyboard, QrCode } from '@phosphor-icons/react';
+import { CheckCircle, Fingerprint, Keyboard, QrCode } from '@phosphor-icons/react';
 import {
   PremiumAsyncState,
   PremiumMetric,
@@ -13,7 +13,7 @@ import {
   PremiumSurface,
   PremiumTransactionPanel,
 } from '@/components/premium/PremiumUi';
-import { confirmMerchantCode, fetchMerchantSummary } from '@/lib/launch/client';
+import { confirmMerchantCode, enrollStaffDeviceTerminal, fetchMerchantSummary, hasRememberedStaffDevice } from '@/lib/launch/client';
 import type { MerchantSummary } from '@/lib/launch/types';
 
 function normalizeStaffCode(value: string) {
@@ -31,6 +31,8 @@ export default function MerchantScanPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
+  const [deviceReady, setDeviceReady] = useState(false);
+  const [enrollingDevice, setEnrollingDevice] = useState(false);
   const [cameraPermission, setCameraPermission] = useState<'checking' | 'granted' | 'prompt' | 'denied' | 'unsupported'>('checking');
 
   const refresh = useCallback(async () => {
@@ -47,6 +49,7 @@ export default function MerchantScanPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      setDeviceReady(hasRememberedStaffDevice());
       void refresh();
     }, 0);
 
@@ -104,6 +107,28 @@ export default function MerchantScanPage() {
     }
   };
 
+  const enrollTerminal = async () => {
+    setEnrollingDevice(true);
+    setResult(null);
+    try {
+      const response = await enrollStaffDeviceTerminal({
+        staffPin,
+        label: 'Counter terminal',
+        locationLabel: summary?.merchant.locationLabel ?? 'Front counter',
+      });
+      if (!response.ok) {
+        setResult(response.reason ?? 'Terminal enrollment failed.');
+        return;
+      }
+      setDeviceReady(true);
+      setResult('Terminal enrolled. Future confirmations will be signed by this device.');
+    } catch (caught) {
+      setResult(caught instanceof Error ? caught.message : 'Terminal enrollment failed.');
+    } finally {
+      setEnrollingDevice(false);
+    }
+  };
+
   return (
     <PremiumShell>
       <PremiumNav />
@@ -137,12 +162,16 @@ export default function MerchantScanPage() {
                   placeholder="DEMO-PIN"
                   autoComplete="off"
                 />
-                <small>Demo staff authorization. Production should bind this to staff devices.</small>
+                <small>{deviceReady ? 'This terminal signs confirmations with its enrolled device key.' : 'Use once to enroll this terminal, then confirmations are device-signed.'}</small>
               </div>
               <div className="premium-actions">
                 <button className="premium-button premium-button-primary" onClick={submit} disabled={working || code.trim().length < 6}>
                   {working ? 'Checking code' : 'Confirm visit'}
                   <CheckCircle size={17} weight="bold" />
+                </button>
+                <button className="premium-button premium-button-secondary" type="button" onClick={enrollTerminal} disabled={enrollingDevice || !staffPin.trim()}>
+                  {enrollingDevice ? 'Enrolling' : deviceReady ? 'Re-enroll terminal' : 'Enroll terminal'}
+                  <Fingerprint size={16} weight="bold" />
                 </button>
                 <button className="premium-button premium-button-secondary" type="button" onClick={() => setCode('')}>Clear</button>
                 <button className="premium-button premium-button-quiet" type="button" onClick={() => void refresh()}>Refresh queue</button>
@@ -189,6 +218,7 @@ export default function MerchantScanPage() {
             <PremiumProofRow label="Held out" value={summary?.metrics[3]?.value ?? '0'} meta="Needs review" status="danger" />
             <div className="premium-component-row">
               <PremiumStatusBadge tone={loading ? 'warning' : 'success'}>{loading ? 'Loading queue' : 'Queue loaded'}</PremiumStatusBadge>
+              <PremiumStatusBadge tone={deviceReady ? 'success' : 'warning'}><Fingerprint size={13} weight="bold" /> {deviceReady ? 'Device enrolled' : 'Enroll device'}</PremiumStatusBadge>
               <PremiumStatusBadge tone={cameraPermission === 'denied' ? 'warning' : 'muted'}><QrCode size={13} weight="bold" /> {cameraPermission === 'denied' ? 'Manual mode' : 'Camera optional'}</PremiumStatusBadge>
             </div>
           </PremiumTransactionPanel>

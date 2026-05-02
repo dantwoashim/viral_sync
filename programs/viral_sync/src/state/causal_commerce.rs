@@ -27,6 +27,7 @@ pub struct CausalMerchantConfig {
     pub bump: u8,
     pub merchant_authority: Pubkey,
     pub org_id_hash: [u8; 32],
+    // Reserved for a future Merkle/proof authority model. Current production path is merchant-authorized.
     pub allowed_staff_delegate_root: [u8; 32],
     pub terminal_authority_root: [u8; 32],
     pub status: CausalMerchantStatus,
@@ -48,8 +49,10 @@ pub struct GrowthCampaign {
     pub reward_mint: Pubkey,
     pub reward_per_verified_visit: u64,
     pub max_redemptions: u32,
+    // Commitment metadata only until parent receipt proofs are verified on-chain.
     pub max_depth: u8,
     pub referrer_split_bps: u16,
+    // Policy commitments; only referrer_split_bps is enforced by the current program.
     pub split_rules_hash: [u8; 32],
     pub fraud_policy_hash: [u8; 32],
     pub starts_at: i64,
