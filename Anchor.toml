@@ -5,13 +5,13 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-viral_sync = "8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9"
+viral_sync = "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46"
 
 [programs.devnet]
-viral_sync = "8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9"
+viral_sync = "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46"
 
 [programs.mainnet]
-viral_sync = "8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9"
+viral_sync = "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46"
 
 [registry]
 url = "https://api.apr.dev"

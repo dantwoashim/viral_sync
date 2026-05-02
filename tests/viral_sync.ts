@@ -1,7 +1,7 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 
-const PROGRAM_ID = new PublicKey("8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9");
+const PROGRAM_ID = new PublicKey("AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46");
 const INBOUND_BUFFER_SIZE = 16;
 const MAX_REFERRER_SLOTS = 4;
 
@@ -274,7 +274,7 @@ function blinkUrl(actionUrl: string) {
 
 function relayerPolicy() {
   return {
-    allowedPrograms: ["8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9"],
+    allowedPrograms: ["AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46"],
     allowedInstructions: [
       "verify_causal_receipt",
       "register_merchant",

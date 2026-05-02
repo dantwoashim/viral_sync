@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'crypto';
 
 export type ReceiptVerificationStatus = 'verified' | 'pending' | 'failed' | 'not_found';
 
-export const VIRAL_SYNC_PROGRAM_ID = '8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9';
+export const VIRAL_SYNC_PROGRAM_ID = 'AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46';
 export const SEEDS = {
   merchantConfig: 'causal_merchant',
   growthCampaign: 'growth_campaign',

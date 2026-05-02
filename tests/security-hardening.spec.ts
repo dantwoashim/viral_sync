@@ -143,7 +143,8 @@ describe('production security hardening guards', () => {
     expect(pkg.scripts['test:anchor-attacks']).to.include('--attack-check');
     expect(script).to.include('wrong merchant authority cannot settle receipt');
     expect(script).to.include('wrong beneficiary token account cannot receive settlement');
-    expect(script).to.include('.signers([attackerAuthority])');
+    expect(script).to.include('sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()');
+    expect(script).to.include('[attackerAuthority]');
   });
 
   it('exposes a devnet proof path with intent manifest and narrow effect checks', () => {
