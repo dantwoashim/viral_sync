@@ -1,144 +1,122 @@
 # Viral Sync
 
-Viral Sync is a Solana-backed referral commerce prototype that connects online word-of-mouth to verified in-store visits.
+Viral Sync is a Causal Commerce protocol for Solana. It lets a merchant fund a reward campaign and pay only when a staff-confirmed offline visit produces a causal receipt.
 
-Instead of rewarding impressions, clicks, or self-reported referrals, Viral Sync is built around a stricter unit: a **Causal Receipt**. A Causal Receipt links a referral invite, a customer claim, a merchant-confirmed visit, and reward settlement evidence.
-
-The goal is simple:
+Each receipt commits to the invite hash, campaign nullifier, visit attestation hash, and intent manifest hash. The point is not to reward clicks. The point is to make offline referral spend verifiable.
 
 ```text
 Pay for verified visits, not unverifiable clicks.
 ```
 
-## Why It Exists
+## What It Proves
 
-Local merchants often rely on referrals, creators, community pages, and customer recommendations, but most tools only measure the easy part: links, clicks, and signups. The hard part is proving that a referral actually caused a real visit.
-
-Viral Sync explores a better attribution loop:
-
-1. A merchant funds a campaign.
-2. A customer shares an invite.
-3. A friend claims the offer.
-4. Staff confirms the visit at the counter.
-5. The system creates a receipt-backed proof.
-6. Rewards can be settled from campaign escrow.
-
-That makes the product useful for cafes, restaurants, hostels, salons, gyms, events, and neighborhood businesses where the real conversion happens offline.
-
-## What This Repository Contains
-
-This is a full-stack prototype, not just a landing page.
+The core path is deliberately narrow:
 
 ```text
-app/                  Next.js app for consumers, merchants, receipts, and dashboards
-programs/viral_sync/  Anchor program for Causal Commerce primitives
-relayer/              Sponsored transaction relayer service
-server/actions/       Solana Actions service path
-clients/              Client and POS adapter experiments
-cranks/               Background cleanup runner
-sdk/                  Public verification and PDA helper package
-tests/                Protocol, product, and security regression tests
+merchant registers
+campaign is created
+bounty is funded
+staff-confirmed receipt is recorded
+reward is settled from escrow
 ```
 
-## Core Product Loop
+The app still includes product surfaces for merchants, consumers, receipts, and operations, but the proof path is the part that matters most.
 
-The main flow is intentionally narrow:
+## Devnet Proof
+
+This submission includes a devnet proof path:
+
+1. `register_merchant`
+2. `create_growth_campaign`
+3. `fund_growth_bounty`
+4. `record_causal_receipt`
+5. `settle_receipt_reward`
+
+The generated proof manifest lives at:
+
+```text
+app/public/proofs/devnet-causal-commerce.json
+```
+
+Run the proof script with:
+
+```bash
+npm run devnet:causal-commerce
+```
+
+The proof page is:
+
+```text
+/frontier-proof
+```
+
+It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, and intent manifest hash.
+
+## Why Solana
+
+Viral Sync needs cheap settlement, account-level proof objects, escrow custody, nullifier replay protection, and public receipt state. Solana is a good fit because the protocol can make reward movement fast, inspectable, and bounded by campaign state.
+
+## Product Loop
 
 ```text
 Invite -> Claim -> Redeem Code -> Merchant Confirmation -> Receipt Proof -> Causal Graph
 ```
 
-Key routes:
+Useful routes:
 
 ```text
-/invite             Create and share a referral invite
-/offer/[token]      Claim an offer from a referral link
-/redeem             Generate a counter redemption code
-/merchant/scan      Confirm a visit as merchant staff
-/receipts/[id]      View receipt proof
-/causal-graph       See referral-to-visit attribution
-/merchant/today     Merchant operations dashboard
-/merchant/ledger    Reward and settlement ledger
-/security           Security posture and launch limits
-/pricing            Merchant-facing pricing surface
-/support            Support and recovery paths
+/frontier-proof     Devnet proof path
+/invite             Referral invite flow
+/offer/[token]      Offer claim flow
+/redeem             Consumer redemption code
+/merchant/scan      Staff counter confirmation
+/receipts/[id]      Receipt explorer
+/causal-graph       Attribution graph
+/merchant/today     Merchant operations view
+/security           Trust model
 ```
 
-## What Is Working
+## Repository Structure
 
-- Consumer invite, claim, passbook, and redeem-code flows.
-- Merchant scan, campaign, ledger, and daily operations screens.
-- Receipt explorer with public verification states.
-- Causal graph showing privacy-safe attribution edges.
-- Launch ledger with local JSON fallback and Postgres support for deployed pilots.
-- Staff confirmation hardening with enrolled device proof instead of plain bearer headers.
-- Causal invite signing with guarded production secrets.
-- Relayer policy gates, replay protection, payload caps, and program allowlisting.
-- Anchor program primitives for merchants, campaigns, escrow, receipts, settlement, transfer hooks, and account constraints.
-- Security regression tests for the highest-risk production gates.
+```text
+app/                  Next.js product app
+programs/viral_sync/  Anchor program
+relayer/              Sponsored transaction relayer
+server/actions/       Solana Actions service path
+clients/              Client and POS adapter experiments
+cranks/               Background cleanup runner
+sdk/                  Verification and PDA helper package
+tests/                Protocol and security regression tests
+```
 
 ## Current Status
 
-Viral Sync is a **devnet/capped pilot prototype**. It is not an audited mainnet protocol for unrestricted real value.
+Viral Sync is a devnet and capped-pilot prototype. It is not an audited mainnet protocol for unrestricted real value.
 
-Recent hardening work focused on the highest-risk areas:
+Implemented hardening includes:
 
-- Receipt recording requires merchant authority.
-- Settlement requires merchant authority.
-- Settlement destination accounts are bound to stored beneficiaries.
-- Campaign time windows are enforced before receipt recording.
-- Reward mint constraints are explicit.
-- Burn and escrow instructions bind token ownership and mint relationships.
-- Unsafe dispute and bond economic stubs fail closed until their vault models are implemented.
-- Staff device confirmation requires timestamped proof of possession.
-- Relayer signing is no longer an opaque “sign anything” path.
+- Merchant authority gates for receipt recording and settlement.
+- Beneficiary-bound reward destinations.
+- Campaign time-window and reward-pool accounting checks.
+- Nullifier replay protection.
+- Intent manifest hash committed on receipt accounts.
+- Staff confirmation hardening with enrolled device proof instead of plain bearer headers.
+- Relayer authentication, payload caps, replay controls, and allowlists.
+- Normalized production tables for the launch backend.
+- Security regression tests for the highest-risk paths.
 
-That said, this still needs an independent Solana security audit before real merchant funds are allowed at scale.
+The localnet smoke path exercises the Causal Commerce loop with merchant registration, campaign creation, escrow funding, receipt recording, settlement, replay rejection, and vault close behavior.
 
-## Architecture
+The proof scripts document escrow funding, receipt recording, settlement, replay rejection, and close-check output before judge use.
 
-Viral Sync has four main layers.
+## Current Limitations
 
-**Consumer app**
-
-Customers can receive an invite, claim an offer, generate a code, and later view their reward/receipt history.
-
-**Merchant app**
-
-Merchants can inspect visits, campaigns, reward liability, staff activity, and proof records. The merchant screens are built around counter tasks rather than abstract analytics.
-
-**Protocol layer**
-
-The Anchor program models Causal Commerce accounts such as merchant configs, growth campaigns, reward escrows, causal receipts, nullifiers, and settlement records.
-
-**Relayer and verification layer**
-
-The relayer supports sponsored transactions under strict policy checks. The SDK exposes helper methods for receipt verification and PDA derivation.
-
-## Security Posture
-
-Viral Sync treats security as part of the product, not a final polish step.
-
-Implemented guardrails include:
-
-- Merchant RBAC for sensitive launch routes.
-- Same-origin protection for mutation routes.
-- Production secret guards for demo fallback secrets.
-- Staff device signature proof for counter confirmations.
-- Idempotency checks before redemption confirmation side effects.
-- Hashed redeem-code lookup.
-- Relayer API authentication.
-- Relayer transaction size caps.
-- Relayer program allowlisting.
-- Protocol constraints for settlement authority, beneficiaries, token mints, and token owners.
-- Regression tests for the most important hardening gates.
-
-Known limitations:
-
-- The protocol has not received an external audit.
-- Some advanced modules are intentionally disabled until their account and value-flow models are complete.
-- The product still uses a launch-ledger model; a normalized production database schema is the next major backend milestone.
-- Solana Actions support exists as a service path, but the supported demo path is currently the mobile web flow.
+- The public app includes a local commitment preview for merchant UX.
+- The judge-facing proof page uses devnet transaction output from the proof manifest.
+- The current relayer effect checker is Viral Sync-specific, not a generic Solana transaction firewall.
+- The program has not been externally audited.
+- The current intent manifest is committed on-chain by hash; full manifest storage remains off-chain.
+- Some advanced modules are intentionally disabled until their value-flow models are complete.
 
 ## Running Locally
 
@@ -154,12 +132,6 @@ Start the app:
 npm run dev --workspace app
 ```
 
-Run the relayer locally:
-
-```bash
-npm run dev --workspace viral-sync-relayer
-```
-
 Build the Anchor program:
 
 ```bash
@@ -172,20 +144,17 @@ Run the full verification suite:
 npm run verify
 ```
 
-`npm run verify` runs app lint/build, workspace TypeScript builds, `cargo check`, Anchor build, and the protocol test suite.
-
 ## Useful Commands
 
 ```bash
 npm run typecheck
 npm run verify
 npm run production:readiness
-npm run localnet:smoke
+npm run localnet:causal-commerce -- --replay-check --attack-check
+npm run devnet:causal-commerce
 ```
 
-The localnet smoke path exercises the Causal Commerce loop with merchant registration, campaign creation, escrow funding, receipt recording, settlement, replay rejection, and vault close behavior.
-
-## Environment Variables
+## Environment
 
 App:
 
@@ -209,64 +178,9 @@ RELAYER_SECRET
 RELAYER_API_KEY
 CORS_ORIGINS
 ALLOWED_PROGRAM_IDS
+ALLOWED_INSTRUCTION_PREFIXES
+ALLOWED_WRITABLE_ACCOUNTS
 MAX_TRANSACTION_BYTES=2048
 ```
 
-Actions service:
-
-```text
-PUBLIC_BASE_URL
-ACTION_ICON_URL
-ACTIONS_ENABLED=false
-```
-
-## Verification
-
-The current test suite covers:
-
-- PDA derivation.
-- Merchant and campaign account relationships.
-- Receipt and nullifier uniqueness.
-- Redemption code lifecycle.
-- Idempotent reward ledger behavior.
-- Staff confirmation gates.
-- Relayer policy and replay controls.
-- SDK verification helpers.
-- Security hardening regressions.
-
-The project currently passes:
-
-```text
-npm run verify
-326 protocol/product/security tests
-Anchor build
-Next.js production build
-Workspace TypeScript builds
-```
-
-## Roadmap
-
-The highest-leverage next steps are:
-
-1. Replace the launch ledger with normalized production tables.
-2. Add real Anchor integration tests for every negative attack path.
-3. Complete the dispute and bond vault models instead of re-enabling stubs.
-4. Wire a production-grade indexer that verifies chain truth before marking receipts settled.
-5. Run an external Solana audit before any uncapped mainnet campaign.
-6. Move from pilot merchant fixtures to true multi-merchant onboarding.
-
-## Tech Stack
-
-- Next.js
-- TypeScript
-- Solana
-- Anchor
-- Rust
-- Token-2022
-- PostgreSQL
-- Express
-- Node.js
-
-## License
-
-MIT
+The honest version: Viral Sync is not claiming production readiness. It is claiming a concrete, inspectable devnet path for merchant-funded causal receipts.

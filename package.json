@@ -20,6 +20,7 @@
     "production:readiness:strict": "node scripts/validate-production-readiness.mjs --strict",
     "localnet:register-merchant": "ts-node scripts/register-merchant-localnet.ts",
     "localnet:causal-commerce": "ts-node scripts/run-causal-commerce-localnet.ts",
+    "devnet:causal-commerce": "ts-node scripts/run-causal-commerce-localnet.ts --rpc https://api.devnet.solana.com --replay-check --attack-check --output tmp/devnet-causal-commerce.json",
     "test:anchor-attacks": "ts-node scripts/run-causal-commerce-localnet.ts --replay-check --attack-check --close-check",
     "localnet:verify-receipt": "ts-node scripts/verify-causal-receipt-localnet.ts",
     "localnet:smoke": "ts-node scripts/smoke-localnet-causal-commerce.ts",

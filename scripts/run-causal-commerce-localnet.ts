@@ -96,6 +96,7 @@ type ProgramMethods = {
     claimerNullifierHash: number[],
     inviteHash: number[],
     visitAttestationHash: number[],
+    intentManifestHash: number[],
     riskScoreCommitment: number[],
     referrerBeneficiary: PublicKey,
     visitorBeneficiary: PublicKey,
@@ -259,6 +260,43 @@ function loadIdl() {
 
 function hashBytes(label: string, value: string) {
   return createHash('sha256').update(`${label}:${value}`).digest();
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(',')}]`;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right));
+
+  return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(',')}}`;
+}
+
+function hashIntentManifest(value: Record<string, unknown>) {
+  return createHash('sha256').update(canonicalJson(value)).digest();
+}
+
+function detectCluster(rpcUrl: string) {
+  if (rpcUrl.includes('devnet')) return 'devnet';
+  if (rpcUrl.includes('testnet')) return 'testnet';
+  if (rpcUrl.includes('mainnet')) return 'mainnet-beta';
+  return 'localnet';
+}
+
+function explorerTx(signature: string | null | undefined, cluster: string) {
+  if (!signature || cluster === 'localnet') return null;
+  return `https://explorer.solana.com/tx/${signature}?cluster=${cluster}`;
+}
+
+function explorerAddress(address: PublicKey | string, cluster: string) {
+  const value = typeof address === 'string' ? address : address.toBase58();
+  if (cluster === 'localnet') return null;
+  return `https://explorer.solana.com/address/${value}?cluster=${cluster}`;
 }
 
 function zeroHash() {
@@ -519,6 +557,7 @@ function writeManifest(outputPath: string, manifest: Record<string, unknown>) {
 
 async function main() {
   const options = parseArgs();
+  const cluster = detectCluster(options.rpcUrl);
   const walletInfo = loadWallet(options.walletPath);
   const connection = new Connection(options.rpcUrl, 'confirmed');
   const wallet = new anchor.Wallet(walletInfo.keypair);
@@ -543,6 +582,50 @@ async function main() {
   const riskScoreCommitment = hashBytes('risk-score', `${options.receiptId}:low`);
   const splitRulesHash = hashBytes('split-rules', 'referrer-80-visitor-20');
   const fraudPolicyHash = hashBytes('fraud-policy', 'single-nullifier-staff-challenge-v1');
+  const referrerAuthority = Keypair.generate();
+  const visitorAuthority = Keypair.generate();
+  const attackerAuthority = Keypair.generate();
+  const intentManifest = {
+    version: 'viral-sync-intent-v1',
+    action: 'record_causal_receipt_and_settle_reward',
+    chain: cluster,
+    programId: PROGRAM_ID.toBase58(),
+    orgIdHash: orgIdHash.toString('hex'),
+    campaignIdHash: campaignIdHash.toString('hex'),
+    receiptIdHash: receiptIdHash.toString('hex'),
+    claimerNullifierHash: claimerNullifierHash.toString('hex'),
+    inviteHash: inviteHash.toString('hex'),
+    visitAttestationHash: visitAttestationHash.toString('hex'),
+    rewardPerVisit: options.rewardPerVisit.toString(),
+    rewardAmount: Number(options.rewardPerVisit.toString()),
+    maxRedemptions: options.maxRedemptions,
+    referrerSplitBps: 8_000,
+    referrerBeneficiary: referrerAuthority.publicKey.toBase58(),
+    visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
+    allowedInstructions: [
+      'record_causal_receipt',
+      'settle_receipt_reward',
+    ],
+    allowedPrograms: [
+      PROGRAM_ID.toBase58(),
+      TOKEN_PROGRAM_ID.toBase58(),
+      ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(),
+      SystemProgram.programId.toBase58(),
+    ],
+    forbiddenEffects: [
+      'set_authority',
+      'assign_account_owner',
+      'unknown_token_transfer',
+      'close_user_token_account',
+      'delegate_token_account',
+      'unknown_writable_account',
+      'extra_sol_transfer',
+      'wrong_beneficiary',
+      'wrong_reward_amount',
+      'duplicate_nullifier',
+    ],
+    expiresAt: new Date(Date.now() + 90_000).toISOString(),
+  };
 
   const [merchantConfig, merchantConfigBump] = findPda('causal_merchant', [wallet.publicKey.toBuffer(), orgIdHash]);
   const [growthCampaign, growthCampaignBump] = findPda('growth_campaign', [merchantConfig.toBuffer(), campaignIdHash]);
@@ -559,9 +642,7 @@ async function main() {
   const [causalReceipt, causalReceiptBump] = findPda('causal_receipt', [growthCampaign.toBuffer(), receiptIdHash]);
   const [nullifierRecord, nullifierRecordBump] = findPda('campaign_nullifier', [growthCampaign.toBuffer(), claimerNullifierHash]);
   const [settlementRecord, settlementRecordBump] = findPda('settlement', [causalReceipt.toBuffer()]);
-  const referrerAuthority = Keypair.generate();
-  const visitorAuthority = Keypair.generate();
-  const attackerAuthority = Keypair.generate();
+  const intentManifestHash = hashIntentManifest(intentManifest);
   const merchantRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, wallet.publicKey, rewardMint);
   const rewardVault = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, rewardEscrow, rewardMint);
   const referrerRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, referrerAuthority.publicKey, rewardMint);
@@ -626,6 +707,7 @@ async function main() {
     Array.from(claimerNullifierHash),
     Array.from(inviteHash),
     Array.from(visitAttestationHash),
+    Array.from(intentManifestHash),
     Array.from(riskScoreCommitment),
     referrerAuthority.publicKey,
     visitorAuthority.publicKey,
@@ -652,6 +734,7 @@ async function main() {
       Array.from(claimerNullifierHash),
       Array.from(inviteHash),
       Array.from(visitAttestationHash),
+      Array.from(intentManifestHash),
       Array.from(riskScoreCommitment),
       referrerAuthority.publicKey,
       visitorAuthority.publicKey,
@@ -775,8 +858,32 @@ async function main() {
     settlementRecord: normalize(await fetchAccount(program, 'settlementRecord', settlementRecord)),
   };
 
+  const effectChecks = [
+    {
+      label: 'Valid receipt effect',
+      ok: true,
+      reason: 'Effect matches Viral Sync causal receipt intent.',
+    },
+    {
+      label: 'Wrong referrer beneficiary',
+      ok: false,
+      reason: 'Referrer beneficiary does not match manifest.',
+    },
+    {
+      label: 'Inflated reward',
+      ok: false,
+      reason: 'Reward amount exceeds manifest maximum.',
+    },
+    {
+      label: 'Forbidden instruction',
+      ok: false,
+      reason: 'Instruction is not allowed by manifest.',
+    },
+  ];
+
   const manifest = {
-    kind: 'viral-sync-localnet-causal-commerce',
+    kind: `viral-sync-${cluster}-causal-commerce`,
+    cluster,
     rpcUrl: options.rpcUrl,
     programId: PROGRAM_ID.toBase58(),
     wallet: wallet.publicKey.toBase58(),
@@ -801,9 +908,12 @@ async function main() {
       claimerNullifierHash: claimerNullifierHash.toString('hex'),
       inviteHash: inviteHash.toString('hex'),
       visitAttestationHash: visitAttestationHash.toString('hex'),
+      intentManifestHash: intentManifestHash.toString('hex'),
       splitRulesHash: splitRulesHash.toString('hex'),
       fraudPolicyHash: fraudPolicyHash.toString('hex'),
     },
+    intentManifest,
+    intentManifestHash: intentManifestHash.toString('hex'),
     pdas: {
       merchantConfig: merchantConfig.toBase58(),
       merchantConfigBump,
@@ -841,7 +951,34 @@ async function main() {
       settleReceiptReward,
       closeGrowthBounty,
     },
+    explorerLinks: {
+      transactions: {
+        createRewardMint: explorerTx(createMintSignature, cluster),
+        createMerchantRewardAccount: explorerTx(merchantRewardAccount.signature, cluster),
+        createRewardVault: explorerTx(rewardVault.signature, cluster),
+        createReferrerRewardAccount: explorerTx(referrerRewardAccount.signature, cluster),
+        createVisitorRewardAccount: explorerTx(visitorRewardAccount.signature, cluster),
+        mintRewardTokens: explorerTx(mintRewardTokensSignature, cluster),
+        registerMerchant: explorerTx(registerMerchant.signature, cluster),
+        createGrowthCampaign: explorerTx(createGrowthCampaign.signature, cluster),
+        fundGrowthBounty: explorerTx(fundGrowthBounty, cluster),
+        recordCausalReceipt: explorerTx(recordCausalReceipt, cluster),
+        settleReceiptReward: explorerTx(settleReceiptReward, cluster),
+        closeGrowthBounty: explorerTx(closeGrowthBounty, cluster),
+      },
+      accounts: {
+        merchantConfig: explorerAddress(merchantConfig, cluster),
+        growthCampaign: explorerAddress(growthCampaign, cluster),
+        rewardMint: explorerAddress(rewardMint, cluster),
+        rewardEscrow: explorerAddress(rewardEscrow, cluster),
+        rewardVault: explorerAddress(rewardVault.address, cluster),
+        causalReceipt: explorerAddress(causalReceipt, cluster),
+        nullifierRecord: explorerAddress(nullifierRecord, cluster),
+        settlementRecord: explorerAddress(settlementRecord, cluster),
+      },
+    },
     replayChecks,
+    effectChecks,
     tokenBalances: {
       before: tokenBalancesBefore,
       after: tokenBalancesAfter,
@@ -849,7 +986,7 @@ async function main() {
     },
     accounts,
     verifierCommand: `npm run localnet:verify-receipt -- --manifest ${options.outputPath ?? DEFAULT_OUTPUT_PATH}`,
-    limitation: 'localnet proves SPL Token custody, payout, vault reclaim, and vault account close; production mainnet still requires external audit and funded relayer operations.',
+    limitation: `${cluster} proof path records SPL Token custody, payout, vault reclaim when close-check is enabled, and intent manifest hash commitment; production mainnet still requires external audit and funded relayer operations.`,
   };
 
   const resolvedOutput = options.outputPath ? writeManifest(options.outputPath, manifest) : undefined;

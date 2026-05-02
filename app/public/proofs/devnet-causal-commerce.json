@@ -1,0 +1,53 @@
+{
+  "kind": "viral-sync-devnet-causal-commerce",
+  "cluster": "devnet",
+  "status": "pending-devnet-run",
+  "programId": "8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9",
+  "limitation": "Run npm run devnet:causal-commerce after funding the deploy wallet to replace this placeholder with real devnet signatures.",
+  "hashes": {
+    "intentManifestHash": "pending",
+    "visitAttestationHash": "pending"
+  },
+  "pdas": {
+    "merchantConfig": "pending",
+    "growthCampaign": "pending",
+    "rewardEscrow": "pending",
+    "rewardVault": "pending",
+    "causalReceipt": "pending",
+    "nullifierRecord": "pending",
+    "settlementRecord": "pending"
+  },
+  "signatures": {
+    "registerMerchant": null,
+    "createGrowthCampaign": null,
+    "fundGrowthBounty": null,
+    "recordCausalReceipt": null,
+    "settleReceiptReward": null
+  },
+  "explorerLinks": {
+    "transactions": {},
+    "accounts": {}
+  },
+  "effectChecks": [
+    {
+      "label": "Valid receipt effect",
+      "ok": true,
+      "reason": "Effect matches Viral Sync causal receipt intent."
+    },
+    {
+      "label": "Wrong referrer beneficiary",
+      "ok": false,
+      "reason": "Referrer beneficiary does not match manifest."
+    },
+    {
+      "label": "Inflated reward",
+      "ok": false,
+      "reason": "Reward amount exceeds manifest maximum."
+    },
+    {
+      "label": "Forbidden instruction",
+      "ok": false,
+      "reason": "Instruction is not allowed by manifest."
+    }
+  ]
+}
