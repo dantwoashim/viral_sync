@@ -85,6 +85,7 @@ pub struct CausalReceiptRecorded {
     pub growth_campaign: Pubkey,
     pub receipt_id_hash: [u8; 32],
     pub claimer_nullifier_hash: [u8; 32],
+    pub intent_manifest_hash: [u8; 32],
     pub reward_amount: u64,
 }
 

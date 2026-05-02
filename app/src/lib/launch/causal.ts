@@ -123,11 +123,11 @@ export function signStaffChallenge(challengeHash: string, staffPin: string) {
 }
 
 export function deriveReceiptPdaLike(receiptIdHash: string) {
-  return `pda_${sha256Hex(`causal_receipt:${receiptIdHash}`).slice(0, 32)}`;
+  return `preview_receipt_${sha256Hex(`causal_receipt:${receiptIdHash}`).slice(0, 32)}`;
 }
 
 export function deriveTxSignatureLike(receiptIdHash: string, visitAttestationHash: string) {
-  return `signed_app_intent_${sha256Hex(`${receiptIdHash}:${visitAttestationHash}`).slice(0, 44)}`;
+  return `preview_intent_${sha256Hex(`${receiptIdHash}:${visitAttestationHash}`).slice(0, 44)}`;
 }
 
 export function verifyReceiptCommitmentProof(params: {

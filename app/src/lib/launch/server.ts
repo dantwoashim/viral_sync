@@ -3479,7 +3479,7 @@ export async function runProgramEventIndexer() {
       if ((job.topic === 'receipt.index' || job.topic === 'receipt.submit') && job.status !== 'succeeded') {
         const receiptId = String(job.payload.receiptId ?? '');
         const receipt = (ledger.causalReceipts ?? []).find((item) => item.id === receiptId);
-        const chainVerified = job.payload.chainVerified === true && receipt?.txSignature && !receipt.txSignature.startsWith('signed_app_intent_');
+        const chainVerified = job.payload.chainVerified === true && receipt?.txSignature && !receipt.txSignature.startsWith('preview_intent_');
         if (!chainVerified) {
           markOutboxAttempt(job, false, 'Chain verification is required before settlement indexing.');
           indexed.push({

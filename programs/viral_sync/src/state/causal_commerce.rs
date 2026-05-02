@@ -126,6 +126,7 @@ pub struct CausalReceipt {
     pub claimer_nullifier_hash: [u8; 32],
     pub invite_hash: [u8; 32],
     pub visit_attestation_hash: [u8; 32],
+    pub intent_manifest_hash: [u8; 32],
     pub risk_score_commitment: [u8; 32],
     pub reward_amount: u64,
     pub settled_amount: u64,
@@ -136,7 +137,7 @@ pub struct CausalReceipt {
 
 impl CausalReceipt {
     pub const SEED_PREFIX: &'static [u8] = b"causal_receipt";
-    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8 + CausalReceiptStatus::SIZE + 8 + 8;
+    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8 + CausalReceiptStatus::SIZE + 8 + 8;
 }
 
 #[account]

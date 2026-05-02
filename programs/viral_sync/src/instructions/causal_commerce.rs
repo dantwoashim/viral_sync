@@ -343,6 +343,7 @@ pub fn record_causal_receipt(
     claimer_nullifier_hash: [u8; 32],
     invite_hash: [u8; 32],
     visit_attestation_hash: [u8; 32],
+    intent_manifest_hash: [u8; 32],
     risk_score_commitment: [u8; 32],
     referrer_beneficiary: Pubkey,
     visitor_beneficiary: Pubkey,
@@ -351,6 +352,7 @@ pub fn record_causal_receipt(
     require!(claimer_nullifier_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(invite_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(visit_attestation_hash != [0; 32], ViralSyncError::InvalidConfig);
+    require!(intent_manifest_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(referrer_beneficiary != Pubkey::default(), ViralSyncError::InvalidConfig);
     require!(visitor_beneficiary != Pubkey::default(), ViralSyncError::InvalidConfig);
 
@@ -385,6 +387,7 @@ pub fn record_causal_receipt(
     receipt.claimer_nullifier_hash = claimer_nullifier_hash;
     receipt.invite_hash = invite_hash;
     receipt.visit_attestation_hash = visit_attestation_hash;
+    receipt.intent_manifest_hash = intent_manifest_hash;
     receipt.risk_score_commitment = risk_score_commitment;
     receipt.reward_amount = campaign.reward_per_verified_visit;
     receipt.settled_amount = 0;
@@ -414,6 +417,7 @@ pub fn record_causal_receipt(
         growth_campaign: campaign.key(),
         receipt_id_hash,
         claimer_nullifier_hash,
+        intent_manifest_hash,
         reward_amount: receipt.reward_amount,
     });
 

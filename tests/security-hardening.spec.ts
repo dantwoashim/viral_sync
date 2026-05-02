@@ -17,9 +17,12 @@ describe('production security hardening guards', () => {
     expect(causalCommerce).to.include('campaign.total_recorded < campaign.max_redemptions');
     expect(causalCommerce).to.include('campaign.referrer_split_bps as u64');
     expect(causalCommerce).to.include('referrer_split_bps <= 10_000');
+    expect(causalCommerce).to.include('intent_manifest_hash != [0; 32]');
+    expect(causalCommerce).to.include('receipt.intent_manifest_hash = intent_manifest_hash');
     expect(causalCommerce).to.include('referrer_reward_account.owner == causal_receipt.referrer_beneficiary');
     expect(causalCommerce).to.include('visitor_reward_account.owner == causal_receipt.visitor_beneficiary');
     expect(causalCommerce).to.include('reward_mint.key() == growth_campaign.reward_mint');
+    expect(causalState).to.include('pub intent_manifest_hash: [u8; 32]');
     expect(causalState).to.include('pub referrer_beneficiary: Pubkey');
     expect(causalState).to.include('pub visitor_beneficiary: Pubkey');
   });
@@ -141,5 +144,27 @@ describe('production security hardening guards', () => {
     expect(script).to.include('wrong merchant authority cannot settle receipt');
     expect(script).to.include('wrong beneficiary token account cannot receive settlement');
     expect(script).to.include('.signers([attackerAuthority])');
+  });
+
+  it('exposes a devnet proof path with intent manifest and narrow effect checks', () => {
+    const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
+    const script = read('scripts/run-causal-commerce-localnet.ts');
+    const effectCheck = read('app/src/lib/launch/effect-check.ts');
+    const proofPage = read('app/src/app/frontier-proof/page.tsx');
+    const proofManifest = read('app/public/proofs/devnet-causal-commerce.json');
+
+    expect(pkg.scripts['devnet:causal-commerce']).to.include('https://api.devnet.solana.com');
+    expect(pkg.scripts['devnet:causal-commerce']).to.include('--replay-check --attack-check');
+    expect(script).to.include('intentManifestHash');
+    expect(script).to.include('explorerLinks');
+    expect(script).to.include('https://explorer.solana.com/tx/');
+    expect(effectCheck).to.include('validateCausalReceiptEffect');
+    expect(effectCheck).to.include('Referrer beneficiary does not match manifest.');
+    expect(effectCheck).to.include('Reward amount exceeds manifest maximum.');
+    expect(effectCheck).to.include('Instruction is not allowed by manifest.');
+    expect(proofPage).to.include('Merchant registered');
+    expect(proofPage).to.include('Causal receipt recorded');
+    expect(proofPage).to.include('Intent manifest');
+    expect(proofManifest).to.include('viral-sync-devnet-causal-commerce');
   });
 });
