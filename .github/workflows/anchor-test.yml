@@ -27,14 +27,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/solana
-          key: ${{ runner.os }}-solana-1.18.23
+          key: ${{ runner.os }}-solana-1.18.23-v2
 
       - name: Install Solana Tool Suite
-        if: steps.solana-cache.outputs.cache-hit != 'true'
-        run: sh -c "$(curl -sSfL https://release.solana.com/v1.18.23/install)"
-
-      - name: Add Solana to PATH
-        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
+          if [ ! -x "$SOLANA_BIN/solana" ] || [ ! -x "$SOLANA_BIN/cargo-build-sbf" ]; then
+            rm -rf "$HOME/.local/share/solana/install"
+            sh -c "$(curl -sSfL https://release.solana.com/v1.18.23/install)"
+          fi
+          echo "$SOLANA_BIN" >> "$GITHUB_PATH"
+          "$SOLANA_BIN/solana" --version
+          "$SOLANA_BIN/cargo-build-sbf" --version
 
       - name: Install AVM and Anchor
         run: |
