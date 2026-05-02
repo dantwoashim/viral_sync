@@ -79,6 +79,9 @@ describe('production security hardening guards', () => {
     expect(server).to.include('CREATE TABLE IF NOT EXISTS staff_device_nonces');
     expect(server).to.include('UNIQUE (campaign_id, campaign_nullifier_hash)');
     expect(server).to.include('syncNormalizedLaunchTables');
+    expect(server).to.include('loadLedgerFromNormalizedTables');
+    expect(server).to.include('const normalizedLedger = await loadLedgerFromNormalizedTables()');
+    expect(server).to.include('await syncNormalizedLaunchTables(client, ledger)');
     expect(server).to.include('INSERT INTO causal_receipts');
   });
 
