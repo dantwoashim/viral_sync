@@ -26,9 +26,9 @@ function findCommissionLedgerPda(referrer: PublicKey, merchant: PublicKey) {
   );
 }
 
-function findSessionKeyPda(authority: PublicKey, delegatedSigner: PublicKey) {
+function findSessionKeyPda(tokenGeneration: PublicKey, delegatedSigner: PublicKey) {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("session"), authority.toBuffer(), delegatedSigner.toBuffer()],
+    [Buffer.from("session"), tokenGeneration.toBuffer(), delegatedSigner.toBuffer()],
     PROGRAM_ID,
   );
 }
@@ -1587,15 +1587,18 @@ describe("viral_sync_v4_core", () => {
     expect(ledger.toBase58()).to.not.equal(merchantLedger.toBase58());
   });
 
-  it("derives session keys from both authority and delegated signer", () => {
-    const authority = Keypair.generate().publicKey;
+  it("derives session keys from both token generation and delegated signer", () => {
+    const tokenGeneration = Keypair.generate().publicKey;
+    const otherTokenGeneration = Keypair.generate().publicKey;
     const delegate = Keypair.generate().publicKey;
     const otherDelegate = Keypair.generate().publicKey;
 
-    const [session] = findSessionKeyPda(authority, delegate);
-    const [otherSession] = findSessionKeyPda(authority, otherDelegate);
+    const [session] = findSessionKeyPda(tokenGeneration, delegate);
+    const [otherDelegateSession] = findSessionKeyPda(tokenGeneration, otherDelegate);
+    const [otherGenerationSession] = findSessionKeyPda(otherTokenGeneration, delegate);
 
-    expect(session.toBase58()).to.not.equal(otherSession.toBase58());
+    expect(session.toBase58()).to.not.equal(otherDelegateSession.toBase58());
+    expect(session.toBase58()).to.not.equal(otherGenerationSession.toBase58());
   });
 
   it("derives causal merchant config PDAs from authority and org hash", () => {

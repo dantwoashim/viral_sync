@@ -21,6 +21,8 @@ const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 30);
 const MAX_TRANSACTION_BYTES = Number(process.env.MAX_TRANSACTION_BYTES || 2_048);
 const REPLAY_CACHE_TTL_MS = Number(process.env.REPLAY_CACHE_TTL_MS || 5 * 60_000);
+const REPLAY_CACHE_REST_URL = process.env.RELAYER_REPLAY_CACHE_REST_URL || '';
+const REPLAY_CACHE_REST_TOKEN = process.env.RELAYER_REPLAY_CACHE_REST_TOKEN || '';
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -71,6 +73,10 @@ if (isProduction && allowedInstructionPrefixes.length === 0) {
 
 if (isProduction && allowedWritableAccounts.length === 0) {
   throw new Error('ALLOWED_WRITABLE_ACCOUNTS must list explicit writable accounts in production.');
+}
+
+if (isProduction && (!REPLAY_CACHE_REST_URL || !REPLAY_CACHE_REST_TOKEN)) {
+  throw new Error('RELAYER_REPLAY_CACHE_REST_URL and RELAYER_REPLAY_CACHE_REST_TOKEN are required in production.');
 }
 
 function assertPositiveInteger(value: number, name: string) {
@@ -230,7 +236,7 @@ function assertAllowedPrograms(decoded: ReturnType<typeof decodeTransactionPaylo
     return;
   }
 
-  const allowed = new Set(allowedProgramIds);
+  const allowed = new Set([...allowedProgramIds, COMPUTE_BUDGET_PROGRAM_ID]);
   const programs = decoded.kind === 'versioned'
     ? decoded.tx.message.compiledInstructions.map((instruction) => decoded.tx.message.staticAccountKeys[instruction.programIdIndex]?.toBase58())
     : decoded.tx.instructions.map((instruction) => instruction.programId.toBase58());
@@ -242,6 +248,9 @@ function assertAllowedPrograms(decoded: ReturnType<typeof decodeTransactionPaylo
 }
 
 function instructionPrefixAllowed(programId: string, data: Uint8Array | Buffer) {
+  if (programId === COMPUTE_BUDGET_PROGRAM_ID) {
+    return readComputeUnitLimit(data) !== null;
+  }
   if (allowedInstructionPrefixes.length === 0 && !isProduction) {
     return true;
   }
@@ -353,7 +362,31 @@ async function simulateSignedTransaction(tx: VersionedTransaction | Transaction)
   return connection.simulateTransaction(tx);
 }
 
-function reserveReplayFingerprint(fingerprint: string) {
+async function redisReplayCommand(command: unknown[]) {
+  const response = await fetch(REPLAY_CACHE_REST_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${REPLAY_CACHE_REST_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(command),
+  });
+  if (!response.ok) {
+    throw new Error('Persistent replay cache request failed.');
+  }
+  return response.json() as Promise<{ result?: unknown }>;
+}
+
+async function reserveReplayFingerprint(fingerprint: string) {
+  if (REPLAY_CACHE_REST_URL && REPLAY_CACHE_REST_TOKEN) {
+    const key = `viral-sync-relayer-replay:${fingerprint}`;
+    const result = await redisReplayCommand(['SET', key, Date.now().toString(), 'NX', 'PX', REPLAY_CACHE_TTL_MS]);
+    if (result.result !== 'OK') {
+      throw new Error('Duplicate transaction payload rejected by persistent relayer replay protection.');
+    }
+    return;
+  }
+
   const now = Date.now();
   const existing = replayCache.get(fingerprint);
   if (existing && now - existing < REPLAY_CACHE_TTL_MS) {
@@ -363,7 +396,11 @@ function reserveReplayFingerprint(fingerprint: string) {
   replayCache.set(fingerprint, now);
 }
 
-function releaseReplayFingerprint(fingerprint: string) {
+async function releaseReplayFingerprint(fingerprint: string) {
+  if (REPLAY_CACHE_REST_URL && REPLAY_CACHE_REST_TOKEN) {
+    await redisReplayCommand(['DEL', `viral-sync-relayer-replay:${fingerprint}`]);
+    return;
+  }
   replayCache.delete(fingerprint);
 }
 
@@ -409,7 +446,7 @@ app.post('/relay', requireApiKey, requireRateLimit, async (req, res) => {
     assertRelayerIsFeePayer(decoded);
     assertAllowedPrograms(decoded);
     assertInstructionPolicy(decoded);
-    reserveReplayFingerprint(decoded.fingerprint);
+    await reserveReplayFingerprint(decoded.fingerprint);
 
     try {
       if (decoded.kind === 'versioned') {
@@ -420,7 +457,7 @@ app.post('/relay', requireApiKey, requireRateLimit, async (req, res) => {
 
       const simulation = await simulateSignedTransaction(decoded.tx);
       if (simulation.value.err) {
-        releaseReplayFingerprint(decoded.fingerprint);
+        await releaseReplayFingerprint(decoded.fingerprint);
         res.status(400).json({
           error: 'Transaction simulation failed.',
           logs: simulation.value.logs?.slice(-10),
@@ -435,7 +472,7 @@ app.post('/relay', requireApiKey, requireRateLimit, async (req, res) => {
 
       res.json({ signature, status: 'success' });
     } catch (error) {
-      releaseReplayFingerprint(decoded.fingerprint);
+      await releaseReplayFingerprint(decoded.fingerprint);
       throw error;
     }
   } catch (error) {

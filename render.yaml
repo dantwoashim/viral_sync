@@ -15,10 +15,28 @@ services:
         sync: false
       - key: RELAYER_API_KEY
         sync: false
+      - key: RELAYER_REPLAY_CACHE_REST_URL
+        sync: false
+      - key: RELAYER_REPLAY_CACHE_REST_TOKEN
+        sync: false
       - key: CORS_ORIGINS
         sync: false
       - key: ALLOWED_PROGRAM_IDS
         sync: false
+      - key: ALLOWED_INSTRUCTION_PREFIXES
+        sync: false
+      - key: ALLOWED_WRITABLE_ACCOUNTS
+        sync: false
+      - key: RELAYER_ALLOW_ADDRESS_LOOKUP_TABLES
+        value: "false"
+      - key: MAX_INSTRUCTIONS
+        value: "6"
+      - key: MAX_WRITABLE_ACCOUNTS
+        value: "12"
+      - key: MAX_SIGNER_ACCOUNTS
+        value: "3"
+      - key: MAX_COMPUTE_UNITS
+        value: "200000"
       - key: RATE_LIMIT_WINDOW_MS
         value: "60000"
       - key: RATE_LIMIT_MAX

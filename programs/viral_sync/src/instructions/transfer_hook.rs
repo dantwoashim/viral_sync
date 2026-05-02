@@ -1,6 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program_pack::Pack;
-use anchor_spl::token_2022::spl_token_2022::state::{Account as SplTokenAccount, AccountState};
+use anchor_spl::token_2022::{self, spl_token_2022::{
+    extension::{BaseStateWithExtensions, PodStateWithExtensions, transfer_hook::{self, TransferHookAccount}},
+    pod::{PodAccount, PodMint},
+    state::{Account as SplTokenAccount, AccountState},
+}};
 use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
 use crate::state::{merchant_config::{MerchantConfig, VaultEntry}, token_generation::{TokenGeneration, InboundEntry, GenSource, INBOUND_BUFFER_SIZE}};
@@ -14,8 +18,16 @@ declare_id!("8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9");
 pub struct InitExtraAccountMetaList<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
+    /// CHECK: Token-2022 mint used as the ExtraAccountMetaList seed.
+    #[account(owner = token_2022::ID @ ViralSyncError::InvalidTokenAccount)]
+    pub mint: UncheckedAccount<'info>,
     /// CHECK: Target config
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"extra-account-metas", mint.key().as_ref()],
+        bump,
+        owner = crate::ID @ ViralSyncError::InvalidTokenAccount
+    )]
     pub extra_account_meta_list: UncheckedAccount<'info>,
     
     pub system_program: Program<'info, System>,
@@ -104,6 +116,12 @@ pub fn execute_transfer_hook(ctx: Context<ExecuteHook>, amount: u64) -> Result<(
     let transfer_mint = ctx.accounts.mint.key();
     let source_token_mint = read_mint_from_token_account(&ctx.accounts.source_token_account)?;
     let dest_token_mint = read_mint_from_token_account(&ctx.accounts.dest_token_account)?;
+    require!(ctx.accounts.mint.owner == &token_2022::ID, ViralSyncError::InvalidTokenAccount);
+    require!(ctx.accounts.source_token_account.owner == &token_2022::ID, ViralSyncError::InvalidTokenAccount);
+    require!(ctx.accounts.dest_token_account.owner == &token_2022::ID, ViralSyncError::InvalidTokenAccount);
+    require_transfer_hook_context(&ctx.accounts.source_token_account, &ctx.accounts.dest_token_account)?;
+    require_transfer_hook_mint(&ctx.accounts.mint)?;
+    require_source_authority_matches(&ctx.accounts.source_token_account, &ctx.accounts.source_authority)?;
     require!(config.is_active, ViralSyncError::InvalidState);
     require!(config.mint == transfer_mint, ViralSyncError::InvalidState);
     require!(src_gen.mint == transfer_mint, ViralSyncError::InvalidSourceGeneration);
@@ -315,6 +333,41 @@ fn read_owner_from_token_account(account: &UncheckedAccount) -> Result<Pubkey> {
         .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
     require!(token_account.state == AccountState::Initialized, ViralSyncError::InvalidTokenAccount);
     Ok(token_account.owner)
+}
+
+fn require_transfer_hook_context(source: &UncheckedAccount, destination: &UncheckedAccount) -> Result<()> {
+    let source_data = source.try_borrow_data()?;
+    let destination_data = destination.try_borrow_data()?;
+    let source_state = PodStateWithExtensions::<PodAccount>::unpack(&source_data)
+        .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
+    let destination_state = PodStateWithExtensions::<PodAccount>::unpack(&destination_data)
+        .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
+    let source_hook = source_state.get_extension::<TransferHookAccount>()
+        .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
+    let destination_hook = destination_state.get_extension::<TransferHookAccount>()
+        .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
+    let source_transferring: bool = source_hook.transferring.into();
+    let destination_transferring: bool = destination_hook.transferring.into();
+    require!(source_transferring && destination_transferring, ViralSyncError::InvalidTokenAccount);
+    Ok(())
+}
+
+fn require_transfer_hook_mint(mint: &UncheckedAccount) -> Result<()> {
+    let mint_data = mint.try_borrow_data()?;
+    let mint_state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
+        .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
+    let program_id = transfer_hook::get_program_id(&mint_state)
+        .ok_or(ViralSyncError::InvalidTokenAccount)?;
+    require!(program_id == crate::ID, ViralSyncError::InvalidTokenAccount);
+    Ok(())
+}
+
+fn require_source_authority_matches(source: &UncheckedAccount, source_authority: &UncheckedAccount) -> Result<()> {
+    let data = source.try_borrow_data()?;
+    let token_account = SplTokenAccount::unpack(&data)
+        .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
+    require!(token_account.owner == source_authority.key(), ViralSyncError::AccessDenied);
+    Ok(())
 }
 
 fn read_mint_from_token_account(account: &UncheckedAccount) -> Result<Pubkey> {

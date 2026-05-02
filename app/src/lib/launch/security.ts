@@ -22,7 +22,7 @@ export function isProductionRuntime() {
 }
 
 export function demoAuthAllowed() {
-  return !isProductionRuntime() || process.env.LAUNCH_ALLOW_DEMO_AUTH === 'true';
+  return process.env.LAUNCH_ALLOW_DEMO_AUTH === 'true';
 }
 
 export function normalizeMerchantRole(role?: string | null): MerchantRole {

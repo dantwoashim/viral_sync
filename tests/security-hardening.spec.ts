@@ -90,8 +90,32 @@ describe('production security hardening guards', () => {
     expect(server).to.include('INSERT INTO causal_receipts');
     expect(server).to.include('ALTER TABLE redemptions DROP COLUMN IF EXISTS code');
     expect(server).to.include('public_key_material TEXT');
+    expect(server).to.not.include('CREATE TABLE IF NOT EXISTS launch_ledger');
+    expect(server).to.not.include('SELECT data FROM launch_ledger');
     expect(server).to.not.include('UPDATE launch_ledger');
     expect(server).to.not.include('INSERT INTO redemptions (id, claim_id, merchant_id, code, code_hash');
+  });
+
+  it('hardens the Token-2022 transfer hook against direct invocation and spoofed token accounts', () => {
+    const hook = read('programs/viral_sync/src/instructions/transfer_hook.rs');
+    const merchantInit = read('programs/viral_sync/src/instructions/merchant_init.rs');
+
+    expect(hook).to.include('require_transfer_hook_context');
+    expect(hook).to.include('TransferHookAccount');
+    expect(hook).to.include('source_hook.transferring');
+    expect(hook).to.include('destination_hook.transferring');
+    expect(hook).to.include('source_token_account.owner == &token_2022::ID');
+    expect(hook).to.include('dest_token_account.owner == &token_2022::ID');
+    expect(hook).to.include('require_source_authority_matches');
+    expect(hook).to.include('token_account.owner == source_authority.key()');
+    expect(hook).to.include('seeds = [b"extra-account-metas", mint.key().as_ref()]');
+    expect(hook).to.include('transfer_hook::get_program_id');
+    expect(merchantInit).to.include('transfer_hook::get_program_id');
+    expect(merchantInit).to.include('hook_program == crate::ID');
+
+    const peerTransfer = hook.slice(hook.indexOf('PEER TRANSFER'));
+    const gen1Subtractions = peerTransfer.match(/src_gen\.gen1_balance = src_gen\.gen1_balance\.checked_sub\(from_gen1\)/g) ?? [];
+    expect(gen1Subtractions.length).to.equal(1);
   });
 
   it('recomputes receipt commitments before accepting or displaying proof', () => {
