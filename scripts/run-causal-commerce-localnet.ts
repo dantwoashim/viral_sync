@@ -21,6 +21,10 @@ type CliOptions = {
   orgId: string;
   campaignId: string;
   receiptId: string;
+  receiptIdHash?: Buffer;
+  claimerNullifierHash?: Buffer;
+  inviteHash?: Buffer;
+  visitAttestationHash?: Buffer;
   rewardMint?: PublicKey;
   rewardPerVisit: anchor.BN;
   maxRedemptions: number;
@@ -150,6 +154,12 @@ Options:
   --org <id>                  Merchant org id to hash. Defaults to a unique localnet id.
   --campaign <id>             Campaign id to hash. Defaults to a unique localnet id.
   --receipt <id>              Receipt id to hash. Defaults to a unique localnet id.
+  --receipt-id-hash <hex>     Use an existing 32-byte receipt hash instead of deriving one.
+  --claimer-nullifier-hash <hex>
+                              Use an existing 32-byte campaign nullifier hash.
+  --invite-hash <hex>         Use an existing 32-byte invite hash.
+  --visit-attestation-hash <hex>
+                              Use an existing 32-byte visit attestation hash.
   --reward-mint <pubkey>      Existing SPL Token mint. If omitted, the script creates a localnet mint.
   --reward-per-visit <units>  Reward units reserved per verified visit. Default: 1000
   --max-redemptions <count>   Campaign cap. Default: 10
@@ -164,7 +174,7 @@ Options:
 }
 
 function argValue(args: string[], name: string) {
-  const index = args.indexOf(name);
+  const index = args.lastIndexOf(name);
   return index >= 0 ? args[index + 1] : undefined;
 }
 
@@ -185,6 +195,16 @@ function parseNonNegativeNumber(raw: string, name: string) {
     throw new Error(`${name} must be a non-negative number.`);
   }
   return value;
+}
+
+function parseHashHex(raw: string | undefined, name: string) {
+  if (!raw) {
+    return undefined;
+  }
+  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
+    throw new Error(`${name} must be a 32-byte hex string.`);
+  }
+  return Buffer.from(raw, 'hex');
 }
 
 function parseArgs(): CliOptions {
@@ -210,6 +230,10 @@ function parseArgs(): CliOptions {
     orgId: argValue(args, '--org') ?? `viral-sync-localnet-org-${Date.now().toString(36)}`,
     campaignId: argValue(args, '--campaign') ?? `viral-sync-localnet-campaign-${Date.now().toString(36)}`,
     receiptId: argValue(args, '--receipt') ?? `viral-sync-localnet-receipt-${Date.now().toString(36)}`,
+    receiptIdHash: parseHashHex(argValue(args, '--receipt-id-hash'), '--receipt-id-hash'),
+    claimerNullifierHash: parseHashHex(argValue(args, '--claimer-nullifier-hash'), '--claimer-nullifier-hash'),
+    inviteHash: parseHashHex(argValue(args, '--invite-hash'), '--invite-hash'),
+    visitAttestationHash: parseHashHex(argValue(args, '--visit-attestation-hash'), '--visit-attestation-hash'),
     rewardMint: rewardMintRaw ? new PublicKey(rewardMintRaw) : undefined,
     rewardPerVisit,
     maxRedemptions,
@@ -599,12 +623,12 @@ async function main() {
 
   const orgIdHash = hashBytes('org', options.orgId);
   const campaignIdHash = hashBytes('campaign', options.campaignId);
-  const receiptIdHash = hashBytes('receipt', options.receiptId);
+  const receiptIdHash = options.receiptIdHash ?? hashBytes('receipt', options.receiptId);
   const parentReceiptIdHash = zeroHash();
   const referrerCommitment = hashBytes('referrer', `${options.campaignId}:referrer`);
-  const claimerNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:visitor`);
-  const inviteHash = hashBytes('invite', `${options.campaignId}:invite`);
-  const visitAttestationHash = hashBytes('visit-attestation', `${options.receiptId}:staff-and-visitor`);
+  const claimerNullifierHash = options.claimerNullifierHash ?? hashBytes('claimer-nullifier', `${options.campaignId}:visitor`);
+  const inviteHash = options.inviteHash ?? hashBytes('invite', `${options.campaignId}:invite`);
+  const visitAttestationHash = options.visitAttestationHash ?? hashBytes('visit-attestation', `${options.receiptId}:staff-and-visitor`);
   const riskScoreCommitment = hashBytes('risk-score', `${options.receiptId}:low`);
   const splitRulesHash = hashBytes('split-rules', 'referrer-80-visitor-20');
   const fraudPolicyHash = hashBytes('fraud-policy', 'single-nullifier-staff-challenge-v1');

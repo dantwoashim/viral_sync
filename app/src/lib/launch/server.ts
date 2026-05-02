@@ -1,5 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { Pool, type PoolClient } from 'pg';
 import { createHmac, randomBytes, timingSafeEqual, webcrypto as nodeWebcrypto } from 'crypto';
 import {
@@ -67,6 +69,8 @@ import {
   merchantRoleAllowed,
   normalizeMerchantRole,
 } from '@/lib/launch/security';
+
+const execFileAsync = promisify(execFile);
 
 const DATA_DIR = process.env.LAUNCH_LEDGER_DIR
   ? path.resolve(process.env.LAUNCH_LEDGER_DIR)
@@ -2867,6 +2871,90 @@ function submitCausalReceipt(params: {
   return receipt;
 }
 
+type DevnetCausalCommerceProof = {
+  kind?: string;
+  cluster?: string;
+  programId?: string;
+  transactions?: {
+    recordCausalReceipt?: string;
+    settleReceiptReward?: string;
+  };
+  explorerLinks?: {
+    transactions?: {
+      recordCausalReceipt?: string | null;
+      settleReceiptReward?: string | null;
+    };
+  };
+  pdas?: {
+    causalReceipt?: string;
+    nullifierRecord?: string;
+    settlementRecord?: string;
+  };
+  hashes?: {
+    intentManifestHash?: string;
+  };
+};
+
+function liveDevnetConfirmEnabled() {
+  return process.env.LAUNCH_CHAIN_CONFIRM_MODE !== 'preview' && process.env.LAUNCH_DEVNET_CONFIRM_DISABLED !== 'true';
+}
+
+async function submitReceiptToDevnet(params: {
+  merchantId: string;
+  offerId: string;
+  receipt: CausalReceiptRecord;
+}) {
+  if (!liveDevnetConfirmEnabled()) {
+    return null;
+  }
+
+  const outputPath = path.join(process.cwd(), 'tmp', `merchant-confirm-${params.receipt.id}.json`);
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+
+  const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const args = [
+    'run',
+    'localnet:causal-commerce',
+    '--',
+    '--rpc',
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL || process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
+    '--airdrop-sol',
+    '0',
+    '--org',
+    params.merchantId,
+    '--campaign',
+    params.offerId,
+    '--receipt',
+    params.receipt.id,
+    '--receipt-id-hash',
+    params.receipt.receiptIdHash,
+    '--claimer-nullifier-hash',
+    params.receipt.campaignNullifierHash,
+    '--invite-hash',
+    params.receipt.inviteHash,
+    '--visit-attestation-hash',
+    params.receipt.visitAttestationHash,
+    '--output',
+    outputPath,
+  ];
+
+  await execFileAsync(npmExecutable, args, {
+    cwd: process.cwd(),
+    timeout: Number(process.env.LAUNCH_DEVNET_CONFIRM_TIMEOUT_MS ?? 120_000),
+    maxBuffer: 1024 * 1024 * 4,
+    env: process.env,
+  });
+
+  const proof = JSON.parse(await fs.readFile(outputPath, 'utf8')) as DevnetCausalCommerceProof;
+  const settlementSignature = proof.transactions?.settleReceiptReward;
+  const receiptPda = proof.pdas?.causalReceipt;
+  if (!settlementSignature || !receiptPda) {
+    throw new Error('Devnet proof did not include a settlement signature and receipt PDA.');
+  }
+
+  return proof;
+}
+
 export async function createVisitChallengeForRedeemCode(params: { code: string; }) {
   const normalizedCode = normalizeRedeemCode(params.code);
   if (!normalizedCode || !isValidRedeemCode(normalizedCode)) {
@@ -3080,6 +3168,39 @@ export async function confirmRedeemCode(params: {
       staffAttestationSecret: params.staffDevicePublicKey || params.staffSessionId || params.staffPin || 'staff-attestation',
       manualReceiptId: params.manualReceiptId,
     });
+    let devnetProof: DevnetCausalCommerceProof | null = null;
+    try {
+      devnetProof = await submitReceiptToDevnet({
+        merchantId: merchant.id,
+        offerId: offer.id,
+        receipt,
+      });
+      if (devnetProof) {
+        receipt.receiptPda = devnetProof.pdas?.causalReceipt ?? receipt.receiptPda;
+        receipt.txSignature = devnetProof.transactions?.settleReceiptReward ?? receipt.txSignature;
+        receipt.status = 'settled';
+        receipt.settledAt = new Date().toISOString();
+      }
+    } catch (error) {
+      ledger.causalReceipts = (ledger.causalReceipts ?? []).filter((item) => item.id !== receipt.id);
+      code.status = 'issued';
+      challenge.status = 'issued';
+      appendAuditEvent(ledger, {
+        requestId: params.requestId ?? randomId('req'),
+        actorType: 'system',
+        actorId: 'devnet-settlement',
+        merchantId: merchant.id,
+        targetType: 'receipt',
+        targetId: receipt.id,
+        action: 'submit_devnet_causal_receipt',
+        result: 'denied',
+        reason: error instanceof Error ? error.message : 'Devnet settlement failed.',
+      });
+      return {
+        ok: false,
+        reason: 'Devnet settlement failed, so the merchant confirmation was not completed.',
+      } satisfies MerchantConfirmResult;
+    }
     challenge.status = 'confirmed';
     rememberIdempotency(ledger, {
       key: idempotencyKey,
