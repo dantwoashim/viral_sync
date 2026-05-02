@@ -55,6 +55,7 @@ pub struct GrowthCampaign {
     pub expires_at: i64,
     pub total_funded: u64,
     pub total_settled: u64,
+    pub total_recorded: u32,
     pub status: GrowthCampaignStatus,
     pub created_at: i64,
     pub updated_at: i64,
@@ -62,7 +63,7 @@ pub struct GrowthCampaign {
 
 impl GrowthCampaign {
     pub const SEED_PREFIX: &'static [u8] = b"growth_campaign";
-    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 32 + 8 + 4 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + GrowthCampaignStatus::SIZE + 8 + 8;
+    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 32 + 8 + 4 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 4 + GrowthCampaignStatus::SIZE + 8 + 8;
 }
 
 #[account]

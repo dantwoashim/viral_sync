@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, Burn, burn};
-use crate::state::token_generation::TokenGeneration;
+use crate::state::{merchant_config::MerchantConfig, token_generation::TokenGeneration};
 use crate::errors::ViralSyncError;
 
 #[derive(Accounts)]
@@ -11,6 +11,12 @@ pub struct BurnTokens<'info> {
         constraint = token_generation.mint == mint.key() @ ViralSyncError::InvalidState
     )]
     pub token_generation: Box<Account<'info, TokenGeneration>>,
+
+    #[account(
+        mut,
+        constraint = merchant_config.mint == mint.key() @ ViralSyncError::InvalidState
+    )]
+    pub merchant_config: Account<'info, MerchantConfig>,
     
     #[account(
         mut,
@@ -48,6 +54,11 @@ pub fn burn_tokens(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
     gen.dead_balance -= from_dead;
     gen.gen2_balance -= from_gen2;
     gen.gen1_balance -= from_gen1;
+    ctx.accounts.merchant_config.current_supply = ctx.accounts
+        .merchant_config
+        .current_supply
+        .checked_sub(amount)
+        .ok_or(ViralSyncError::MathOverflow)?;
     
     let cpi_accounts = Burn {
         mint: ctx.accounts.mint.to_account_info(),

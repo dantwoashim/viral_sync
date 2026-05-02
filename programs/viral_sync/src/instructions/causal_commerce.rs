@@ -354,11 +354,16 @@ pub fn record_causal_receipt(
     require!(referrer_beneficiary != Pubkey::default(), ViralSyncError::InvalidConfig);
     require!(visitor_beneficiary != Pubkey::default(), ViralSyncError::InvalidConfig);
 
-    let campaign = &ctx.accounts.growth_campaign;
+    let campaign = &mut ctx.accounts.growth_campaign;
     let escrow = &mut ctx.accounts.reward_escrow;
+    require!(campaign.total_recorded < campaign.max_redemptions, ViralSyncError::InvalidState);
+    let committed = escrow
+        .total_reserved
+        .checked_add(escrow.total_settled)
+        .ok_or(ViralSyncError::MathOverflow)?;
     let available = escrow
         .total_funded
-        .checked_sub(escrow.total_reserved)
+        .checked_sub(committed)
         .ok_or(ViralSyncError::MathOverflow)?;
     require!(available >= campaign.reward_per_verified_visit, ViralSyncError::InsufficientBalance);
 
@@ -398,6 +403,11 @@ pub fn record_causal_receipt(
         .checked_add(campaign.reward_per_verified_visit)
         .ok_or(ViralSyncError::MathOverflow)?;
     escrow.updated_at = now;
+    campaign.total_recorded = campaign
+        .total_recorded
+        .checked_add(1)
+        .ok_or(ViralSyncError::MathOverflow)?;
+    campaign.updated_at = now;
 
     emit!(CausalReceiptRecorded {
         causal_receipt: receipt.key(),
@@ -737,6 +747,7 @@ pub fn create_growth_campaign(
     campaign.expires_at = expires_at;
     campaign.total_funded = 0;
     campaign.total_settled = 0;
+    campaign.total_recorded = 0;
     campaign.status = GrowthCampaignStatus::Active;
     campaign.created_at = now;
     campaign.updated_at = now;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { enforceRateLimit, jsonError } from '@/lib/launch/api';
+import { enforceRateLimit, jsonError, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import { isValidReferralToken, recordReferralOpen } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
@@ -14,6 +14,14 @@ export async function POST(
   if (limited) {
     return limited;
   }
+  const paused = requireLaunchOpen(request);
+  if (paused) {
+    return paused;
+  }
+  const invalidOrigin = requireSameOrigin(request);
+  if (invalidOrigin) {
+    return invalidOrigin;
+  }
 
   const { token } = await context.params;
   if (!isValidReferralToken(token)) {
@@ -23,8 +31,8 @@ export async function POST(
   const ok = await recordReferralOpen(token);
 
   if (!ok) {
-    return NextResponse.json({ error: 'Referral not found.' }, { status: 404 });
+    return withSecurityHeaders(NextResponse.json({ error: 'Referral not found.' }, { status: 404 }));
   }
 
-  return NextResponse.json({ ok: true });
+  return withSecurityHeaders(NextResponse.json({ ok: true }));
 }

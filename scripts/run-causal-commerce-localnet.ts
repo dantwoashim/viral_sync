@@ -90,6 +90,8 @@ type ProgramMethods = {
     inviteHash: number[],
     visitAttestationHash: number[],
     riskScoreCommitment: number[],
+    referrerBeneficiary: PublicKey,
+    visitorBeneficiary: PublicKey,
   ) => {
     accounts: (accounts: {
       growthCampaign: PublicKey;
@@ -97,7 +99,7 @@ type ProgramMethods = {
       rewardVault: PublicKey;
       causalReceipt: PublicKey;
       nullifierRecord: PublicKey;
-      receiptAuthority: PublicKey;
+      merchantAuthority: PublicKey;
       systemProgram: PublicKey;
     }) => { rpc: () => Promise<string> };
   };
@@ -111,7 +113,7 @@ type ProgramMethods = {
       referrerRewardAccount: PublicKey;
       visitorRewardAccount: PublicKey;
       rewardMint: PublicKey;
-      settlementAuthority: PublicKey;
+      merchantAuthority: PublicKey;
       systemProgram: PublicKey;
       tokenProgram: PublicKey;
     }) => { rpc: () => Promise<string> };
@@ -611,6 +613,8 @@ async function main() {
     Array.from(inviteHash),
     Array.from(visitAttestationHash),
     Array.from(riskScoreCommitment),
+    referrerAuthority.publicKey,
+    visitorAuthority.publicKey,
   )
     .accounts({
       growthCampaign,
@@ -618,7 +622,7 @@ async function main() {
       rewardVault: rewardVault.address,
       causalReceipt,
       nullifierRecord,
-      receiptAuthority: wallet.publicKey,
+      merchantAuthority: wallet.publicKey,
       systemProgram: SystemProgram.programId,
     })
     .rpc();
@@ -635,6 +639,8 @@ async function main() {
       Array.from(inviteHash),
       Array.from(visitAttestationHash),
       Array.from(riskScoreCommitment),
+      referrerAuthority.publicKey,
+      visitorAuthority.publicKey,
     )
       .accounts({
         growthCampaign,
@@ -642,7 +648,7 @@ async function main() {
         rewardVault: rewardVault.address,
         causalReceipt: replayReceipt,
         nullifierRecord,
-        receiptAuthority: wallet.publicKey,
+        merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
       })
       .rpc()));
@@ -658,7 +664,7 @@ async function main() {
       referrerRewardAccount: referrerRewardAccount.address,
       visitorRewardAccount: visitorRewardAccount.address,
       rewardMint,
-      settlementAuthority: wallet.publicKey,
+      merchantAuthority: wallet.publicKey,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
     })
@@ -675,7 +681,7 @@ async function main() {
         referrerRewardAccount: referrerRewardAccount.address,
         visitorRewardAccount: visitorRewardAccount.address,
         rewardMint,
-        settlementAuthority: wallet.publicKey,
+        merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
       })

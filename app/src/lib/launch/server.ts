@@ -60,6 +60,7 @@ import {
   getProductionReadinessSnapshot,
   getRelayerApiKey,
   getWebhookSecret,
+  isProductionRuntime,
   merchantRoleAllowed,
   normalizeMerchantRole,
 } from '@/lib/launch/security';
@@ -195,6 +196,36 @@ function constantTimeHexEqual(left: string, right: string) {
 
 function hashRedeemCode(params: { code: string; merchantId: string; offerId: string; claimId: string }) {
   return sha256Hex(`${params.merchantId}:${params.offerId}:${params.claimId}:${normalizeRedeemCode(params.code)}`);
+}
+
+function rewardAmountFromOffer(offer: OfferRecord) {
+  const match = offer.reward.match(/\d[\d,]*/);
+  if (!match) {
+    return DEFAULT_REWARD_COST_NPR;
+  }
+
+  const parsed = Number(match[0].replace(/,/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_REWARD_COST_NPR;
+}
+
+function findRedeemCodeByNormalizedCode(ledger: LaunchLedger, normalizedCode: string, fallbackOfferId = PILOT_OFFER_ID) {
+  return ledger.redeemCodes.find((item) => {
+    const claim = ledger.claims.find((candidate) => candidate.id === item.claimId);
+    const offerId = claim?.offerId ?? fallbackOfferId;
+    const expectedHash = item.codeHash ?? hashRedeemCode({
+      code: item.code,
+      merchantId: item.merchantId,
+      offerId,
+      claimId: item.claimId,
+    });
+    const suppliedHash = hashRedeemCode({
+      code: normalizedCode,
+      merchantId: item.merchantId,
+      offerId,
+      claimId: item.claimId,
+    });
+    return expectedHash === suppliedHash;
+  });
 }
 
 export function staffDeviceSigningMessage(params: { publicKey: string; timestamp: string; action: string; code?: string; }) {
@@ -638,6 +669,10 @@ function normalizeLedgerState(ledger: LaunchLedger) {
   }
 
   if (!ledger.staffDevices) {
+    if (isProductionRuntime()) {
+      ledger.staffDevices = [];
+      changed = true;
+    } else {
     ledger.staffDevices = [{
       id: 'staff-device-front-counter',
       merchantId: PILOT_MERCHANT_ID,
@@ -649,6 +684,7 @@ function normalizeLedgerState(ledger: LaunchLedger) {
       enrolledAt: iso(new Date()),
     }];
     changed = true;
+    }
   }
 
   if (!ledger.auditEvents) {
@@ -740,6 +776,15 @@ function normalizeLedgerState(ledger: LaunchLedger) {
     if (device.secret && device.secretHash) {
       return device;
     }
+    if (isProductionRuntime()) {
+      changed = true;
+      return {
+        ...device,
+        secret: undefined,
+        secretHash: device.secretHash,
+        revokedAt: device.revokedAt ?? iso(new Date()),
+      };
+    }
     const secret = device.publicKey === defaultStaffPublicKey()
       ? defaultStaffSecret()
       : sha256Hex(`${device.id}:${device.publicKey}:migrated-staff-secret`);
@@ -811,7 +856,7 @@ function createInitialLedger(): LaunchLedger {
     visitChallenges: [],
     causalReceipts: [],
     merchantSessions: [],
-    staffDevices: [{
+    staffDevices: isProductionRuntime() ? [] : [{
       id: 'staff-device-front-counter',
       merchantId: PILOT_MERCHANT_ID,
       locationLabel: merchants[0].locationLabel,
@@ -1773,23 +1818,7 @@ export async function createVisitChallengeForRedeemCode(params: { code: string; 
 
   return withLedgerMutation((ledger) => {
     const { merchant, offer } = getPilotMerchantAndOffer(ledger);
-    const code = ledger.redeemCodes.find((item) => {
-      const claimForCode = ledger.claims.find((claim) => claim.id === item.claimId);
-      const offerId = claimForCode?.offerId ?? offer.id;
-      const expectedHash = item.codeHash ?? hashRedeemCode({
-        code: item.code,
-        merchantId: item.merchantId,
-        offerId,
-        claimId: item.claimId,
-      });
-      const suppliedHash = hashRedeemCode({
-        code: normalizedCode,
-        merchantId: item.merchantId,
-        offerId,
-        claimId: item.claimId,
-      });
-      return expectedHash === suppliedHash;
-    });
+    const code = findRedeemCodeByNormalizedCode(ledger, normalizedCode, offer.id);
 
     if (!code || (code.status !== 'issued' && code.status !== 'scanned')) {
       return { ok: false, reason: 'No active redeem code is ready for challenge creation.' };
@@ -1924,7 +1953,7 @@ export async function confirmRedeemCode(params: {
       }
     }
 
-    const code = ledger.redeemCodes.find((item) => item.code.toUpperCase() === normalizedCode);
+    const code = findRedeemCodeByNormalizedCode(ledger, normalizedCode, offer.id);
 
     if (!code) {
       return { ok: false, reason: 'This code is not recognized by the launch ledger.' } satisfies MerchantConfirmResult;
@@ -2032,7 +2061,7 @@ export async function confirmRedeemCode(params: {
       receiptId: receipt.id,
       actorSessionId: claim.referrerSessionId,
       entryType: 'reward_settled',
-      amount: 100,
+      amount: rewardAmountFromOffer(offer),
       idempotencyKey: params.idempotencyKey ?? `settle:${receipt.id}`,
     });
     enqueueOutbox(ledger, {
@@ -6195,7 +6224,7 @@ export async function voidRedeemCode(params: {
 
   return withLedgerMutation((ledger) => {
     const { merchant } = getPilotMerchantAndOffer(ledger);
-    const code = ledger.redeemCodes.find((item) => item.code.toUpperCase() === normalizedCode);
+    const code = findRedeemCodeByNormalizedCode(ledger, normalizedCode);
     if (!code) {
       return { ok: false, reason: 'Code not found.' };
     }

@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
-import { withSecurityHeaders } from '@/lib/launch/api';
+import type { NextRequest } from 'next/server';
+import { requireMerchantRequestRole, withSecurityHeaders } from '@/lib/launch/api';
 import { getAuditPrepChecklist, getDisclosureUpdateDocs, getExternalReviewRound, getFormalAuditPrepChecklist, getFormalCoverageExpansion, getFormalDisclosureUpdate, getFormalExternalReviewRound, getFormalHighSeverityFixes, getFormalInvariantDocumentation, getHighSeverityFixesDay243, getInvariantDocumentation, getSecurityGate, getTestCoverageExpansion, getThreatModelV2, getWeeklySecurityReview } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const merchantAuth = await requireMerchantRequestRole(request, ['owner', 'auditor']);
+  if (!merchantAuth.ok) {
+    return merchantAuth.response;
+  }
+
   return withSecurityHeaders(NextResponse.json({
     ok: true,
     gate: getSecurityGate(),
