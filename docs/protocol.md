@@ -129,6 +129,7 @@ Invariants:
 - Duplicate receipts cannot settle twice.
 - High-risk receipts can be held for review.
 - Closed campaigns can reclaim unused funds only through explicit campaign close flow.
+- Merchant and campaign pause status must block new campaign setup or receipt recording during an incident.
 
 ## Current Implementation Status
 

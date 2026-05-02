@@ -1,6 +1,6 @@
 # Production Deployment Status
 
-Last updated: 2026-04-30
+Last updated: 2026-05-02
 
 ## Live URLs
 
@@ -16,7 +16,7 @@ Last updated: 2026-04-30
 - Branch: `production`
 - Database: `neondb`
 - Runtime env var: `LAUNCH_DATABASE_URL`
-- Verified table: `launch_ledger`
+- Verified tables: `merchants`, `campaigns`, `causal_invites`, `claims`, `redemptions`, `visit_challenges`, `causal_receipts`, `merchant_sessions`, `staff_devices`, `staff_device_nonces`, `audit_events`, `reward_ledger_entries`, `outbox_jobs`, `app_events`, and `idempotency_records`
 
 The production app uses Neon through Vercel environment variables. Local secret copies are stored in `.env.production.local` and `app/.env.production.local`; those files are gitignored.
 

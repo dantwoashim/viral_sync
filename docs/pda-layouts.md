@@ -69,6 +69,7 @@ Fields:
 bump
 campaign
 reward_mint
+reward_vault
 total_funded
 total_reserved
 total_settled

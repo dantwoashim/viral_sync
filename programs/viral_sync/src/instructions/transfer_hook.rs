@@ -7,7 +7,7 @@ use anchor_spl::token_2022::{self, spl_token_2022::{
 }};
 use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, state::ExtraAccountMetaList};
-use crate::state::{merchant_config::{MerchantConfig, VaultEntry}, token_generation::{TokenGeneration, InboundEntry, GenSource, INBOUND_BUFFER_SIZE}};
+use crate::state::{merchant_config::{MerchantConfig, VaultEntry}, session_key::SessionKey, token_generation::{TokenGeneration, InboundEntry, GenSource, INBOUND_BUFFER_SIZE}};
 use crate::errors::ViralSyncError;
 use crate::events::*;
 
@@ -64,6 +64,13 @@ pub fn initialize_extra_account_meta_list(
             spl_tlv_account_resolution::seeds::Seed::AccountKey { index: 1 }, 
             spl_tlv_account_resolution::seeds::Seed::AccountData { account_index: 2, data_index: 32, length: 32 },
         ], false, true)?,
+
+        // Account 9: Optional SessionKey for delegated source authorities.
+        ExtraAccountMeta::new_with_seeds(&[
+            spl_tlv_account_resolution::seeds::Seed::Literal { bytes: b"session".to_vec() },
+            spl_tlv_account_resolution::seeds::Seed::AccountKey { index: 7 },
+            spl_tlv_account_resolution::seeds::Seed::AccountKey { index: 3 },
+        ], false, true)?,
     ];
     
     ExtraAccountMetaList::init::<ExecuteInstruction>(
@@ -107,9 +114,14 @@ pub struct ExecuteHook<'info> {
         constraint = dest_generation.owner == read_owner_from_token_account(&dest_token_account)? @ ViralSyncError::InvalidDestGeneration
     )]
     pub dest_generation: Box<Account<'info, TokenGeneration>>,
+
+    /// CHECK: Optional session-key PDA for delegated transfer authorities.
+    #[account(mut)]
+    pub session_key: UncheckedAccount<'info>,
 }
 
 pub fn execute_transfer_hook(ctx: Context<ExecuteHook>, amount: u64) -> Result<()> {
+    let source_generation_key = ctx.accounts.source_generation.key();
     let src_gen = &mut ctx.accounts.source_generation;
     let dst_gen = &mut ctx.accounts.dest_generation;
     let config = &ctx.accounts.merchant_config;
@@ -121,7 +133,13 @@ pub fn execute_transfer_hook(ctx: Context<ExecuteHook>, amount: u64) -> Result<(
     require!(ctx.accounts.dest_token_account.owner == &token_2022::ID, ViralSyncError::InvalidTokenAccount);
     require_transfer_hook_context(&ctx.accounts.source_token_account, &ctx.accounts.dest_token_account)?;
     require_transfer_hook_mint(&ctx.accounts.mint)?;
-    require_source_authority_matches(&ctx.accounts.source_token_account, &ctx.accounts.source_authority)?;
+    require_source_authority_or_session(
+        &ctx.accounts.source_token_account,
+        &ctx.accounts.source_authority,
+        &ctx.accounts.session_key,
+        source_generation_key,
+        amount,
+    )?;
     require!(config.is_active, ViralSyncError::InvalidState);
     require!(config.mint == transfer_mint, ViralSyncError::InvalidState);
     require!(src_gen.mint == transfer_mint, ViralSyncError::InvalidSourceGeneration);
@@ -362,11 +380,40 @@ fn require_transfer_hook_mint(mint: &UncheckedAccount) -> Result<()> {
     Ok(())
 }
 
-fn require_source_authority_matches(source: &UncheckedAccount, source_authority: &UncheckedAccount) -> Result<()> {
+fn require_source_authority_or_session(
+    source: &UncheckedAccount,
+    source_authority: &UncheckedAccount,
+    session_account: &UncheckedAccount,
+    source_generation: Pubkey,
+    amount: u64,
+) -> Result<()> {
     let data = source.try_borrow_data()?;
     let token_account = SplTokenAccount::unpack(&data)
         .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
-    require!(token_account.owner == source_authority.key(), ViralSyncError::AccessDenied);
+    if token_account.owner == source_authority.key() {
+        return Ok(());
+    }
+
+    let expected_session = Pubkey::find_program_address(
+        &[b"session", source_generation.as_ref(), source_authority.key().as_ref()],
+        &crate::ID,
+    ).0;
+    require!(session_account.key() == expected_session, ViralSyncError::AccessDenied);
+    require!(session_account.owner == &crate::ID, ViralSyncError::AccessDenied);
+
+    let mut session_data = session_account.try_borrow_mut_data()?;
+    let mut read_cursor: &[u8] = &session_data;
+    let mut session = SessionKey::try_deserialize(&mut read_cursor)
+        .map_err(|_| ViralSyncError::AccessDenied)?;
+    require!(session.authority == token_account.owner, ViralSyncError::AccessDenied);
+    require!(session.target_generation == source_generation, ViralSyncError::AccessDenied);
+    require!(session.delegate == source_authority.key(), ViralSyncError::AccessDenied);
+    require!(session.is_valid(Clock::get()?.unix_timestamp), ViralSyncError::AccessDenied);
+    let next_spent = session.tokens_spent.checked_add(amount).ok_or(ViralSyncError::MathOverflow)?;
+    require!(next_spent <= session.max_tokens_per_session, ViralSyncError::ExceedsMaximum);
+    session.tokens_spent = next_spent;
+    let mut write_cursor = &mut session_data[..];
+    session.try_serialize(&mut write_cursor)?;
     Ok(())
 }
 
