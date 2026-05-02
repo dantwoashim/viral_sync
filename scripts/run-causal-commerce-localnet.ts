@@ -28,8 +28,14 @@ type CliOptions = {
   fundAmount: anchor.BN;
   airdropSol: number;
   replayCheck: boolean;
+  attackCheck: boolean;
   closeCheck: boolean;
   outputPath?: string;
+};
+
+type RpcBuilder = {
+  signers: (signers: Keypair[]) => { rpc: () => Promise<string> };
+  rpc: () => Promise<string>;
 };
 
 type ProgramMethods = {
@@ -38,7 +44,7 @@ type ProgramMethods = {
       merchantConfig: PublicKey;
       merchantAuthority: PublicKey;
       systemProgram: PublicKey;
-    }) => { rpc: () => Promise<string> };
+    }) => RpcBuilder;
   };
   createGrowthCampaign: (
     campaignIdHash: number[],
@@ -57,7 +63,7 @@ type ProgramMethods = {
       merchantAuthority: PublicKey;
       rewardMint: PublicKey;
       systemProgram: PublicKey;
-    }) => { rpc: () => Promise<string> };
+    }) => RpcBuilder;
   };
   fundGrowthBounty: (amount: anchor.BN) => {
     accounts: (accounts: {
@@ -70,7 +76,7 @@ type ProgramMethods = {
       systemProgram: PublicKey;
       tokenProgram: PublicKey;
       associatedTokenProgram: PublicKey;
-    }) => { rpc: () => Promise<string> };
+    }) => RpcBuilder;
   };
   closeGrowthBounty: () => {
     accounts: (accounts: {
@@ -81,7 +87,7 @@ type ProgramMethods = {
       rewardMint: PublicKey;
       merchantAuthority: PublicKey;
       tokenProgram: PublicKey;
-    }) => { rpc: () => Promise<string> };
+    }) => RpcBuilder;
   };
   recordCausalReceipt: (
     receiptIdHash: number[],
@@ -102,7 +108,7 @@ type ProgramMethods = {
       nullifierRecord: PublicKey;
       merchantAuthority: PublicKey;
       systemProgram: PublicKey;
-    }) => { rpc: () => Promise<string> };
+    }) => RpcBuilder;
   };
   settleReceiptReward: () => {
     accounts: (accounts: {
@@ -117,7 +123,7 @@ type ProgramMethods = {
       merchantAuthority: PublicKey;
       systemProgram: PublicKey;
       tokenProgram: PublicKey;
-    }) => { rpc: () => Promise<string> };
+    }) => RpcBuilder;
   };
 };
 
@@ -149,6 +155,7 @@ Options:
   --fund-amount <units>       Funded state amount. Default: reward-per-visit * max-redemptions
   --airdrop-sol <number>      Request localnet SOL if balance is low. Default: 2
   --replay-check              Require duplicate nullifier and duplicate settlement attempts to fail.
+  --attack-check              Require wrong merchant and wrong beneficiary settlement attacks to fail.
   --close-check               Close the bounty, reclaim unused vault tokens, and close the vault ATA.
   --output <path>             Write a JSON manifest. Default: ${DEFAULT_OUTPUT_PATH}
 `;
@@ -208,6 +215,7 @@ function parseArgs(): CliOptions {
     fundAmount,
     airdropSol: parseNonNegativeNumber(argValue(args, '--airdrop-sol') ?? '2', '--airdrop-sol'),
     replayCheck: args.includes('--replay-check'),
+    attackCheck: args.includes('--attack-check'),
     closeCheck: args.includes('--close-check'),
     outputPath: argValue(args, '--output') ?? DEFAULT_OUTPUT_PATH,
   };
@@ -553,10 +561,12 @@ async function main() {
   const [settlementRecord, settlementRecordBump] = findPda('settlement', [causalReceipt.toBuffer()]);
   const referrerAuthority = Keypair.generate();
   const visitorAuthority = Keypair.generate();
+  const attackerAuthority = Keypair.generate();
   const merchantRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, wallet.publicKey, rewardMint);
   const rewardVault = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, rewardEscrow, rewardMint);
   const referrerRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, referrerAuthority.publicKey, rewardMint);
   const visitorRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, visitorAuthority.publicKey, rewardMint);
+  const attackerRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, attackerAuthority.publicKey, rewardMint);
   const mintRewardTokensSignature = await mintRewardTokens(
     connection,
     walletInfo.keypair,
@@ -632,7 +642,7 @@ async function main() {
     .rpc();
 
   const replayChecks: unknown[] = [];
-  if (options.replayCheck) {
+  if (options.replayCheck || options.attackCheck) {
     const replayReceiptIdHash = hashBytes('receipt', `${options.receiptId}:replay`);
     const [replayReceipt] = findPda('causal_receipt', [growthCampaign.toBuffer(), replayReceiptIdHash]);
     replayChecks.push(await expectRejected('duplicate campaign nullifier', () => methods.recordCausalReceipt(
@@ -654,6 +664,40 @@ async function main() {
         nullifierRecord,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
+      })
+      .rpc()));
+  }
+
+  if (options.attackCheck) {
+    replayChecks.push(await expectRejected('wrong merchant authority cannot settle receipt', () => methods.settleReceiptReward()
+      .accounts({
+        growthCampaign,
+        rewardEscrow,
+        rewardVault: rewardVault.address,
+        causalReceipt,
+        settlementRecord,
+        referrerRewardAccount: referrerRewardAccount.address,
+        visitorRewardAccount: visitorRewardAccount.address,
+        rewardMint,
+        merchantAuthority: attackerAuthority.publicKey,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([attackerAuthority])
+      .rpc()));
+    replayChecks.push(await expectRejected('wrong beneficiary token account cannot receive settlement', () => methods.settleReceiptReward()
+      .accounts({
+        growthCampaign,
+        rewardEscrow,
+        rewardVault: rewardVault.address,
+        causalReceipt,
+        settlementRecord,
+        referrerRewardAccount: attackerRewardAccount.address,
+        visitorRewardAccount: visitorRewardAccount.address,
+        rewardMint,
+        merchantAuthority: wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
       })
       .rpc()));
   }
@@ -747,6 +791,7 @@ async function main() {
       maxDepth: options.maxDepth,
       fundAmount: options.fundAmount.toString(),
       replayCheck: options.replayCheck,
+      attackCheck: options.attackCheck,
       closeCheck: options.closeCheck,
     },
     hashes: {
@@ -779,6 +824,8 @@ async function main() {
       referrerRewardAccount: referrerRewardAccount.address.toBase58(),
       visitorAuthority: visitorAuthority.publicKey.toBase58(),
       visitorRewardAccount: visitorRewardAccount.address.toBase58(),
+      attackerAuthority: attackerAuthority.publicKey.toBase58(),
+      attackerRewardAccount: attackerRewardAccount.address.toBase58(),
     },
     signatures: {
       createRewardMint: createMintSignature,

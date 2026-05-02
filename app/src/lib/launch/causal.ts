@@ -129,3 +129,69 @@ export function deriveReceiptPdaLike(receiptIdHash: string) {
 export function deriveTxSignatureLike(receiptIdHash: string, visitAttestationHash: string) {
   return `demo_tx_${sha256Hex(`${receiptIdHash}:${visitAttestationHash}`).slice(0, 44)}`;
 }
+
+export function verifyReceiptCommitmentProof(params: {
+  campaignId: string;
+  merchantId: string;
+  referrerSessionId: string;
+  referrerDeviceFingerprint: string;
+  claimerSessionId: string;
+  claimerDeviceFingerprint: string;
+  causalInvite: CausalInviteRecord;
+  challengeHash: string;
+  customerSignature: string;
+  staffSignature: string;
+  manualReceiptId?: string;
+  claimId: string;
+  redeemCodeId: string;
+  receipt: {
+    receiptIdHash: string;
+    campaignNullifierHash: string;
+    inviteHash: string;
+    visitAttestationHash: string;
+    receiptPda: string;
+    txSignature: string;
+  };
+}) {
+  const expectedReferrerCommitment = createReferrerCommitment({
+    campaignId: params.campaignId,
+    referrerSessionId: params.referrerSessionId,
+    deviceFingerprint: params.referrerDeviceFingerprint,
+  });
+  const expectedNullifier = createCampaignNullifier({
+    campaignId: params.campaignId,
+    claimerSessionId: params.claimerSessionId,
+    deviceFingerprint: params.claimerDeviceFingerprint,
+  });
+  const expectedInviteHash = hashCausalInvite(params.causalInvite);
+  const expectedVisitAttestationHash = sha256Hex(`${params.challengeHash}:${params.customerSignature}:${params.staffSignature}`);
+  const expectedReceiptIdHash = sha256Hex(`${params.manualReceiptId || params.claimId}:${params.redeemCodeId}:${expectedVisitAttestationHash}`);
+  const expectedReceiptPda = deriveReceiptPdaLike(expectedReceiptIdHash);
+  const expectedTxSignature = deriveTxSignatureLike(expectedReceiptIdHash, expectedVisitAttestationHash);
+  const checks = {
+    inviteSignature: verifyCausalInvite(params.causalInvite),
+    inviteCampaign: params.causalInvite.campaignId === params.campaignId,
+    inviteMerchant: params.causalInvite.merchantId === params.merchantId,
+    referrerCommitment: params.causalInvite.referrerCommitment === expectedReferrerCommitment,
+    campaignNullifier: params.receipt.campaignNullifierHash === expectedNullifier,
+    inviteHash: params.receipt.inviteHash === expectedInviteHash,
+    visitAttestation: params.receipt.visitAttestationHash === expectedVisitAttestationHash,
+    receiptId: params.receipt.receiptIdHash === expectedReceiptIdHash,
+    receiptPda: params.receipt.receiptPda === expectedReceiptPda,
+    txSignature: params.receipt.txSignature === expectedTxSignature,
+  };
+
+  return {
+    ok: Object.values(checks).every(Boolean),
+    checks,
+    expected: {
+      referrerCommitment: expectedReferrerCommitment,
+      campaignNullifierHash: expectedNullifier,
+      inviteHash: expectedInviteHash,
+      visitAttestationHash: expectedVisitAttestationHash,
+      receiptIdHash: expectedReceiptIdHash,
+      receiptPda: expectedReceiptPda,
+      txSignature: expectedTxSignature,
+    },
+  };
+}
