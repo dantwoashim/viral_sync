@@ -71,4 +71,36 @@ describe('production security hardening guards', () => {
     expect(relayer).to.include('ALLOWED_PROGRAM_IDS must list explicit program IDs in production');
     expect(relayer).to.include('assertAllowedPrograms(decoded)');
   });
+
+  it('keeps Postgres normalized instead of opaque ledger-only storage', () => {
+    const server = read('app/src/lib/launch/server.ts');
+
+    expect(server).to.include('CREATE TABLE IF NOT EXISTS causal_receipts');
+    expect(server).to.include('CREATE TABLE IF NOT EXISTS staff_device_nonces');
+    expect(server).to.include('UNIQUE (campaign_id, campaign_nullifier_hash)');
+    expect(server).to.include('syncNormalizedLaunchTables');
+    expect(server).to.include('INSERT INTO causal_receipts');
+  });
+
+  it('recomputes receipt commitments before accepting or displaying proof', () => {
+    const causal = read('app/src/lib/launch/causal.ts');
+    const server = read('app/src/lib/launch/server.ts');
+
+    expect(causal).to.include('verifyReceiptCommitmentProof');
+    expect(causal).to.include('expectedReferrerCommitment');
+    expect(causal).to.include('expectedVisitAttestationHash');
+    expect(causal).to.include('expectedReceiptIdHash');
+    expect(server).to.include('Receipt commitment proof failed verification');
+    expect(server).to.include('commitmentProof');
+  });
+
+  it('exposes real localnet Anchor attack checks for critical protocol failures', () => {
+    const pkg = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
+    const script = read('scripts/run-causal-commerce-localnet.ts');
+
+    expect(pkg.scripts['test:anchor-attacks']).to.include('--attack-check');
+    expect(script).to.include('wrong merchant authority cannot settle receipt');
+    expect(script).to.include('wrong beneficiary token account cannot receive settlement');
+    expect(script).to.include('.signers([attackerAuthority])');
+  });
 });

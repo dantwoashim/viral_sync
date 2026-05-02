@@ -12,6 +12,7 @@ import {
   sha256Hex,
   signCustomerChallenge,
   signStaffChallenge,
+  verifyReceiptCommitmentProof,
   verifyCausalInvite,
 } from '@/lib/launch/causal';
 import {
@@ -1235,6 +1236,210 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
 
   const run = async () => {
     await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS merchant_orgs (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS merchants (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL REFERENCES merchant_orgs(id),
+        name TEXT NOT NULL,
+        district TEXT NOT NULL,
+        city TEXT NOT NULL,
+        location_label TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id TEXT PRIMARY KEY,
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        title TEXT NOT NULL,
+        reward TEXT NOT NULL,
+        referral_goal INTEGER NOT NULL CHECK (referral_goal > 0),
+        redemption_window_hours INTEGER NOT NULL CHECK (redemption_window_hours > 0),
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS merchant_sessions (
+        id TEXT PRIMARY KEY,
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        role TEXT NOT NULL CHECK (role IN ('owner', 'manager', 'staff', 'support', 'auditor')),
+        label TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS staff_devices (
+        id TEXT PRIMARY KEY,
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        location_label TEXT NOT NULL,
+        label TEXT NOT NULL,
+        public_key TEXT NOT NULL UNIQUE,
+        secret_hash TEXT,
+        enrolled_at TIMESTAMPTZ NOT NULL,
+        revoked_at TIMESTAMPTZ
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS staff_device_nonces (
+        id TEXT PRIMARY KEY,
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        staff_device_public_key TEXT NOT NULL REFERENCES staff_devices(public_key),
+        action TEXT NOT NULL,
+        code TEXT,
+        nonce TEXT NOT NULL UNIQUE,
+        issued_at TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        consumed_at TIMESTAMPTZ
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS causal_invites (
+        token TEXT PRIMARY KEY,
+        campaign_id TEXT NOT NULL REFERENCES campaigns(id),
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        referrer_session_id TEXT NOT NULL,
+        referrer_device_fingerprint TEXT NOT NULL,
+        referrer_commitment TEXT NOT NULL,
+        invite_nonce TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        signature TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS claims (
+        id TEXT PRIMARY KEY,
+        campaign_id TEXT NOT NULL REFERENCES campaigns(id),
+        invite_token TEXT NOT NULL REFERENCES causal_invites(token),
+        referrer_session_id TEXT NOT NULL,
+        claimer_session_id TEXT NOT NULL,
+        device_fingerprint TEXT NOT NULL,
+        campaign_nullifier_hash TEXT NOT NULL,
+        status TEXT NOT NULL,
+        claimed_at TIMESTAMPTZ NOT NULL,
+        redeemed_at TIMESTAMPTZ,
+        UNIQUE (campaign_id, campaign_nullifier_hash)
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS redemptions (
+        id TEXT PRIMARY KEY,
+        claim_id TEXT NOT NULL REFERENCES claims(id),
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        code_hash TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        redeemed_at TIMESTAMPTZ
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS visit_challenges (
+        id TEXT PRIMARY KEY,
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        campaign_id TEXT NOT NULL REFERENCES campaigns(id),
+        claim_id TEXT NOT NULL REFERENCES claims(id),
+        redeem_code_id TEXT NOT NULL REFERENCES redemptions(id),
+        challenge_hash TEXT NOT NULL UNIQUE,
+        nonce TEXT NOT NULL UNIQUE,
+        issued_at TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        status TEXT NOT NULL
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS causal_receipts (
+        id TEXT PRIMARY KEY,
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        campaign_id TEXT NOT NULL REFERENCES campaigns(id),
+        claim_id TEXT NOT NULL REFERENCES claims(id),
+        referral_token TEXT NOT NULL REFERENCES causal_invites(token),
+        receipt_id_hash TEXT NOT NULL UNIQUE,
+        campaign_nullifier_hash TEXT NOT NULL,
+        invite_hash TEXT NOT NULL,
+        visit_attestation_hash TEXT NOT NULL,
+        receipt_pda TEXT NOT NULL,
+        tx_signature TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        settled_at TIMESTAMPTZ
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS audit_events (
+        id TEXT PRIMARY KEY,
+        request_id TEXT NOT NULL,
+        actor_type TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        merchant_id TEXT,
+        target_type TEXT NOT NULL,
+        target_id TEXT,
+        action TEXT NOT NULL,
+        result TEXT NOT NULL,
+        reason TEXT,
+        created_at TIMESTAMPTZ NOT NULL
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS reward_ledger_entries (
+        id TEXT PRIMARY KEY,
+        merchant_id TEXT NOT NULL REFERENCES merchants(id),
+        receipt_id TEXT,
+        actor_session_id TEXT,
+        entry_type TEXT NOT NULL,
+        amount BIGINT NOT NULL,
+        balance_after BIGINT NOT NULL,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        created_at TIMESTAMPTZ NOT NULL
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS idempotency_records (
+        scope TEXT NOT NULL,
+        key TEXT NOT NULL,
+        result_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (scope, key)
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
+      CREATE TABLE IF NOT EXISTS outbox_jobs (
+        id TEXT PRIMARY KEY,
+        topic TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        status TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_run_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL,
+        last_error TEXT
+      )
+    `);
+
+    await queryWithOptionalClient(client, `
       CREATE TABLE IF NOT EXISTS launch_ledger (
         id TEXT PRIMARY KEY,
         data JSONB NOT NULL,
@@ -1256,6 +1461,245 @@ async function ensureDatabaseLedger(client: PoolClient | null = null) {
 
   schemaReadyPromise = schemaReadyPromise ?? run();
   await schemaReadyPromise;
+}
+
+function redeemCodeExpiresAt(code: RedeemCodeRecord, ledger: LaunchLedger) {
+  const claim = ledger.claims.find((item) => item.id === code.claimId);
+  const offer = claim ? ledger.offers.find((item) => item.id === claim.offerId) : null;
+  const base = claim?.claimedAt ?? code.createdAt;
+  const hours = offer?.redemptionWindowHours ?? 24;
+  return new Date(new Date(base).getTime() + hours * 60 * 60 * 1000).toISOString();
+}
+
+async function syncNormalizedLaunchTables(client: PoolClient | null, ledger: LaunchLedger) {
+  if (!dbPool) {
+    return;
+  }
+
+  await queryWithOptionalClient(client, `
+    INSERT INTO merchant_orgs (id, name)
+    VALUES ($1, $2)
+    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+  `, ['org-launch', 'Viral Sync Launch']);
+
+  for (const merchant of ledger.merchants) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO merchants (id, org_id, name, district, city, location_label)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        district = EXCLUDED.district,
+        city = EXCLUDED.city,
+        location_label = EXCLUDED.location_label
+    `, [merchant.id, 'org-launch', merchant.name, merchant.district, merchant.city, merchant.locationLabel]);
+  }
+
+  for (const offer of ledger.offers) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO campaigns (id, merchant_id, title, reward, referral_goal, redemption_window_hours, active, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        reward = EXCLUDED.reward,
+        referral_goal = EXCLUDED.referral_goal,
+        redemption_window_hours = EXCLUDED.redemption_window_hours,
+        active = EXCLUDED.active
+    `, [offer.id, offer.merchantId, offer.title, offer.reward, offer.referralGoal, offer.redemptionWindowHours, offer.active, offer.createdAt]);
+  }
+
+  for (const session of ledger.merchantSessions ?? []) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO merchant_sessions (id, merchant_id, role, label, created_at, expires_at, revoked_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (id) DO UPDATE SET
+        role = EXCLUDED.role,
+        label = EXCLUDED.label,
+        expires_at = EXCLUDED.expires_at,
+        revoked_at = EXCLUDED.revoked_at
+    `, [session.id, session.merchantId, session.role, session.label, session.createdAt, session.expiresAt, session.revokedAt ?? null]);
+  }
+
+  for (const device of ledger.staffDevices ?? []) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO staff_devices (id, merchant_id, location_label, label, public_key, secret_hash, enrolled_at, revoked_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id) DO UPDATE SET
+        location_label = EXCLUDED.location_label,
+        label = EXCLUDED.label,
+        public_key = EXCLUDED.public_key,
+        secret_hash = EXCLUDED.secret_hash,
+        revoked_at = EXCLUDED.revoked_at
+    `, [device.id, device.merchantId, device.locationLabel, device.label, device.publicKey, device.secretHash ?? null, device.enrolledAt, device.revokedAt ?? null]);
+  }
+
+  for (const nonce of ledger.staffDeviceNonces ?? []) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO staff_device_nonces (id, merchant_id, staff_device_public_key, action, code, nonce, issued_at, expires_at, consumed_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (id) DO UPDATE SET consumed_at = EXCLUDED.consumed_at
+    `, [nonce.id, nonce.merchantId, nonce.staffDevicePublicKey, nonce.action, nonce.code ?? null, nonce.nonce, nonce.issuedAt, nonce.expiresAt, nonce.consumedAt ?? null]);
+  }
+
+  for (const referral of ledger.referralLinks) {
+    if (!referral.causalInvite) {
+      continue;
+    }
+    const offer = ledger.offers.find((item) => item.id === referral.offerId);
+    await queryWithOptionalClient(client, `
+      INSERT INTO causal_invites (
+        token, campaign_id, merchant_id, referrer_session_id, referrer_device_fingerprint,
+        referrer_commitment, invite_nonce, expires_at, signature, created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, to_timestamp($8 / 1000.0), $9, $10)
+      ON CONFLICT (token) DO UPDATE SET
+        referrer_commitment = EXCLUDED.referrer_commitment,
+        expires_at = EXCLUDED.expires_at,
+        signature = EXCLUDED.signature
+    `, [
+      referral.token,
+      referral.offerId,
+      offer?.merchantId ?? referral.causalInvite.merchantId,
+      referral.referrerSessionId,
+      referral.referrerDeviceFingerprint,
+      referral.causalInvite.referrerCommitment,
+      referral.causalInvite.inviteNonce,
+      referral.causalInvite.expiresAt,
+      referral.causalInvite.signature,
+      referral.createdAt,
+    ]);
+  }
+
+  for (const claim of ledger.claims) {
+    if (!ledger.referralLinks.some((item) => item.token === claim.referralToken)) {
+      continue;
+    }
+    await queryWithOptionalClient(client, `
+      INSERT INTO claims (
+        id, campaign_id, invite_token, referrer_session_id, claimer_session_id, device_fingerprint,
+        campaign_nullifier_hash, status, claimed_at, redeemed_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (id) DO UPDATE SET
+        status = EXCLUDED.status,
+        redeemed_at = EXCLUDED.redeemed_at
+    `, [
+      claim.id,
+      claim.offerId,
+      claim.referralToken,
+      claim.referrerSessionId,
+      claim.claimerSessionId,
+      claim.deviceFingerprint,
+      claim.campaignNullifierHash ?? '',
+      claim.status,
+      claim.claimedAt,
+      claim.redeemedAt ?? null,
+    ]);
+  }
+
+  for (const code of ledger.redeemCodes) {
+    if (!ledger.claims.some((item) => item.id === code.claimId) || !code.codeHash) {
+      continue;
+    }
+    await queryWithOptionalClient(client, `
+      INSERT INTO redemptions (id, claim_id, merchant_id, code_hash, status, created_at, expires_at, redeemed_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (id) DO UPDATE SET
+        status = EXCLUDED.status,
+        redeemed_at = EXCLUDED.redeemed_at
+    `, [code.id, code.claimId, code.merchantId, code.codeHash, code.status, code.createdAt, redeemCodeExpiresAt(code, ledger), code.redeemedAt ?? null]);
+  }
+
+  for (const challenge of ledger.visitChallenges ?? []) {
+    if (!ledger.claims.some((item) => item.id === challenge.claimId) || !ledger.redeemCodes.some((item) => item.id === challenge.redeemCodeId)) {
+      continue;
+    }
+    await queryWithOptionalClient(client, `
+      INSERT INTO visit_challenges (
+        id, merchant_id, campaign_id, claim_id, redeem_code_id, challenge_hash, nonce,
+        issued_at, expires_at, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
+    `, [
+      challenge.id,
+      challenge.merchantId,
+      challenge.offerId,
+      challenge.claimId,
+      challenge.redeemCodeId,
+      challenge.challengeHash,
+      challenge.nonce,
+      challenge.issuedAt,
+      challenge.expiresAt,
+      challenge.status,
+    ]);
+  }
+
+  for (const receipt of ledger.causalReceipts ?? []) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO causal_receipts (
+        id, merchant_id, campaign_id, claim_id, referral_token, receipt_id_hash,
+        campaign_nullifier_hash, invite_hash, visit_attestation_hash, receipt_pda,
+        tx_signature, status, created_at, settled_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ON CONFLICT (id) DO UPDATE SET
+        status = EXCLUDED.status,
+        settled_at = EXCLUDED.settled_at,
+        tx_signature = EXCLUDED.tx_signature
+    `, [
+      receipt.id,
+      receipt.merchantId,
+      receipt.offerId,
+      receipt.claimId,
+      receipt.referralToken,
+      receipt.receiptIdHash,
+      receipt.campaignNullifierHash,
+      receipt.inviteHash,
+      receipt.visitAttestationHash,
+      receipt.receiptPda,
+      receipt.txSignature,
+      receipt.status,
+      receipt.createdAt,
+      receipt.settledAt ?? null,
+    ]);
+  }
+
+  for (const event of ledger.auditEvents ?? []) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO audit_events (id, request_id, actor_type, actor_id, merchant_id, target_type, target_id, action, result, reason, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (id) DO NOTHING
+    `, [event.id, event.requestId, event.actorType, event.actorId, event.merchantId ?? null, event.targetType, event.targetId ?? null, event.action, event.result, event.reason ?? null, event.createdAt]);
+  }
+
+  for (const entry of ledger.rewardLedgerEntries ?? []) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO reward_ledger_entries (id, merchant_id, receipt_id, actor_session_id, entry_type, amount, balance_after, idempotency_key, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (id) DO UPDATE SET balance_after = EXCLUDED.balance_after
+    `, [entry.id, entry.merchantId, entry.receiptId ?? null, entry.actorSessionId ?? null, entry.entryType, entry.amount, entry.balanceAfter, entry.idempotencyKey, entry.createdAt]);
+  }
+
+  for (const record of ledger.idempotencyRecords ?? []) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO idempotency_records (scope, key, result_id, created_at)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (scope, key) DO UPDATE SET result_id = EXCLUDED.result_id
+    `, [record.scope, record.key, record.resultId, record.createdAt]);
+  }
+
+  for (const job of ledger.outbox ?? []) {
+    await queryWithOptionalClient(client, `
+      INSERT INTO outbox_jobs (id, topic, payload, status, attempts, next_run_at, created_at, updated_at, last_error)
+      VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (id) DO UPDATE SET
+        status = EXCLUDED.status,
+        attempts = EXCLUDED.attempts,
+        next_run_at = EXCLUDED.next_run_at,
+        updated_at = EXCLUDED.updated_at,
+        last_error = EXCLUDED.last_error
+    `, [job.id, job.topic, JSON.stringify(job.payload), job.status, job.attempts, job.nextRunAt, job.createdAt, job.updatedAt, job.lastError ?? null]);
+  }
 }
 
 async function loadLedgerFromDatabase() {
@@ -1308,12 +1752,17 @@ async function loadLedger() {
 async function saveLedger(ledger: LaunchLedger) {
   if (dbPool) {
     await ensureDatabaseLedger();
+    const normalized = normalizeLedgerState(ledger);
+    if (normalized) {
+      ledger = { ...ledger };
+    }
     await dbPool.query(`
       UPDATE launch_ledger
       SET data = $2::jsonb,
           updated_at = NOW()
       WHERE id = $1
     `, [LEDGER_ROW_ID, JSON.stringify(ledger)]);
+    await syncNormalizedLaunchTables(null, ledger);
     return;
   }
 
@@ -1352,6 +1801,7 @@ async function withLedgerMutation<T>(mutator: (ledger: LaunchLedger) => T | Prom
             updated_at = NOW()
         WHERE id = $1
       `, [LEDGER_ROW_ID, JSON.stringify(ledger)]);
+      await syncNormalizedLaunchTables(client, ledger);
       await client.query('COMMIT');
 
       return mutationResult;
@@ -1916,6 +2366,26 @@ function submitCausalReceipt(params: {
     createdAt: new Date().toISOString(),
   };
 
+  const proof = params.referral.causalInvite ? verifyReceiptCommitmentProof({
+    campaignId: params.offerId,
+    merchantId: params.merchantId,
+    referrerSessionId: params.referral.referrerSessionId,
+    referrerDeviceFingerprint: params.referral.referrerDeviceFingerprint,
+    claimerSessionId: params.claim.claimerSessionId,
+    claimerDeviceFingerprint: params.claim.deviceFingerprint,
+    causalInvite: params.referral.causalInvite,
+    challengeHash: params.challenge.challengeHash,
+    customerSignature,
+    staffSignature,
+    manualReceiptId: params.manualReceiptId,
+    claimId: params.claim.id,
+    redeemCodeId: params.code.id,
+    receipt,
+  }) : null;
+  if (!proof?.ok) {
+    throw new Error('Receipt commitment proof failed verification.');
+  }
+
   params.ledger.causalReceipts = params.ledger.causalReceipts ?? [];
   params.ledger.causalReceipts.push(receipt);
   return receipt;
@@ -2386,6 +2856,22 @@ export async function getReceiptExplorer(receiptLookup: string) {
   const challenge = (ledger.visitChallenges ?? [])
     .filter((item) => item.claimId === receipt.claimId)
     .sort((left, right) => right.issuedAt.localeCompare(left.issuedAt))[0] ?? null;
+  const commitmentProof = claim && referral?.causalInvite && challenge ? verifyReceiptCommitmentProof({
+    campaignId: receipt.offerId,
+    merchantId: receipt.merchantId,
+    referrerSessionId: referral.referrerSessionId,
+    referrerDeviceFingerprint: referral.referrerDeviceFingerprint,
+    claimerSessionId: claim.claimerSessionId,
+    claimerDeviceFingerprint: claim.deviceFingerprint,
+    causalInvite: referral.causalInvite,
+    challengeHash: challenge.challengeHash,
+    customerSignature: receipt.customerSignature,
+    staffSignature: receipt.staffSignature,
+    manualReceiptId: receipt.manualReceiptId,
+    claimId: receipt.claimId,
+    redeemCodeId: challenge.redeemCodeId,
+    receipt,
+  }) : { ok: false, checks: {}, expected: {} };
 
   return {
     receipt,
@@ -2400,6 +2886,7 @@ export async function getReceiptExplorer(receiptLookup: string) {
       visitorAmount: receipt.status === 'settled' ? 20 : 0,
     },
     compressedProof: buildCompressedReceiptProof(ledger.causalReceipts ?? [], receipt),
+    commitmentProof,
   };
 }
 
