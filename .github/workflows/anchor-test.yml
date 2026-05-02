@@ -36,8 +36,19 @@ jobs:
           SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
           if [ ! -x "$SOLANA_BIN/solana" ] || [ ! -x "$SOLANA_BIN/cargo-build-sbf" ]; then
             rm -rf "$HOME/.local/share/solana/install"
-            sh -c "$(curl -sSfL https://release.solana.com/v1.18.23/install)"
+            INSTALLER="$(mktemp)"
+            for URL in \
+              "https://release.anza.xyz/v1.18.23/install" \
+              "https://release.solana.com/v1.18.23/install"
+            do
+              if curl --fail --show-error --silent --location --retry 5 --retry-delay 3 --retry-all-errors "$URL" -o "$INSTALLER"; then
+                bash "$INSTALLER"
+                break
+              fi
+            done
           fi
+          test -x "$SOLANA_BIN/solana"
+          test -x "$SOLANA_BIN/cargo-build-sbf"
           echo "$SOLANA_BIN" >> "$GITHUB_PATH"
           "$SOLANA_BIN/solana" --version
           "$SOLANA_BIN/cargo-build-sbf" --version
