@@ -45,6 +45,7 @@ type ProgramMethods = {
     rewardPerVerifiedVisit: anchor.BN,
     maxRedemptions: number,
     maxDepth: number,
+    referrerSplitBps: number,
     splitRulesHash: number[],
     fraudPolicyHash: number[],
     startsAt: anchor.BN,
@@ -458,6 +459,7 @@ async function maybeCreateCampaign(params: {
   rewardPerVisit: anchor.BN;
   maxRedemptions: number;
   maxDepth: number;
+  referrerSplitBps: number;
   splitRulesHash: Buffer;
   fraudPolicyHash: Buffer;
 }) {
@@ -471,6 +473,7 @@ async function maybeCreateCampaign(params: {
       params.rewardPerVisit,
       params.maxRedemptions,
       params.maxDepth,
+      params.referrerSplitBps,
       Array.from(params.splitRulesHash),
       Array.from(params.fraudPolicyHash),
       new anchor.BN(nowSeconds - 60),
@@ -587,6 +590,7 @@ async function main() {
     rewardPerVisit: options.rewardPerVisit,
     maxRedemptions: options.maxRedemptions,
     maxDepth: options.maxDepth,
+    referrerSplitBps: 8_000,
     splitRulesHash,
     fraudPolicyHash,
   });

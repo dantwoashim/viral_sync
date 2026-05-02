@@ -42,7 +42,7 @@ function bytesToHex(bytes: ArrayBuffer) {
     .join('');
 }
 
-async function staffDeviceHeaders(action: string, code?: string): Promise<Record<string, string>> {
+async function staffDeviceHeaders(action: string, code?: string, staffPin?: string): Promise<Record<string, string>> {
   if (typeof window === 'undefined') {
     return {};
   }
@@ -57,6 +57,22 @@ async function staffDeviceHeaders(action: string, code?: string): Promise<Record
     return {};
   }
 
+  const nonceResponse = await fetch('/api/launch/staff-device', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'challenge',
+      publicKey: device.publicKey,
+      purpose: action,
+      code,
+      staffPin,
+    }),
+  });
+  const noncePayload = await nonceResponse.json() as { ok?: boolean; nonce?: string };
+  if (!nonceResponse.ok || !noncePayload.ok || !noncePayload.nonce) {
+    return {};
+  }
+
   const timestamp = Date.now().toString();
   const message = [
     'viral-sync-staff-device-v1',
@@ -64,6 +80,7 @@ async function staffDeviceHeaders(action: string, code?: string): Promise<Record
     timestamp,
     action,
     code ? normalizeCodeForSignature(code) : '',
+    noncePayload.nonce,
   ].join(':');
   const key = await crypto.subtle.importKey(
     'raw',
@@ -78,6 +95,7 @@ async function staffDeviceHeaders(action: string, code?: string): Promise<Record
     'x-viral-sync-staff-device': device.publicKey,
     'x-viral-sync-staff-signature': signature,
     'x-viral-sync-staff-timestamp': timestamp,
+    'x-viral-sync-staff-nonce': noncePayload.nonce,
   };
 }
 
@@ -158,7 +176,7 @@ export async function createRedeemCode(sessionId: string) {
 }
 
 export async function confirmMerchantCode(code: string, staffPin: string, manualReceiptId?: string) {
-  const signedHeaders = await staffDeviceHeaders('merchant-confirm', code);
+  const signedHeaders = await staffDeviceHeaders('merchant-confirm', code, staffPin);
   const response = await fetch('/api/launch/merchant/confirm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...signedHeaders },

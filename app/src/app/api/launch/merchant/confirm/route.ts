@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     staffDevicePublicKey,
     staffDeviceSignature: staffDeviceProof.signature,
     staffDeviceTimestamp: staffDeviceProof.timestamp,
+    staffDeviceNonce: staffDeviceProof.nonce,
     manualReceiptId: parsed.value.manualReceiptId,
   });
   return withSecurityHeaders(NextResponse.json(result, { status: result.ok ? 200 : 409 }));
