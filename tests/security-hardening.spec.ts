@@ -59,7 +59,8 @@ describe('production security hardening guards', () => {
     expect(server).to.include('staffDeviceSigningMessage');
     expect(server).to.include('activeStaffDeviceNonce');
     expect(server).to.include('nonce.consumedAt = new Date().toISOString()');
-    expect(server).to.include('constantTimeHexEqual(expectedSignature, params.staffDeviceSignature)');
+    expect(server).to.include('verifyStaffDeviceSignature');
+    expect(server).to.include("'ecdsa-p256'");
     expect(server).to.include('STAFF_DEVICE_SIGNATURE_TTL_MS');
   });
 
@@ -70,6 +71,10 @@ describe('production security hardening guards', () => {
     expect(relayer).to.include('MAX_TRANSACTION_BYTES must not exceed 2048');
     expect(relayer).to.include('ALLOWED_PROGRAM_IDS must list explicit program IDs in production');
     expect(relayer).to.include('assertAllowedPrograms(decoded)');
+    expect(relayer).to.include('ALLOWED_INSTRUCTION_PREFIXES must list explicit instruction data prefixes in production');
+    expect(relayer).to.include('ALLOWED_WRITABLE_ACCOUNTS must list explicit writable accounts in production');
+    expect(relayer).to.include('assertInstructionPolicy(decoded)');
+    expect(relayer).to.include('MAX_COMPUTE_UNITS');
   });
 
   it('keeps Postgres normalized instead of opaque ledger-only storage', () => {
@@ -83,6 +88,10 @@ describe('production security hardening guards', () => {
     expect(server).to.include('const normalizedLedger = await loadLedgerFromNormalizedTables()');
     expect(server).to.include('await syncNormalizedLaunchTables(client, ledger)');
     expect(server).to.include('INSERT INTO causal_receipts');
+    expect(server).to.include('ALTER TABLE redemptions DROP COLUMN IF EXISTS code');
+    expect(server).to.include('public_key_material TEXT');
+    expect(server).to.not.include('UPDATE launch_ledger');
+    expect(server).to.not.include('INSERT INTO redemptions (id, claim_id, merchant_id, code, code_hash');
   });
 
   it('recomputes receipt commitments before accepting or displaying proof', () => {

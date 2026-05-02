@@ -3,7 +3,7 @@ import { expect } from 'chai';
 
 describe('localnet Anchor attack tests', () => {
   it('rejects duplicate, wrong-authority, and wrong-beneficiary Causal Commerce attacks on a live validator', function () {
-    if (process.env.RUN_ANCHOR_ATTACK_TESTS !== '1') {
+    if (process.env.CI !== 'true' && process.env.RUN_ANCHOR_ATTACK_TESTS !== '1') {
       this.skip();
     }
 

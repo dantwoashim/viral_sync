@@ -29,7 +29,21 @@ const allowedProgramIds = (process.env.ALLOWED_PROGRAM_IDS || '')
   .split(',')
   .map((programId) => programId.trim())
   .filter(Boolean);
+const allowedInstructionPrefixes = (process.env.ALLOWED_INSTRUCTION_PREFIXES || '')
+  .split(',')
+  .map((prefix) => prefix.trim().toLowerCase())
+  .filter(Boolean);
+const allowedWritableAccounts = (process.env.ALLOWED_WRITABLE_ACCOUNTS || '')
+  .split(',')
+  .map((account) => account.trim())
+  .filter(Boolean);
+const MAX_INSTRUCTIONS = Number(process.env.MAX_INSTRUCTIONS || 6);
+const MAX_WRITABLE_ACCOUNTS = Number(process.env.MAX_WRITABLE_ACCOUNTS || 12);
+const MAX_SIGNER_ACCOUNTS = Number(process.env.MAX_SIGNER_ACCOUNTS || 3);
+const MAX_COMPUTE_UNITS = Number(process.env.MAX_COMPUTE_UNITS || 200_000);
+const allowAddressLookupTables = process.env.RELAYER_ALLOW_ADDRESS_LOOKUP_TABLES === 'true';
 const allowUnauthenticated = process.env.RELAYER_ALLOW_UNAUTHENTICATED === 'true';
+const COMPUTE_BUDGET_PROGRAM_ID = 'ComputeBudget111111111111111111111111111111';
 
 if (MAX_TRANSACTION_BYTES > 2_048) {
   throw new Error('MAX_TRANSACTION_BYTES must not exceed 2048 for the production relayer.');
@@ -51,6 +65,14 @@ if (isProduction && allowedProgramIds.length === 0) {
   throw new Error('ALLOWED_PROGRAM_IDS must list explicit program IDs in production.');
 }
 
+if (isProduction && allowedInstructionPrefixes.length === 0) {
+  throw new Error('ALLOWED_INSTRUCTION_PREFIXES must list explicit instruction data prefixes in production.');
+}
+
+if (isProduction && allowedWritableAccounts.length === 0) {
+  throw new Error('ALLOWED_WRITABLE_ACCOUNTS must list explicit writable accounts in production.');
+}
+
 function assertPositiveInteger(value: number, name: string) {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer.`);
@@ -62,6 +84,10 @@ assertPositiveInteger(RATE_LIMIT_WINDOW_MS, 'RATE_LIMIT_WINDOW_MS');
 assertPositiveInteger(RATE_LIMIT_MAX, 'RATE_LIMIT_MAX');
 assertPositiveInteger(MAX_TRANSACTION_BYTES, 'MAX_TRANSACTION_BYTES');
 assertPositiveInteger(REPLAY_CACHE_TTL_MS, 'REPLAY_CACHE_TTL_MS');
+assertPositiveInteger(MAX_INSTRUCTIONS, 'MAX_INSTRUCTIONS');
+assertPositiveInteger(MAX_WRITABLE_ACCOUNTS, 'MAX_WRITABLE_ACCOUNTS');
+assertPositiveInteger(MAX_SIGNER_ACCOUNTS, 'MAX_SIGNER_ACCOUNTS');
+assertPositiveInteger(MAX_COMPUTE_UNITS, 'MAX_COMPUTE_UNITS');
 
 function parseSecretKey(secret: string) {
   if (!secret) {
@@ -215,6 +241,110 @@ function assertAllowedPrograms(decoded: ReturnType<typeof decodeTransactionPaylo
   }
 }
 
+function instructionPrefixAllowed(programId: string, data: Uint8Array | Buffer) {
+  if (allowedInstructionPrefixes.length === 0 && !isProduction) {
+    return true;
+  }
+
+  const hex = Buffer.from(data).toString('hex');
+  return allowedInstructionPrefixes.some((prefix) => {
+    const normalized = prefix.includes(':') ? prefix : `${programId}:${prefix}`;
+    const [allowedProgram, allowedPrefix] = normalized.split(':');
+    return allowedProgram === programId && hex.startsWith(allowedPrefix);
+  });
+}
+
+function readComputeUnitLimit(data: Uint8Array | Buffer) {
+  const buffer = Buffer.from(data);
+  if (buffer.length >= 5 && buffer[0] === 2) {
+    return buffer.readUInt32LE(1);
+  }
+  return null;
+}
+
+function assertInstructionPolicy(decoded: ReturnType<typeof decodeTransactionPayload>) {
+  const writableAllowlist = new Set(allowedWritableAccounts);
+  const programAllowlist = new Set(allowedProgramIds);
+  const writableAccounts = new Set<string>();
+  const signerAccounts = new Set<string>();
+  let instructionCount = 0;
+
+  if (decoded.kind === 'versioned') {
+    const message = decoded.tx.message;
+    if (!allowAddressLookupTables && message.addressTableLookups.length > 0) {
+      throw new Error('Address lookup table transactions are disabled by relayer policy.');
+    }
+    instructionCount = message.compiledInstructions.length;
+    if (instructionCount > MAX_INSTRUCTIONS) {
+      throw new Error(`Transaction exceeds the ${MAX_INSTRUCTIONS} instruction limit.`);
+    }
+
+    for (let index = 0; index < message.staticAccountKeys.length; index += 1) {
+      const account = message.staticAccountKeys[index]?.toBase58();
+      if (!account) continue;
+      if (message.isAccountWritable(index)) writableAccounts.add(account);
+      if (message.isAccountSigner(index)) signerAccounts.add(account);
+    }
+
+    for (const instruction of message.compiledInstructions) {
+      const programId = message.staticAccountKeys[instruction.programIdIndex]?.toBase58();
+      if (!programId) {
+        throw new Error('Instruction program id is outside the static account set.');
+      }
+      if (programAllowlist.size > 0 && !programAllowlist.has(programId)) {
+        throw new Error(`Program ${programId} is not allowlisted.`);
+      }
+      if (!instructionPrefixAllowed(programId, instruction.data)) {
+        throw new Error(`Instruction data for ${programId} is not allowlisted.`);
+      }
+      const computeUnitLimit = programId === COMPUTE_BUDGET_PROGRAM_ID
+        ? readComputeUnitLimit(instruction.data)
+        : null;
+      if (computeUnitLimit !== null && computeUnitLimit > MAX_COMPUTE_UNITS) {
+        throw new Error(`Compute budget ${computeUnitLimit} exceeds ${MAX_COMPUTE_UNITS}.`);
+      }
+    }
+  } else {
+    instructionCount = decoded.tx.instructions.length;
+    if (instructionCount > MAX_INSTRUCTIONS) {
+      throw new Error(`Transaction exceeds the ${MAX_INSTRUCTIONS} instruction limit.`);
+    }
+    for (const instruction of decoded.tx.instructions) {
+      const programId = instruction.programId.toBase58();
+      if (programAllowlist.size > 0 && !programAllowlist.has(programId)) {
+        throw new Error(`Program ${programId} is not allowlisted.`);
+      }
+      if (!instructionPrefixAllowed(programId, instruction.data)) {
+        throw new Error(`Instruction data for ${programId} is not allowlisted.`);
+      }
+      const computeUnitLimit = programId === COMPUTE_BUDGET_PROGRAM_ID
+        ? readComputeUnitLimit(instruction.data)
+        : null;
+      if (computeUnitLimit !== null && computeUnitLimit > MAX_COMPUTE_UNITS) {
+        throw new Error(`Compute budget ${computeUnitLimit} exceeds ${MAX_COMPUTE_UNITS}.`);
+      }
+      for (const key of instruction.keys) {
+        const account = key.pubkey.toBase58();
+        if (key.isWritable) writableAccounts.add(account);
+        if (key.isSigner) signerAccounts.add(account);
+      }
+    }
+  }
+
+  if (writableAccounts.size > MAX_WRITABLE_ACCOUNTS) {
+    throw new Error(`Transaction exceeds the ${MAX_WRITABLE_ACCOUNTS} writable account limit.`);
+  }
+  if (signerAccounts.size > MAX_SIGNER_ACCOUNTS) {
+    throw new Error(`Transaction exceeds the ${MAX_SIGNER_ACCOUNTS} signer account limit.`);
+  }
+  if (writableAllowlist.size > 0) {
+    const denied = Array.from(writableAccounts).filter((account) => !writableAllowlist.has(account));
+    if (denied.length > 0) {
+      throw new Error(`Transaction writes non-allowlisted accounts: ${denied.join(', ')}`);
+    }
+  }
+}
+
 async function simulateSignedTransaction(tx: VersionedTransaction | Transaction) {
   if (tx instanceof VersionedTransaction) {
     return connection.simulateTransaction(tx);
@@ -278,6 +408,7 @@ app.post('/relay', requireApiKey, requireRateLimit, async (req, res) => {
     const decoded = decodeTransactionPayload(req.body?.transactionBase64);
     assertRelayerIsFeePayer(decoded);
     assertAllowedPrograms(decoded);
+    assertInstructionPolicy(decoded);
     reserveReplayFingerprint(decoded.fingerprint);
 
     try {

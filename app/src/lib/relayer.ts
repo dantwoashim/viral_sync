@@ -13,6 +13,7 @@
 import { Transaction, VersionedTransaction } from '@solana/web3.js';
 
 const RELAYER_URL = process.env.NEXT_PUBLIC_RELAYER_URL || 'http://localhost:3001';
+const RELAYER_API_KEY = process.env.RELAYER_API_KEY || '';
 
 export interface RelayResult {
     success: boolean;
@@ -32,7 +33,13 @@ export async function relayTransaction(
         if (typeof window !== 'undefined') {
             return {
                 success: false,
-                error: 'Browser relaying is disabled. Submit sponsored intents through the Viral Sync server policy layer.',
+                error: 'Browser relaying is disabled. Submit signed app intents through the Viral Sync server policy layer.',
+            };
+        }
+        if (!RELAYER_API_KEY) {
+            return {
+                success: false,
+                error: 'Server relayer API key is required.',
             };
         }
 
@@ -41,7 +48,7 @@ export async function relayTransaction(
 
         const response = await fetch(`${RELAYER_URL}/relay`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Relayer-Key': RELAYER_API_KEY },
             body: JSON.stringify({ transactionBase64: base64 }),
         });
 
