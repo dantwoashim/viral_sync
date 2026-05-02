@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Pool, type PoolClient } from 'pg';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import {
   createCampaignNullifier,
   createCausalInvite,
@@ -68,6 +69,7 @@ const DATA_DIR = process.env.LAUNCH_LEDGER_DIR
   : path.join(process.cwd(), '.local');
 const LEDGER_PATH = path.join(DATA_DIR, 'launch-ledger.json');
 const DATABASE_URL = process.env.LAUNCH_DATABASE_URL || process.env.DATABASE_URL;
+const STAFF_DEVICE_SIGNATURE_TTL_MS = 5 * 60 * 1000;
 const LEDGER_ROW_ID = 'default';
 const LEDGER_LOCK_KEY = 2_886_412;
 let persistChain: Promise<void> = Promise.resolve();
@@ -177,12 +179,40 @@ function randomRedeemCode() {
   return `${raw.slice(0, 3)}-${raw.slice(3)}`;
 }
 
+function staffDeviceSecret() {
+  return randomBytes(32).toString('hex');
+}
+
+function hmacStaffDevice(secret: string, message: string) {
+  return createHmac('sha256', secret).update(message).digest('hex');
+}
+
+function constantTimeHexEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left, 'hex');
+  const rightBuffer = Buffer.from(right, 'hex');
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function hashRedeemCode(params: { code: string; merchantId: string; offerId: string; claimId: string }) {
   return sha256Hex(`${params.merchantId}:${params.offerId}:${params.claimId}:${normalizeRedeemCode(params.code)}`);
 }
 
+export function staffDeviceSigningMessage(params: { publicKey: string; timestamp: string; action: string; code?: string; }) {
+  return [
+    'viral-sync-staff-device-v1',
+    params.publicKey,
+    params.timestamp,
+    params.action,
+    params.code ? normalizeRedeemCode(params.code) : '',
+  ].join(':');
+}
+
 function defaultStaffPublicKey() {
-  return `staff_${sha256Hex(`${PILOT_MERCHANT_ID}:front-counter`).slice(0, 32)}`;
+  return `staff_${sha256Hex(defaultStaffSecret()).slice(0, 32)}`;
+}
+
+function defaultStaffSecret() {
+  return sha256Hex(`${PILOT_MERCHANT_ID}:front-counter:staff-device-secret`);
 }
 
 export function createOrResumeGuestSession(existingSessionId?: string | null) {
@@ -295,20 +325,28 @@ export async function requireMerchantRole(sessionId: string, allowedRoles: Merch
   return { ok: true as const, session: session! };
 }
 
-export async function requireStaffDevice(publicKey: string, merchantId: string, requestId: string) {
+export async function requireStaffDevice(params: {
+  publicKey: string;
+  merchantId: string;
+  requestId: string;
+  action: string;
+  code?: string;
+  signature?: string;
+  timestamp?: string;
+}) {
   const ledger = await loadLedger();
   const device = (ledger.staffDevices ?? []).find((item) =>
-    item.publicKey === publicKey &&
-    item.merchantId === merchantId &&
+    item.publicKey === params.publicKey &&
+    item.merchantId === params.merchantId &&
     !item.revokedAt);
 
   if (!device) {
     await withLedgerMutation((mutableLedger) => {
       appendAuditEvent(mutableLedger, {
-        requestId,
+        requestId: params.requestId,
         actorType: 'staff',
-        actorId: publicKey || 'missing',
-        merchantId,
+        actorId: params.publicKey || 'missing',
+        merchantId: params.merchantId,
         targetType: 'staff_device',
         action: 'authorize_staff_device',
         result: 'denied',
@@ -316,6 +354,35 @@ export async function requireStaffDevice(publicKey: string, merchantId: string, 
       });
     });
     return { ok: false as const, reason: 'Staff device is not authorized.' };
+  }
+
+  const timestampMs = Number(params.timestamp);
+  const fresh = Number.isFinite(timestampMs) && Math.abs(Date.now() - timestampMs) <= STAFF_DEVICE_SIGNATURE_TTL_MS;
+  const expected = device.secret
+    ? hmacStaffDevice(device.secret, staffDeviceSigningMessage({
+      publicKey: params.publicKey,
+      timestamp: params.timestamp ?? '',
+      action: params.action,
+      code: params.code,
+    }))
+    : '';
+  const signed = Boolean(params.signature && expected && fresh && constantTimeHexEqual(expected, params.signature));
+
+  if (!signed) {
+    await withLedgerMutation((mutableLedger) => {
+      appendAuditEvent(mutableLedger, {
+        requestId: params.requestId,
+        actorType: 'staff',
+        actorId: params.publicKey || 'missing',
+        merchantId: params.merchantId,
+        targetType: 'staff_device',
+        targetId: device.id,
+        action: 'authorize_staff_device',
+        result: 'denied',
+        reason: 'Staff device signature is missing, expired, or invalid.',
+      });
+    });
+    return { ok: false as const, reason: 'Staff device signature is required.' };
   }
 
   return { ok: true as const, device };
@@ -346,12 +413,16 @@ export async function enrollStaffDevice(params: {
       return { ok: false, reason: 'Staff device enrollment is not authorized.' };
     }
 
+    const secret = staffDeviceSecret();
+    const publicKey = `staff_${sha256Hex(secret).slice(0, 32)}`;
     const device: StaffDeviceRecord = {
       id: randomId('staff-device'),
       merchantId: merchant.id,
       locationLabel: sanitizeDisplayName(params.locationLabel),
       label: sanitizeDisplayName(params.label),
-      publicKey: `staff_${crypto.randomUUID().replace(/-/g, '').slice(0, 32)}`,
+      publicKey,
+      secret,
+      secretHash: sha256Hex(secret),
       enrolledAt: new Date().toISOString(),
     };
     ledger.staffDevices = ledger.staffDevices ?? [];
@@ -573,6 +644,8 @@ function normalizeLedgerState(ledger: LaunchLedger) {
       locationLabel: 'Thamel Coffee Lane',
       label: 'Front counter terminal',
       publicKey: defaultStaffPublicKey(),
+      secret: defaultStaffSecret(),
+      secretHash: sha256Hex(defaultStaffSecret()),
       enrolledAt: iso(new Date()),
     }];
     changed = true;
@@ -663,6 +736,21 @@ function normalizeLedgerState(ledger: LaunchLedger) {
     return { ...code, codeHash, status };
   });
 
+  ledger.staffDevices = (ledger.staffDevices ?? []).map((device) => {
+    if (device.secret && device.secretHash) {
+      return device;
+    }
+    const secret = device.publicKey === defaultStaffPublicKey()
+      ? defaultStaffSecret()
+      : sha256Hex(`${device.id}:${device.publicKey}:migrated-staff-secret`);
+    changed = true;
+    return {
+      ...device,
+      secret,
+      secretHash: sha256Hex(secret),
+    };
+  });
+
   changed = expireStaleRedeemCodes(ledger) || changed;
 
   return changed;
@@ -729,6 +817,8 @@ function createInitialLedger(): LaunchLedger {
       locationLabel: merchants[0].locationLabel,
       label: 'Front counter terminal',
       publicKey: defaultStaffPublicKey(),
+      secret: defaultStaffSecret(),
+      secretHash: sha256Hex(defaultStaffSecret()),
       enrolledAt: createdAt,
     }],
     auditEvents: [],
@@ -1683,7 +1773,23 @@ export async function createVisitChallengeForRedeemCode(params: { code: string; 
 
   return withLedgerMutation((ledger) => {
     const { merchant, offer } = getPilotMerchantAndOffer(ledger);
-    const code = ledger.redeemCodes.find((item) => item.code.toUpperCase() === normalizedCode);
+    const code = ledger.redeemCodes.find((item) => {
+      const claimForCode = ledger.claims.find((claim) => claim.id === item.claimId);
+      const offerId = claimForCode?.offerId ?? offer.id;
+      const expectedHash = item.codeHash ?? hashRedeemCode({
+        code: item.code,
+        merchantId: item.merchantId,
+        offerId,
+        claimId: item.claimId,
+      });
+      const suppliedHash = hashRedeemCode({
+        code: normalizedCode,
+        merchantId: item.merchantId,
+        offerId,
+        claimId: item.claimId,
+      });
+      return expectedHash === suppliedHash;
+    });
 
     if (!code || (code.status !== 'issued' && code.status !== 'scanned')) {
       return { ok: false, reason: 'No active redeem code is ready for challenge creation.' };
@@ -1734,6 +1840,8 @@ export async function confirmRedeemCode(params: {
   requestId?: string;
   idempotencyKey?: string;
   staffDevicePublicKey?: string;
+  staffDeviceSignature?: string;
+  staffDeviceTimestamp?: string;
   manualReceiptId?: string;
 }) {
   const normalizedCode = normalizeRedeemCode(params.code);
@@ -1744,6 +1852,20 @@ export async function confirmRedeemCode(params: {
   return withLedgerMutation<MerchantConfirmResult>((ledger) => {
     const { merchant, offer } = getPilotMerchantAndOffer(ledger);
     const staffActor = params.staffDevicePublicKey || params.staffSessionId || 'staff-pin';
+    const idempotencyKey = params.idempotencyKey ?? `confirm:${normalizedCode}`;
+    const prior = (ledger.idempotencyRecords ?? []).find((record) => record.key === idempotencyKey && record.scope === 'merchant-confirm');
+    if (prior) {
+      const priorReceipt = (ledger.causalReceipts ?? []).find((receipt) => receipt.id === prior.resultId);
+      const priorCode = priorReceipt ? ledger.redeemCodes.find((item) => item.claimId === priorReceipt.claimId) : null;
+      return {
+        ok: true,
+        code: priorCode?.code ?? normalizedCode,
+        status: priorCode?.status ?? 'confirmed',
+        receiptId: priorReceipt?.id,
+        receiptPda: priorReceipt?.receiptPda,
+        txSignature: priorReceipt?.txSignature,
+      } satisfies MerchantConfirmResult;
+    }
 
     if (!params.staffDevicePublicKey && !demoPinAccepted(params.staffPin ?? '')) {
       appendAuditEvent(ledger, {
@@ -1776,6 +1898,29 @@ export async function confirmRedeemCode(params: {
           reason: 'Staff device is missing or revoked.',
         });
         return { ok: false, reason: 'Staff device is not authorized.' } satisfies MerchantConfirmResult;
+      }
+      const timestampMs = Number(params.staffDeviceTimestamp);
+      const signatureFresh = Number.isFinite(timestampMs) && Math.abs(Date.now() - timestampMs) <= STAFF_DEVICE_SIGNATURE_TTL_MS;
+      const expectedSignature = device.secret
+        ? hmacStaffDevice(device.secret, staffDeviceSigningMessage({
+          publicKey: params.staffDevicePublicKey,
+          timestamp: params.staffDeviceTimestamp ?? '',
+          action: 'merchant-confirm',
+          code: normalizedCode,
+        }))
+        : '';
+      if (!params.staffDeviceSignature || !expectedSignature || !signatureFresh || !constantTimeHexEqual(expectedSignature, params.staffDeviceSignature)) {
+        appendAuditEvent(ledger, {
+          requestId: params.requestId ?? randomId('req'),
+          actorType: 'staff',
+          actorId: params.staffDevicePublicKey,
+          merchantId: merchant.id,
+          targetType: 'redemption',
+          action: 'confirm_redeem_code',
+          result: 'denied',
+          reason: 'Staff device signature is missing, expired, or invalid.',
+        });
+        return { ok: false, reason: 'Staff device signature is required.' } satisfies MerchantConfirmResult;
       }
     }
 
@@ -1840,7 +1985,7 @@ export async function confirmRedeemCode(params: {
     });
     challenge.status = 'confirmed';
     rememberIdempotency(ledger, {
-      key: params.idempotencyKey ?? `confirm:${code.id}`,
+      key: idempotencyKey,
       scope: 'merchant-confirm',
       resultId: receipt.id,
       createdAt: new Date().toISOString(),

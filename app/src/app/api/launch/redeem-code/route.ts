@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, guestSessionFromRequest, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import { generateRedeemCode, isValidSessionId } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
@@ -25,10 +25,15 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await readJsonBody(request);
-  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+  const bodySessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+  const cookieSessionId = guestSessionFromRequest(request);
+  const sessionId = cookieSessionId || bodySessionId;
 
   if (!sessionId || !isValidSessionId(sessionId)) {
     return jsonError('A valid sessionId is required.', 400);
+  }
+  if (cookieSessionId && bodySessionId && bodySessionId !== cookieSessionId) {
+    return jsonError('Session body does not match the guest cookie.', 403, 'session_mismatch', requestId(request));
   }
 
   const result = await generateRedeemCode({ sessionId });

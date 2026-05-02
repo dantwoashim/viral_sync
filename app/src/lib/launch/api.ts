@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { MerchantRole } from '@/lib/launch/types';
 import { requireMerchantRole } from '@/lib/launch/server';
+import { isProductionRuntime } from '@/lib/launch/security';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_JSON_BODY_BYTES = 32_000;
@@ -52,6 +53,9 @@ export function requireSameOrigin(request: NextRequest) {
     .filter(Boolean);
 
   if (!origin || !host) {
+    if (isProductionRuntime()) {
+      return jsonError('Origin is required for this mutation.', 403, 'csrf_origin_required', requestId(request));
+    }
     return null;
   }
 
@@ -117,8 +121,20 @@ export function merchantSessionFromRequest(request: NextRequest) {
     ?? '';
 }
 
+export function guestSessionFromRequest(request: NextRequest) {
+  return request.cookies.get('vs_guest_session')?.value ?? '';
+}
+
 export function staffDeviceFromRequest(request: NextRequest) {
   return request.headers.get('x-viral-sync-staff-device') ?? '';
+}
+
+export function staffDeviceProofFromRequest(request: NextRequest) {
+  return {
+    publicKey: request.headers.get('x-viral-sync-staff-device') ?? '',
+    signature: request.headers.get('x-viral-sync-staff-signature') ?? '',
+    timestamp: request.headers.get('x-viral-sync-staff-timestamp') ?? '',
+  };
 }
 
 function getClientKey(request: NextRequest, scope: string) {

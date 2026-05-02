@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, idempotencyKey, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireMerchantRequestRole, requireSameOrigin, staffDeviceFromRequest, staffPinFromRequest, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, idempotencyKey, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireMerchantRequestRole, requireSameOrigin, staffDeviceProofFromRequest, staffPinFromRequest, withSecurityHeaders } from '@/lib/launch/api';
 import { confirmRedeemCode, isValidRedeemCode, normalizeRedeemCode } from '@/lib/launch/server';
 import { demoPinAccepted, isProductionRuntime } from '@/lib/launch/security';
 import { validateRedeemCodeBody } from '@/lib/launch/validation';
@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
   const code = parsed.value.code;
   const staffPin = staffPinFromRequest(request, body);
   const normalizedCode = normalizeRedeemCode(code);
-  const staffDevicePublicKey = staffDeviceFromRequest(request);
+  const staffDeviceProof = staffDeviceProofFromRequest(request);
+  const staffDevicePublicKey = staffDeviceProof.publicKey;
   const merchantAuth = await requireMerchantRequestRole(request, ['staff']);
   const localDemoAllowed = !merchantAuth.ok && demoPinAccepted(staffPin);
 
@@ -57,6 +58,8 @@ export async function POST(request: NextRequest) {
     idempotencyKey: idempotencyKey(request, `confirm:${normalizedCode}`),
     staffSessionId: merchantAuth.ok ? merchantAuth.session.id : undefined,
     staffDevicePublicKey,
+    staffDeviceSignature: staffDeviceProof.signature,
+    staffDeviceTimestamp: staffDeviceProof.timestamp,
     manualReceiptId: parsed.value.manualReceiptId,
   });
   return withSecurityHeaders(NextResponse.json(result, { status: result.ok ? 200 : 409 }));

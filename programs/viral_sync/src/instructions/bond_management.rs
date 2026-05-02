@@ -38,6 +38,12 @@ pub struct WithdrawBond<'info> {
 }
 
 pub fn withdraw_bond(ctx: Context<WithdrawBond>, amount: u64) -> Result<()> {
+    let _ = (ctx, amount);
+    Err(ViralSyncError::UnsupportedInstruction.into())
+}
+
+#[allow(dead_code)]
+fn _withdraw_bond_unimplemented(ctx: Context<WithdrawBond>, amount: u64) -> Result<()> {
     let bond = &mut ctx.accounts.merchant_bond;
     
     require!(!bond.is_locked, ViralSyncError::InvalidState);
@@ -97,6 +103,10 @@ pub struct FinalizeCloseMerchant<'info> {
 }
 
 pub fn finalize_close_merchant(ctx: Context<FinalizeCloseMerchant>) -> Result<()> {
+    let _ = &ctx;
+    return Err(ViralSyncError::UnsupportedInstruction.into());
+    #[allow(unreachable_code)]
+    {
     let config = &ctx.accounts.merchant_config;
     let bond = &ctx.accounts.merchant_bond;
     let now = Clock::get()?.unix_timestamp;
@@ -110,6 +120,7 @@ pub fn finalize_close_merchant(ctx: Context<FinalizeCloseMerchant>) -> Result<()
 
     emit!(MerchantClosed { merchant: config.merchant, mint: config.mint });
     Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -131,6 +142,10 @@ pub struct RedeemBondShare<'info> {
 }
 
 pub fn redeem_bond_share(ctx: Context<RedeemBondShare>) -> Result<()> {
+    let _ = &ctx;
+    return Err(ViralSyncError::UnsupportedInstruction.into());
+    #[allow(unreachable_code)]
+    {
     let config = &ctx.accounts.merchant_config;
     let gen = &ctx.accounts.holder_generation;
     let bond = &mut ctx.accounts.merchant_bond;
@@ -155,4 +170,5 @@ pub fn redeem_bond_share(ctx: Context<RedeemBondShare>) -> Result<()> {
 
     emit!(BondShareRedeemed { holder: gen.owner, lamports: bond_share });
     Ok(())
+    }
 }

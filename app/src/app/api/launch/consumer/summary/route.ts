@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, guestSessionFromRequest, jsonError, withSecurityHeaders } from '@/lib/launch/api';
 import { getConsumerSummary, isValidSessionId } from '@/lib/launch/server';
 
 export const runtime = 'nodejs';
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     return limited;
   }
 
-  const sessionId = request.nextUrl.searchParams.get('sessionId');
+  const sessionId = guestSessionFromRequest(request) || request.nextUrl.searchParams.get('sessionId');
 
   if (!sessionId || !isValidSessionId(sessionId)) {
     return jsonError('A valid sessionId is required.', 400);

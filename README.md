@@ -6,6 +6,26 @@ Viral Sync is the Causal Commerce Protocol for Solana: it proves when word-of-mo
 
 The project introduces Causal Receipts: privacy-preserving proofs that connect a referral path, a merchant-confirmed physical visit, and reward settlement. The repository contains the Anchor program, the Next.js launch app, a gas relayer, a Solana Actions service, POS/client adapters, launch tooling, and protocol tests.
 
+## Judge start here
+
+- [Winner scope](docs/winner-scope.md) states the one claim, the non-goals, and the version that should win.
+- [Golden demo path](docs/golden-demo-path.md) defines the only walkthrough that matters for judging.
+- [Winning demo](docs/winning-demo.md) gives the two-minute judge script.
+- [Premium execution contract](docs/premium-execution-contract.md), [premium year plan](docs/premium-redesign-year-plan.md), [product narrative](docs/premium-product-narrative.md), [route inventory](docs/premium-ux-route-inventory.md), [information architecture](docs/premium-information-architecture.md), and [benchmark board](docs/premium-benchmark-board.md) define the premium redesign direction.
+- [Premium design system](docs/premium-design-system.md) and [week 5-12 completion](docs/week-5-12-premium-redesign-completion.md) document the first code-backed premium UI tranche: tokens, typography, components, homepage, demo, and invite rebuilds.
+- [Week 13-20 premium completion](docs/week-13-20-premium-redesign-completion.md) documents the rebuilt claim, redeem, staff scan, receipt proof, graph, replay, and screenshot QA tranche.
+- [Week 21-28 premium completion](docs/week-21-28-premium-redesign-completion.md) documents the merchant shell, merchant today, campaign funding, ledger proof table, ops relayer, developer verifier, and example app tranche.
+- [Week 29-38 premium completion](docs/week-29-38-premium-redesign-completion.md) documents trust-copy cleanup, conversion/state/accessibility hardening, motion, transaction UX, completion moments, and screenshot QA tooling.
+- [Premium visual regression checklist](docs/premium-visual-regression-checklist.md) defines the automated and manual clipping, blank-screen, focus, and copy gates.
+- [Week 39-52 premium completion](docs/week-39-52-premium-redesign-completion.md) documents final performance, accessibility, demo rehearsal, backup package, user-test artifacts, responsive gates, release candidate, and freeze criteria.
+- [Premium final scorecard](docs/premium-final-scorecard.md), [premium release candidate](docs/premium-release-candidate.md), [demo rehearsal](docs/premium-demo-rehearsal.md), and [backup package](docs/premium-backup-package.md) define the final premium finish packet.
+- [Year plan audit](docs/year-plan-audit.md) checks the 12-phase plan against the current repo.
+- [Protocol invariants](docs/protocol-invariants.md), [Security model](docs/security-model.md), and [Composability](docs/composability.md) cover defensive depth.
+- [Production readiness](docs/production-readiness.md) and [Auditor start here](docs/auditor-start-here.md) define the real-world launch gates and external review packet.
+- [Protocol spec v0](docs/protocol.md) defines Causal Receipts, Growth Bounties, nullifiers, and settlement rules.
+- [Current state audit](docs/current-state.md) separates working prototype, experimental surfaces, and unsupported claims.
+- [Reproducibility baseline](docs/reproducibility.md) keeps setup and verification commands explicit.
+
 ## Status
 
 This codebase is ready for devnet pilot rehearsal. It is not audited for mainnet funds.
@@ -18,10 +38,39 @@ Pilot program ID:
 8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9
 ```
 
-Before mainnet, finish the external security audit, wire production wallet infrastructure, complete Causal Receipt settlement, expand local-validator instruction tests, and connect monitoring for the hosted services.
+Before mainnet, finish the external security audit, fund production relayer operations, rehearse incident response, and keep uncapped merchant funds disabled.
 
-## Portfolio docs
+## Core docs
 
+- [Docs index](docs/README.md)
+- [Winner scope](docs/winner-scope.md)
+- [Golden demo path](docs/golden-demo-path.md)
+- [Winning demo](docs/winning-demo.md)
+- [Premium product narrative](docs/premium-product-narrative.md)
+- [Premium execution contract](docs/premium-execution-contract.md)
+- [Premium redesign year plan](docs/premium-redesign-year-plan.md)
+- [Premium UX route inventory](docs/premium-ux-route-inventory.md)
+- [Premium information architecture](docs/premium-information-architecture.md)
+- [Premium benchmark board](docs/premium-benchmark-board.md)
+- [Week 1-4 premium redesign completion](docs/week-1-4-premium-redesign-completion.md)
+- [Premium design system](docs/premium-design-system.md)
+- [Week 5-12 premium redesign completion](docs/week-5-12-premium-redesign-completion.md)
+- [Week 13-20 premium redesign completion](docs/week-13-20-premium-redesign-completion.md)
+- [Week 21-28 premium redesign completion](docs/week-21-28-premium-redesign-completion.md)
+- [Week 29-38 premium redesign completion](docs/week-29-38-premium-redesign-completion.md)
+- [Premium visual regression checklist](docs/premium-visual-regression-checklist.md)
+- [Week 39-52 premium redesign completion](docs/week-39-52-premium-redesign-completion.md)
+- [Premium demo rehearsal](docs/premium-demo-rehearsal.md)
+- [Premium backup package](docs/premium-backup-package.md)
+- [Premium user test log](docs/premium-user-test-log.md)
+- [Premium final scorecard](docs/premium-final-scorecard.md)
+- [Premium release candidate](docs/premium-release-candidate.md)
+- [Year plan audit](docs/year-plan-audit.md)
+- [Protocol invariants](docs/protocol-invariants.md)
+- [Security model](docs/security-model.md)
+- [Production readiness](docs/production-readiness.md)
+- [Auditor start here](docs/auditor-start-here.md)
+- [Composability](docs/composability.md)
 - [Case study](docs/CASE_STUDY.md)
 - [Current state audit](docs/current-state.md)
 - [Protocol spec v0](docs/protocol.md)
@@ -65,6 +114,75 @@ Use these supporting routes when preparing the final video or judging walkthroug
 
 Keep the limitations visible: this is a capped beta/devnet pilot rehearsal, not an audited uncapped mainnet launch.
 
+## Next winning build
+
+The next milestone is to make the Causal Receipt path fully live on localnet and devnet:
+
+```text
+Merchant Register -> Create Growth Bounty -> Fund Escrow -> Record Causal Receipt -> Settle Reward -> Verify Receipt
+```
+
+Week 1-3 groundwork is now represented by the winner scope, golden demo path, and a localnet merchant-registration script:
+
+```bash
+npm run build:program
+npm run localnet:register-merchant -- --duplicate-check
+```
+
+The command expects a running local validator with the Viral Sync program deployed at the pilot program ID. It prints the Causal Merchant PDA, transaction signature, and confirms duplicate registration rejection for a fresh org id.
+
+Week 4-10 extends that into the full localnet proof loop:
+
+```bash
+npm run build:program
+npm run localnet:causal-commerce -- --replay-check
+npm run localnet:verify-receipt -- --manifest tmp/localnet-causal-commerce.json
+```
+
+The localnet runner creates or reuses a merchant, creates a Growth Bounty, funds escrow state, records a Causal Receipt, proves replay rejection, settles the reward, and writes a manifest for independent verification. Current escrow funding is protocol state accounting; SPL vault custody is still a future hardening step before real funds.
+
+Week 10-20 adds the full smoke and evidence packet:
+
+```bash
+npm run localnet:smoke
+npm run localnet:proof-graph
+npm run localnet:evidence-report
+```
+
+The smoke command was run against `solana-test-validator` through WSL with the Viral Sync program loaded locally. It found and fixed a real `record_causal_receipt` nullifier seed annotation bug, then passed with verifier `ok: true`.
+
+Week 20-30 upgrades the localnet proof from escrow accounting to SPL Token custody. `fund_growth_bounty` now moves tokens from the merchant reward account into a reward vault owned by the Reward Escrow PDA, and `settle_receipt_reward` pays the referrer and visitor token accounts from that vault. The latest localnet smoke verified:
+
+```text
+merchant reward account: 10000 -> 0
+reward vault: 0 -> 9000
+referrer reward account: 0 -> 800
+visitor reward account: 0 -> 200
+```
+
+Week 30-40 completes the vault lifecycle and hosted relayer/wallet wiring:
+
+```bash
+npm run localnet:smoke
+```
+
+The smoke path now runs replay rejection, SPL settlement, `close_growth_bounty`, merchant reclaim, and vault account close. The latest localnet proof verified:
+
+```text
+merchant reward account: 10000 -> 0 -> 9000
+reward vault: 0 -> 9000 -> closed
+referrer reward account: 0 -> 800 -> 800
+visitor reward account: 0 -> 200 -> 200
+```
+
+Week 40-52 finalizes the judge package:
+
+```bash
+npm run frontier:submission
+```
+
+This validates the final artifact set and writes `docs/frontier-submission-packet.md` plus `docs/frontier-final-go-no-go.md`.
+
 ## What is working
 
 - Mobile launch app with invite, claim, redeem code, passbook, and merchant dashboard flows.
@@ -98,6 +216,10 @@ Keep the limitations visible: this is a capped beta/devnet pilot rehearsal, not 
 ```bash
 npm ci
 npm run verify
+npm run localnet:smoke
+npm run frontier:submission
+npm run premium:gate
+npm run premium:final
 ```
 
 `npm run verify` builds the app and every workspace package, runs `cargo check`, builds the Anchor program and IDL, and runs the protocol test suite.
@@ -153,6 +275,10 @@ actions:
 The Actions API is intentionally disabled in the Frontier build until the transaction builder is wired. The mobile web claim flow is the supported demo path.
 
 Use `LAUNCH_DATABASE_URL` for deployed pilots. Local JSON storage is only for development.
+
+## Build on Viral Sync
+
+The SDK exposes `verifyReceipt`, `fetchCausalGraph`, PDA derivation helpers, and `buildClaimAction`. A tiny integration example lives in `examples/receipt-verifier`.
 
 ## Pilot hosting
 

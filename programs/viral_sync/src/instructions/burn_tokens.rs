@@ -5,10 +5,18 @@ use crate::errors::ViralSyncError;
 
 #[derive(Accounts)]
 pub struct BurnTokens<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = token_generation.owner == owner.key() @ ViralSyncError::AccessDenied,
+        constraint = token_generation.mint == mint.key() @ ViralSyncError::InvalidState
+    )]
     pub token_generation: Box<Account<'info, TokenGeneration>>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = owner_ata.owner == owner.key() @ ViralSyncError::InvalidTokenAccount,
+        constraint = owner_ata.mint == mint.key() @ ViralSyncError::InvalidTokenAccount
+    )]
     pub owner_ata: InterfaceAccount<'info, TokenAccount>,
     
     pub owner: Signer<'info>,

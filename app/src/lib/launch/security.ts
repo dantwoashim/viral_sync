@@ -6,6 +6,7 @@ export const DEMO_INDEXER_KEY = 'DEMO-INDEXER-KEY';
 export const DEMO_INTENT_SECRET = 'viral-sync-demo-intent-secret';
 export const DEMO_WEBHOOK_SECRET = 'viral-sync-demo-webhook-secret';
 export const DEMO_MERCHANT_ACCESS_TOKEN = 'DEMO-MERCHANT-ACCESS';
+export const DEMO_CAUSAL_SECRET = 'viral-sync-frontier-demo-secret';
 
 export const merchantRoleLabels: Record<MerchantRole, string> = {
   owner: 'Owner',
@@ -101,6 +102,10 @@ export function getMerchantAccessToken() {
   return getRequiredSecret('LAUNCH_MERCHANT_ACCESS_TOKEN', DEMO_MERCHANT_ACCESS_TOKEN);
 }
 
+export function getCausalInviteSecret() {
+  return getRequiredSecret('LAUNCH_CAUSAL_SECRET', DEMO_CAUSAL_SECRET);
+}
+
 export function demoPinAccepted(staffPin: string) {
   return demoAuthAllowed() && Boolean(staffPin) && staffPin === getStaffPinSecret();
 }
@@ -114,6 +119,7 @@ export function getProductionReadinessSnapshot() {
     ['LAUNCH_INDEXER_API_KEY', Boolean(process.env.LAUNCH_INDEXER_API_KEY && process.env.LAUNCH_INDEXER_API_KEY !== DEMO_INDEXER_KEY)],
     ['LAUNCH_INTENT_SECRET', Boolean(process.env.LAUNCH_INTENT_SECRET && process.env.LAUNCH_INTENT_SECRET !== DEMO_INTENT_SECRET)],
     ['LAUNCH_WEBHOOK_SECRET', Boolean(process.env.LAUNCH_WEBHOOK_SECRET && process.env.LAUNCH_WEBHOOK_SECRET !== DEMO_WEBHOOK_SECRET)],
+    ['LAUNCH_CAUSAL_SECRET', Boolean(process.env.LAUNCH_CAUSAL_SECRET && process.env.LAUNCH_CAUSAL_SECRET !== DEMO_CAUSAL_SECRET)],
     ['LAUNCH_ALLOWED_ORIGINS', Boolean(process.env.LAUNCH_ALLOWED_ORIGINS)],
     ['NEXT_PUBLIC_APP_URL', Boolean(process.env.NEXT_PUBLIC_APP_URL || process.env.PUBLIC_BASE_URL)],
   ] as const;

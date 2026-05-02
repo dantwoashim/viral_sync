@@ -29,6 +29,13 @@ export async function relayTransaction(
     tx: Transaction | VersionedTransaction
 ): Promise<RelayResult> {
     try {
+        if (typeof window !== 'undefined') {
+            return {
+                success: false,
+                error: 'Browser relaying is disabled. Submit sponsored intents through the Viral Sync server policy layer.',
+            };
+        }
+
         const serialized = tx.serialize();
         const base64 = Buffer.from(serialized).toString('base64');
 

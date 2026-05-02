@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireMerchantRequestRole, requireSameOrigin, staffDeviceFromRequest, staffPinFromRequest, withSecurityHeaders } from '@/lib/launch/api';
-import { createVisitChallengeForRedeemCode, isValidRedeemCode, normalizeRedeemCode } from '@/lib/launch/server';
+import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireMerchantRequestRole, requireSameOrigin, staffDeviceProofFromRequest, staffPinFromRequest, withSecurityHeaders } from '@/lib/launch/api';
+import { createVisitChallengeForRedeemCode, isValidRedeemCode, normalizeRedeemCode, requireStaffDevice } from '@/lib/launch/server';
 import { demoPinAccepted, isProductionRuntime } from '@/lib/launch/security';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
   const body = await readJsonBody(request);
   const code = typeof body?.code === 'string' ? normalizeRedeemCode(body.code) : '';
   const staffPin = staffPinFromRequest(request, body);
-  const staffDevicePublicKey = staffDeviceFromRequest(request);
+  const staffDeviceProof = staffDeviceProofFromRequest(request);
+  const staffDevicePublicKey = staffDeviceProof.publicKey;
   const merchantAuth = await requireMerchantRequestRole(request, ['staff']);
   const localDemoAllowed = !merchantAuth.ok && demoPinAccepted(staffPin);
 
@@ -42,6 +43,21 @@ export async function POST(request: NextRequest) {
 
   if (!code || !isValidRedeemCode(code)) {
     return jsonError('A valid code is required.', 400);
+  }
+
+  if (staffDevicePublicKey && merchantAuth.ok) {
+    const proof = await requireStaffDevice({
+      publicKey: staffDevicePublicKey,
+      merchantId: merchantAuth.session.merchantId,
+      requestId: requestId(request),
+      action: 'visit-challenge',
+      code,
+      signature: staffDeviceProof.signature,
+      timestamp: staffDeviceProof.timestamp,
+    });
+    if (!proof.ok) {
+      return jsonError(proof.reason, 403, 'staff_device_signature_required', requestId(request));
+    }
   }
 
   const result = await createVisitChallengeForRedeemCode({ code });

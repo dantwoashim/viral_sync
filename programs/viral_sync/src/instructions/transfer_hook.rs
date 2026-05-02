@@ -99,6 +99,15 @@ pub fn execute_transfer_hook(ctx: Context<ExecuteHook>, amount: u64) -> Result<(
     let src_gen = &mut ctx.accounts.source_generation;
     let dst_gen = &mut ctx.accounts.dest_generation;
     let config = &ctx.accounts.merchant_config;
+    let transfer_mint = ctx.accounts.mint.key();
+    let source_token_mint = read_mint_from_token_account(&ctx.accounts.source_token_account)?;
+    let dest_token_mint = read_mint_from_token_account(&ctx.accounts.dest_token_account)?;
+    require!(config.is_active, ViralSyncError::InvalidState);
+    require!(config.mint == transfer_mint, ViralSyncError::InvalidState);
+    require!(src_gen.mint == transfer_mint, ViralSyncError::InvalidSourceGeneration);
+    require!(dst_gen.mint == transfer_mint, ViralSyncError::InvalidDestGeneration);
+    require!(source_token_mint == transfer_mint, ViralSyncError::InvalidTokenAccount);
+    require!(dest_token_mint == transfer_mint, ViralSyncError::InvalidTokenAccount);
     
     let src_owner = src_gen.owner;
     let dst_owner = dst_gen.owner;
@@ -107,7 +116,7 @@ pub fn execute_transfer_hook(ctx: Context<ExecuteHook>, amount: u64) -> Result<(
     let is_from_treasury = src_gen.is_treasury;
     let is_src_intermediary = src_gen.is_intermediary;
     let is_dst_intermediary = dst_gen.is_intermediary;
-    let is_to_vault = is_registered_vault(&ctx.accounts.vault_entry);
+    let is_to_vault = is_registered_vault(&ctx.accounts.vault_entry, ctx.accounts.dest_token_account.key(), config.merchant);
     let is_dex_involved = src_gen.is_dex_pool || dst_gen.is_dex_pool;
     
     // ── TREASURY TRANSFER (Commission payout) ──
@@ -307,7 +316,16 @@ fn read_owner_from_token_account(account: &UncheckedAccount) -> Result<Pubkey> {
     Ok(Pubkey::new_from_array(owner_bytes))
 }
 
-fn is_registered_vault(vault_account: &UncheckedAccount) -> bool {
+fn read_mint_from_token_account(account: &UncheckedAccount) -> Result<Pubkey> {
+    let data = account.try_borrow_data()?;
+    require!(data.len() >= 32, ViralSyncError::InvalidTokenAccount);
+    let mint_bytes: [u8; 32] = data[0..32]
+        .try_into()
+        .map_err(|_| ViralSyncError::InvalidTokenAccount)?;
+    Ok(Pubkey::new_from_array(mint_bytes))
+}
+
+fn is_registered_vault(vault_account: &UncheckedAccount, expected_vault: Pubkey, expected_merchant: Pubkey) -> bool {
     if vault_account.lamports() == 0 || vault_account.data_is_empty() {
         return false;
     }
@@ -320,7 +338,7 @@ fn is_registered_vault(vault_account: &UncheckedAccount) -> bool {
         return false;
     };
 
-    entry.is_active
+    entry.is_active && entry.vault == expected_vault && entry.merchant == expected_merchant
 }
 
 fn write_inbound(gen: &mut TokenGeneration, entry: InboundEntry) -> Result<()> {
