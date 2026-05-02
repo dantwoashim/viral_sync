@@ -21,7 +21,7 @@ type CliOptions = {
 
 const DEFAULT_RPC_URL = 'http://127.0.0.1:8899';
 const IDL_PATH = path.join(process.cwd(), 'target', 'idl', 'viral_sync.json');
-const PROGRAM_ID = new PublicKey('8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9');
+const PROGRAM_ID = new PublicKey('AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46');
 
 function usage() {
   return `

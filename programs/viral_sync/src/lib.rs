@@ -10,7 +10,7 @@ pub mod state;
 use instructions::*;
 use state::{CausalMerchantStatus, GrowthCampaignStatus};
 
-declare_id!("8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9");
+declare_id!("AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46");
 
 #[program]
 pub mod viral_sync {

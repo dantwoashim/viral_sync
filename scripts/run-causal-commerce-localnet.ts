@@ -36,6 +36,7 @@ type CliOptions = {
 type RpcBuilder = {
   signers: (signers: Keypair[]) => { rpc: () => Promise<string> };
   rpc: () => Promise<string>;
+  instruction: () => Promise<TransactionInstruction>;
 };
 
 type ProgramMethods = {
@@ -130,7 +131,7 @@ type ProgramMethods = {
 
 const DEFAULT_RPC_URL = 'http://127.0.0.1:8899';
 const IDL_PATH = path.join(process.cwd(), 'target', 'idl', 'viral_sync.json');
-const PROGRAM_ID = new PublicKey('8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9');
+const PROGRAM_ID = new PublicKey('AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46');
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 const MINT_SIZE = 82;
@@ -475,6 +476,7 @@ async function fetchAccount<T>(program: anchor.Program, accountName: string, add
 async function maybeRegisterMerchant(
   program: anchor.Program,
   methods: ProgramMethods,
+  merchantSigner: Keypair,
   merchantConfig: PublicKey,
   merchantAuthority: PublicKey,
   orgIdHash: Buffer,
@@ -486,9 +488,10 @@ async function maybeRegisterMerchant(
     const signature = await methods.registerMerchant(Array.from(orgIdHash))
       .accounts({
         merchantConfig,
-        merchantAuthority,
-        systemProgram: SystemProgram.programId,
-      })
+      merchantAuthority,
+      systemProgram: SystemProgram.programId,
+    })
+      .signers([merchantSigner])
       .rpc();
     return { signature, reused: false };
   }
@@ -500,6 +503,7 @@ async function maybeCreateCampaign(params: {
   merchantConfig: PublicKey;
   growthCampaign: PublicKey;
   merchantAuthority: PublicKey;
+  merchantSigner: Keypair;
   rewardMint: PublicKey;
   campaignIdHash: Buffer;
   rewardPerVisit: anchor.BN;
@@ -532,6 +536,7 @@ async function maybeCreateCampaign(params: {
         rewardMint: params.rewardMint,
         systemProgram: SystemProgram.programId,
       })
+      .signers([params.merchantSigner])
       .rpc();
     return { signature, reused: false };
   }
@@ -546,6 +551,26 @@ async function expectRejected(label: string, action: () => Promise<unknown>) {
   }
 
   throw new Error(`${label} unexpectedly succeeded.`);
+}
+
+async function sendProgramInstruction(
+  connection: Connection,
+  payer: Keypair,
+  builder: RpcBuilder,
+  extraSigners: Keypair[] = [],
+) {
+  const transaction = new Transaction().add(await builder.instruction());
+  const blockhash = await connection.getLatestBlockhash('confirmed');
+  transaction.feePayer = payer.publicKey;
+  transaction.recentBlockhash = blockhash.blockhash;
+  const signers = [
+    payer,
+    ...extraSigners.filter((signer) => !signer.publicKey.equals(payer.publicKey)),
+  ];
+  transaction.sign(...signers);
+  return sendAndConfirmTransaction(connection, transaction, signers, {
+    commitment: 'confirmed',
+  });
 }
 
 function writeManifest(outputPath: string, manifest: Record<string, unknown>) {
@@ -568,6 +593,7 @@ async function main() {
   const program = new anchor.Program(loadIdl(), provider);
   const methods = program.methods as unknown as ProgramMethods;
 
+  console.error(`Using wallet ${wallet.publicKey.toBase58()} from ${walletInfo.source}`);
   await ensureProgramDeployed(connection);
   const balance = await ensureLocalnetBalance(connection, wallet.publicKey, options.airdropSol);
 
@@ -665,10 +691,12 @@ async function main() {
   const registerMerchant = await maybeRegisterMerchant(
     program,
     methods,
+    walletInfo.keypair,
     merchantConfig,
     wallet.publicKey,
     orgIdHash,
   );
+  console.error('registerMerchant complete');
 
   const createGrowthCampaign = await maybeCreateCampaign({
     program,
@@ -676,6 +704,7 @@ async function main() {
     merchantConfig,
     growthCampaign,
     merchantAuthority: wallet.publicKey,
+    merchantSigner: walletInfo.keypair,
     rewardMint,
     campaignIdHash,
     rewardPerVisit: options.rewardPerVisit,
@@ -685,8 +714,9 @@ async function main() {
     splitRulesHash,
     fraudPolicyHash,
   });
+  console.error('createGrowthCampaign complete');
 
-  const fundGrowthBounty = await methods.fundGrowthBounty(options.fundAmount)
+  const fundGrowthBounty = await sendProgramInstruction(connection, walletInfo.keypair, methods.fundGrowthBounty(options.fundAmount)
     .accounts({
       growthCampaign,
       rewardEscrow,
@@ -697,10 +727,10 @@ async function main() {
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-    })
-    .rpc();
+    }));
+  console.error('fundGrowthBounty complete');
 
-  const recordCausalReceipt = await methods.recordCausalReceipt(
+  const recordCausalReceipt = await sendProgramInstruction(connection, walletInfo.keypair, methods.recordCausalReceipt(
     Array.from(receiptIdHash),
     Array.from(parentReceiptIdHash),
     Array.from(referrerCommitment),
@@ -720,14 +750,14 @@ async function main() {
       nullifierRecord,
       merchantAuthority: wallet.publicKey,
       systemProgram: SystemProgram.programId,
-    })
-    .rpc();
+    }));
+  console.error('recordCausalReceipt complete');
 
   const replayChecks: unknown[] = [];
   if (options.replayCheck || options.attackCheck) {
     const replayReceiptIdHash = hashBytes('receipt', `${options.receiptId}:replay`);
     const [replayReceipt] = findPda('causal_receipt', [growthCampaign.toBuffer(), replayReceiptIdHash]);
-    replayChecks.push(await expectRejected('duplicate campaign nullifier', () => methods.recordCausalReceipt(
+    replayChecks.push(await expectRejected('duplicate campaign nullifier', () => sendProgramInstruction(connection, walletInfo.keypair, methods.recordCausalReceipt(
       Array.from(replayReceiptIdHash),
       Array.from(parentReceiptIdHash),
       Array.from(referrerCommitment),
@@ -747,12 +777,11 @@ async function main() {
         nullifierRecord,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      })
-      .rpc()));
+      }))));
   }
 
   if (options.attackCheck) {
-    replayChecks.push(await expectRejected('wrong merchant authority cannot settle receipt', () => methods.settleReceiptReward()
+    replayChecks.push(await expectRejected('wrong merchant authority cannot settle receipt', () => sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
       .accounts({
         growthCampaign,
         rewardEscrow,
@@ -765,10 +794,8 @@ async function main() {
         merchantAuthority: attackerAuthority.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .signers([attackerAuthority])
-      .rpc()));
-    replayChecks.push(await expectRejected('wrong beneficiary token account cannot receive settlement', () => methods.settleReceiptReward()
+      }), [attackerAuthority])));
+    replayChecks.push(await expectRejected('wrong beneficiary token account cannot receive settlement', () => sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
       .accounts({
         growthCampaign,
         rewardEscrow,
@@ -781,11 +808,10 @@ async function main() {
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .rpc()));
+      }))));
   }
 
-  const settleReceiptReward = await methods.settleReceiptReward()
+  const settleReceiptReward = await sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
     .accounts({
       growthCampaign,
       rewardEscrow,
@@ -798,11 +824,10 @@ async function main() {
       merchantAuthority: wallet.publicKey,
       systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
-    })
-    .rpc();
+    }));
 
   if (options.replayCheck) {
-    replayChecks.push(await expectRejected('duplicate receipt settlement', () => methods.settleReceiptReward()
+    replayChecks.push(await expectRejected('duplicate receipt settlement', () => sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
       .accounts({
         growthCampaign,
         rewardEscrow,
@@ -815,8 +840,7 @@ async function main() {
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .rpc()));
+      }))));
   }
 
   const tokenBalancesAfter = {
@@ -829,7 +853,7 @@ async function main() {
   let closeGrowthBounty: string | null = null;
   let tokenBalancesAfterClose: Record<string, string> | null = null;
   if (options.closeCheck) {
-    closeGrowthBounty = await methods.closeGrowthBounty()
+    closeGrowthBounty = await sendProgramInstruction(connection, walletInfo.keypair, methods.closeGrowthBounty()
       .accounts({
         growthCampaign,
         rewardEscrow,
@@ -838,8 +862,7 @@ async function main() {
         rewardMint,
         merchantAuthority: wallet.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .rpc();
+      }));
 
     tokenBalancesAfterClose = {
       merchantRewardAccount: await tokenAmount(connection, merchantRewardAccount.address),

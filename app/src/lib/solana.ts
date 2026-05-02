@@ -11,7 +11,7 @@ export const RPC_URL =
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
 export const PROGRAM_ID = new PublicKey(
-    process.env.NEXT_PUBLIC_PROGRAM_ID || '8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9'
+    process.env.NEXT_PUBLIC_PROGRAM_ID || 'AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46'
 );
 
 export const MERCHANT_PUBKEY = process.env.NEXT_PUBLIC_MERCHANT_PUBKEY

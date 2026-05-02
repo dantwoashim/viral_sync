@@ -12,7 +12,7 @@ import { createHash } from 'crypto';
 
 dotenv.config();
 
-const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || '8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9');
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || 'AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46');
 const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
 const CRANK_SECRET = process.env.CRANK_SECRET || '';
 const DRY_RUN = process.env.CRANK_DRY_RUN !== 'false';
