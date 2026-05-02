@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, guestSessionFromRequest, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import {
   ensureReferralLink,
   isValidSessionId,
@@ -35,12 +35,16 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) {
     return jsonError(parsed.message, 400, 'invalid_request', requestId(request), parsed.details);
   }
-  const sessionId = parsed.value.sessionId;
+  const cookieSessionId = guestSessionFromRequest(request);
+  const sessionId = cookieSessionId || parsed.value.sessionId;
   const displayName = sanitizeDisplayName(parsed.value.displayName);
   const deviceFingerprint = sanitizeDeviceFingerprint(parsed.value.deviceFingerprint, sessionId);
 
   if (!sessionId || !isValidSessionId(sessionId)) {
     return jsonError('A valid sessionId is required.', 400);
+  }
+  if (cookieSessionId && parsed.value.sessionId && parsed.value.sessionId !== cookieSessionId) {
+    return jsonError('Session body does not match the guest cookie.', 403, 'session_mismatch', requestId(request));
   }
 
   const referral = await ensureReferralLink({ sessionId, displayName, deviceFingerprint });

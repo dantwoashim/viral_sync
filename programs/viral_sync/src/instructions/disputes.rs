@@ -37,6 +37,10 @@ pub struct ResolveExpiredDispute<'info> {
 
 // Target Fix for Architecture documentation (D3) Auto Resolve
 pub fn resolve_expired_dispute(ctx: Context<ResolveExpiredDispute>) -> Result<()> {
+    let _ = &ctx;
+    return Err(ViralSyncError::UnsupportedInstruction.into());
+    #[allow(unreachable_code)]
+    {
     let dispute = &mut ctx.accounts.dispute_record;
     let now = Clock::get()?.unix_timestamp;
     
@@ -77,6 +81,7 @@ pub fn resolve_expired_dispute(ctx: Context<ResolveExpiredDispute>) -> Result<()
     });
     
     Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -92,6 +97,12 @@ pub struct RaiseDispute<'info> {
 }
 
 pub fn raise_dispute(ctx: Context<RaiseDispute>, amount: u64) -> Result<()> {
+    let _ = (ctx, amount);
+    Err(ViralSyncError::UnsupportedInstruction.into())
+}
+
+#[allow(dead_code)]
+fn _raise_dispute_unimplemented(ctx: Context<RaiseDispute>, amount: u64) -> Result<()> {
     let dispute = &mut ctx.accounts.dispute_record;
     dispute.status = DisputeStatus::Pending;
     dispute.raised_at = Clock::get()?.unix_timestamp;

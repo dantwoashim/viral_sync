@@ -1,4 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
+import { timingSafeEqual } from 'crypto';
 
 export type ReceiptVerificationStatus = 'verified' | 'pending' | 'failed' | 'not_found';
 
@@ -169,5 +170,7 @@ export function deriveNullifierSeed(campaign: string, nullifierHash: string) {
 }
 
 export function isValidWebhookSignature(params: { payload: string; signature: string; expectedSignature: string }) {
-  return params.signature.length > 0 && params.signature === params.expectedSignature;
+  const signature = Buffer.from(params.signature);
+  const expected = Buffer.from(params.expectedSignature);
+  return signature.length > 0 && signature.length === expected.length && timingSafeEqual(signature, expected);
 }

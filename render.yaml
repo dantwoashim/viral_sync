@@ -17,12 +17,14 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+      - key: ALLOWED_PROGRAM_IDS
+        sync: false
       - key: RATE_LIMIT_WINDOW_MS
         value: "60000"
       - key: RATE_LIMIT_MAX
         value: "30"
       - key: MAX_TRANSACTION_BYTES
-        value: "1250000"
+        value: "2048"
 
   - type: web
     name: viral-sync-actions

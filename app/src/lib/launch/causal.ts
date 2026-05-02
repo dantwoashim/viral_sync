@@ -1,11 +1,11 @@
-import { createHash, createHmac, randomUUID } from 'crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import type { CausalInviteRecord } from '@/lib/launch/types';
+import { getCausalInviteSecret } from '@/lib/launch/security';
 
-const DEFAULT_SECRET = 'viral-sync-frontier-demo-secret';
 const CAUSAL_INVITE_TTL_HOURS = 72;
 
 function secret() {
-  return process.env.LAUNCH_CAUSAL_SECRET || DEFAULT_SECRET;
+  return getCausalInviteSecret();
 }
 
 export function sha256Hex(value: string) {
@@ -86,7 +86,11 @@ export function verifyCausalInvite(invite: CausalInviteRecord, nowMs = Date.now(
     expiresAt: invite.expiresAt,
   };
 
-  return hmacHex(stableJson(unsigned)) === invite.signature;
+  const expected = hmacHex(stableJson(unsigned));
+  const expectedBuffer = Buffer.from(expected, 'hex');
+  const suppliedBuffer = Buffer.from(invite.signature, 'hex');
+
+  return expectedBuffer.length === suppliedBuffer.length && timingSafeEqual(expectedBuffer, suppliedBuffer);
 }
 
 export function createVisitChallengeHash(params: {

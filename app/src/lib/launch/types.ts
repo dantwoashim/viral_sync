@@ -145,6 +145,8 @@ export interface StaffDeviceRecord {
   locationLabel: string;
   label: string;
   publicKey: string;
+  secret?: string;
+  secretHash?: string;
   enrolledAt: string;
   revokedAt?: string;
 }

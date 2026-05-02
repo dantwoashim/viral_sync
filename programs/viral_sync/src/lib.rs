@@ -227,6 +227,8 @@ pub mod viral_sync {
         invite_hash: [u8; 32],
         visit_attestation_hash: [u8; 32],
         risk_score_commitment: [u8; 32],
+        referrer_beneficiary: Pubkey,
+        visitor_beneficiary: Pubkey,
     ) -> Result<()> {
         instructions::causal_commerce::record_causal_receipt(
             ctx,
@@ -237,6 +239,8 @@ pub mod viral_sync {
             invite_hash,
             visit_attestation_hash,
             risk_score_commitment,
+            referrer_beneficiary,
+            visitor_beneficiary,
         )
     }
 

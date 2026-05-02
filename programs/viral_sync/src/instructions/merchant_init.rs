@@ -73,6 +73,7 @@ pub struct IssueFirstTokensAndLock<'info> {
 pub fn issue_first_tokens_and_lock(ctx: Context<IssueFirstTokensAndLock>, amount: u64) -> Result<()> {
     let config = &mut ctx.accounts.merchant_config;
     require!(amount > 0, ViralSyncError::InvalidConfig);
+    require!(!config.first_issuance_done, ViralSyncError::InvalidState);
     
     // This records the initial issuance accounting after the deployment runner mints tokens.
     config.first_issuance_done = true;

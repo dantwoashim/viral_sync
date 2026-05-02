@@ -280,6 +280,7 @@ pub fn close_growth_bounty(ctx: Context<CloseGrowthBounty>) -> Result<()> {
 pub struct RecordCausalReceipt<'info> {
     #[account(
         mut,
+        has_one = merchant_authority @ ViralSyncError::AccessDenied,
         constraint = growth_campaign.status == GrowthCampaignStatus::Active @ ViralSyncError::InvalidState,
     )]
     pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
@@ -303,7 +304,7 @@ pub struct RecordCausalReceipt<'info> {
 
     #[account(
         init,
-        payer = receipt_authority,
+        payer = merchant_authority,
         space = CausalReceipt::SIZE,
         seeds = [
             CausalReceipt::SEED_PREFIX,
@@ -316,7 +317,7 @@ pub struct RecordCausalReceipt<'info> {
 
     #[account(
         init,
-        payer = receipt_authority,
+        payer = merchant_authority,
         space = NullifierRecord::SIZE,
         seeds = [
             NullifierRecord::SEED_PREFIX,
@@ -328,7 +329,7 @@ pub struct RecordCausalReceipt<'info> {
     pub nullifier_record: Box<Account<'info, NullifierRecord>>,
 
     #[account(mut)]
-    pub receipt_authority: Signer<'info>,
+    pub merchant_authority: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -343,11 +344,15 @@ pub fn record_causal_receipt(
     invite_hash: [u8; 32],
     visit_attestation_hash: [u8; 32],
     risk_score_commitment: [u8; 32],
+    referrer_beneficiary: Pubkey,
+    visitor_beneficiary: Pubkey,
 ) -> Result<()> {
     require!(receipt_id_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(claimer_nullifier_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(invite_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(visit_attestation_hash != [0; 32], ViralSyncError::InvalidConfig);
+    require!(referrer_beneficiary != Pubkey::default(), ViralSyncError::InvalidConfig);
+    require!(visitor_beneficiary != Pubkey::default(), ViralSyncError::InvalidConfig);
 
     let campaign = &ctx.accounts.growth_campaign;
     let escrow = &mut ctx.accounts.reward_escrow;
@@ -358,12 +363,17 @@ pub fn record_causal_receipt(
     require!(available >= campaign.reward_per_verified_visit, ViralSyncError::InsufficientBalance);
 
     let now = Clock::get()?.unix_timestamp;
+    require!(now >= campaign.starts_at, ViralSyncError::InvalidState);
+    require!(now <= campaign.expires_at, ViralSyncError::InvalidState);
+
     let receipt = &mut ctx.accounts.causal_receipt;
     let nullifier = &mut ctx.accounts.nullifier_record;
 
     receipt.bump = ctx.bumps.causal_receipt;
     receipt.campaign = campaign.key();
     receipt.merchant_config = campaign.merchant_config;
+    receipt.referrer_beneficiary = referrer_beneficiary;
+    receipt.visitor_beneficiary = visitor_beneficiary;
     receipt.receipt_id_hash = receipt_id_hash;
     receipt.parent_receipt_id_hash = parent_receipt_id_hash;
     receipt.referrer_commitment = referrer_commitment;
@@ -402,7 +412,11 @@ pub fn record_causal_receipt(
 
 #[derive(Accounts)]
 pub struct SettleReceiptReward<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        has_one = merchant_authority @ ViralSyncError::AccessDenied,
+        constraint = growth_campaign.status == GrowthCampaignStatus::Active @ ViralSyncError::InvalidState,
+    )]
     pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
 
     #[account(
@@ -432,7 +446,7 @@ pub struct SettleReceiptReward<'info> {
 
     #[account(
         init,
-        payer = settlement_authority,
+        payer = merchant_authority,
         space = SettlementRecord::SIZE,
         seeds = [
             SettlementRecord::SEED_PREFIX,
@@ -445,19 +459,24 @@ pub struct SettleReceiptReward<'info> {
     #[account(
         mut,
         constraint = referrer_reward_account.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+        constraint = referrer_reward_account.owner == causal_receipt.referrer_beneficiary @ ViralSyncError::AccessDenied,
     )]
     pub referrer_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
         constraint = visitor_reward_account.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+        constraint = visitor_reward_account.owner == causal_receipt.visitor_beneficiary @ ViralSyncError::AccessDenied,
     )]
     pub visitor_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    #[account(
+        constraint = reward_mint.key() == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+    )]
     pub reward_mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(mut)]
-    pub settlement_authority: Signer<'info>,
+    pub merchant_authority: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 

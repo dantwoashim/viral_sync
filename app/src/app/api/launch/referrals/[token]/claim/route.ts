@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enforceRateLimit, jsonError, readJsonBody, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
+import { enforceRateLimit, guestSessionFromRequest, jsonError, readJsonBody, requestId, requireJsonRequest, requireLaunchOpen, requireSameOrigin, withSecurityHeaders } from '@/lib/launch/api';
 import {
   claimReferral,
   isValidReferralToken,
@@ -35,12 +35,17 @@ export async function POST(
 
   const { token } = await context.params;
   const body = await readJsonBody(request);
-  const claimerSessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+  const bodySessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+  const cookieSessionId = guestSessionFromRequest(request);
+  const claimerSessionId = cookieSessionId || bodySessionId;
   const claimerDisplayName = sanitizeDisplayName(typeof body?.displayName === 'string' ? body.displayName : 'Guest');
   const deviceFingerprint = sanitizeDeviceFingerprint(typeof body?.deviceFingerprint === 'string' ? body.deviceFingerprint : claimerSessionId, claimerSessionId);
 
   if (!isValidReferralToken(token) || !claimerSessionId || !isValidSessionId(claimerSessionId)) {
     return jsonError('A valid referral token and sessionId are required.', 400);
+  }
+  if (cookieSessionId && bodySessionId && bodySessionId !== cookieSessionId) {
+    return jsonError('Session body does not match the guest cookie.', 403, 'session_mismatch', requestId(request));
   }
 
   const result = await claimReferral({

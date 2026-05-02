@@ -25,13 +25,30 @@ const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedProgramIds = (process.env.ALLOWED_PROGRAM_IDS || '')
+  .split(',')
+  .map((programId) => programId.trim())
+  .filter(Boolean);
+const allowUnauthenticated = process.env.RELAYER_ALLOW_UNAUTHENTICATED === 'true';
+
+if (MAX_TRANSACTION_BYTES > 2_048) {
+  throw new Error('MAX_TRANSACTION_BYTES must not exceed 2048 for the production relayer.');
+}
 
 if (isProduction && !RELAYER_SECRET) {
   throw new Error('RELAYER_SECRET is required when NODE_ENV=production.');
 }
 
-if (isProduction && !RELAYER_API_KEY) {
-  throw new Error('RELAYER_API_KEY is required when NODE_ENV=production.');
+if (!RELAYER_API_KEY && !allowUnauthenticated) {
+  throw new Error('RELAYER_API_KEY is required. Set RELAYER_ALLOW_UNAUTHENTICATED=true only for local development.');
+}
+
+if (isProduction && allowedOrigins.length === 0) {
+  throw new Error('CORS_ORIGINS must list explicit origins in production.');
+}
+
+if (isProduction && allowedProgramIds.length === 0) {
+  throw new Error('ALLOWED_PROGRAM_IDS must list explicit program IDs in production.');
 }
 
 function assertPositiveInteger(value: number, name: string) {
@@ -67,7 +84,7 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || (!isProduction && allowedOrigins.length === 0)) {
       callback(null, true);
       return;
     }
@@ -99,7 +116,7 @@ function checkRateLimit(ip: string) {
 }
 
 function requireApiKey(req: Request, res: Response, next: NextFunction) {
-  if (!RELAYER_API_KEY) {
+  if (!RELAYER_API_KEY && allowUnauthenticated) {
     next();
     return;
   }
@@ -182,6 +199,22 @@ function assertRelayerIsFeePayer(decoded: ReturnType<typeof decodeTransactionPay
   }
 }
 
+function assertAllowedPrograms(decoded: ReturnType<typeof decodeTransactionPayload>) {
+  if (allowedProgramIds.length === 0 && !isProduction) {
+    return;
+  }
+
+  const allowed = new Set(allowedProgramIds);
+  const programs = decoded.kind === 'versioned'
+    ? decoded.tx.message.compiledInstructions.map((instruction) => decoded.tx.message.staticAccountKeys[instruction.programIdIndex]?.toBase58())
+    : decoded.tx.instructions.map((instruction) => instruction.programId.toBase58());
+
+  const denied = programs.filter((programId) => !programId || !allowed.has(programId));
+  if (denied.length > 0) {
+    throw new Error(`Transaction contains non-allowlisted programs: ${Array.from(new Set(denied)).join(', ')}`);
+  }
+}
+
 async function simulateSignedTransaction(tx: VersionedTransaction | Transaction) {
   if (tx instanceof VersionedTransaction) {
     return connection.simulateTransaction(tx);
@@ -244,6 +277,7 @@ app.post('/relay', requireApiKey, requireRateLimit, async (req, res) => {
   try {
     const decoded = decodeTransactionPayload(req.body?.transactionBase64);
     assertRelayerIsFeePayer(decoded);
+    assertAllowedPrograms(decoded);
     reserveReplayFingerprint(decoded.fingerprint);
 
     try {

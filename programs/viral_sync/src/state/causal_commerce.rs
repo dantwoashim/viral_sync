@@ -113,6 +113,8 @@ pub struct CausalReceipt {
     pub bump: u8,
     pub campaign: Pubkey,
     pub merchant_config: Pubkey,
+    pub referrer_beneficiary: Pubkey,
+    pub visitor_beneficiary: Pubkey,
     pub receipt_id_hash: [u8; 32],
     pub parent_receipt_id_hash: [u8; 32],
     pub referrer_commitment: [u8; 32],
@@ -129,7 +131,7 @@ pub struct CausalReceipt {
 
 impl CausalReceipt {
     pub const SEED_PREFIX: &'static [u8] = b"causal_receipt";
-    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8 + CausalReceiptStatus::SIZE + 8 + 8;
+    pub const SIZE: usize = 8 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8 + CausalReceiptStatus::SIZE + 8 + 8;
 }
 
 #[account]

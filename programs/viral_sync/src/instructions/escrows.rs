@@ -66,7 +66,11 @@ pub fn create_escrow_share(ctx: Context<CreateEscrowShare>, amount: u64) -> Resu
 
 #[derive(Accounts)]
 pub struct ClaimEscrow<'info> {
-    #[account(mut, constraint = escrow_generation.mint == mint.key() @ ViralSyncError::InvalidState)]
+    #[account(
+        mut,
+        constraint = escrow_generation.owner == escrow_authority.key() @ ViralSyncError::AccessDenied,
+        constraint = escrow_generation.mint == mint.key() @ ViralSyncError::InvalidState
+    )]
     pub escrow_generation: Box<Account<'info, TokenGeneration>>,
     
     #[account(mut, constraint = dest_generation.mint == mint.key() @ ViralSyncError::InvalidState)]
@@ -81,6 +85,7 @@ pub struct ClaimEscrow<'info> {
     
     #[account(
         mut,
+        constraint = dest_ata.owner == dest_generation.owner @ ViralSyncError::InvalidTokenAccount,
         constraint = dest_ata.mint == mint.key() @ ViralSyncError::InvalidTokenAccount
     )]
     pub dest_ata: InterfaceAccount<'info, TokenAccount>,
