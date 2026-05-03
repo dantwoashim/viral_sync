@@ -1,7 +1,7 @@
-﻿{
+{
     "snapshotCreatedAt":  "2026-04-30T20:58:00+05:45",
     "cluster":  "devnet",
-    "programId":  "8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9",
+    "programId":  "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
     "anchorCli":  "0.30.1",
     "idlPath":  "docs/snapshots/solana/viral_sync-idl-devnet-2026-04-30.json",
     "idlSha256":  "4e3a8938ade55d8cf241c18c63149bfb7f60e70f3adea6abefc5e45348f2a03b",
@@ -16,7 +16,7 @@
     "lastDeployedSlot":  459162617,
     "dataLengthHex":  "0xaa458",
     "deployedBalanceSol":  4.8553308,
-    "verificationCommand":  "solana program show 8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9 --url devnet",
+    "verificationCommand":  "solana program show AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46 --url devnet",
     "blocker":  null,
     "solanaCli":  "solana-cli 3.1.14 (WSL Ubuntu-24.04)",
     "devnetPayer":  "FDbsM2KxA2rEYf377CmqzrJTSsaPSkmu36CFHn9jLuM4",
