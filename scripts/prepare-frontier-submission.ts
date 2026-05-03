@@ -1,11 +1,16 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 
+type ProofSignature = string | null | { signature?: string | null; reused?: boolean };
+
 type Manifest = {
   kind?: string;
+  cluster?: string;
   rpcUrl?: string;
   programId?: string;
   wallet?: string;
+  generatedAt?: string;
+  effectCheckedAt?: string;
   inputs?: {
     orgId?: string;
     campaignId?: string;
@@ -13,17 +18,31 @@ type Manifest = {
     fundAmount?: string;
     rewardPerVisit?: string;
     replayCheck?: boolean;
+    attackCheck?: boolean;
     closeCheck?: boolean;
   };
+  hashes?: {
+    intentManifestHash?: string;
+    visitAttestationHash?: string;
+    receiptIdHash?: string;
+    claimerNullifierHash?: string;
+  };
   pdas?: Record<string, string | number>;
-  signatures?: Record<string, unknown>;
+  signatures?: Record<string, ProofSignature>;
+  explorerLinks?: {
+    transactions?: Record<string, string | null>;
+    accounts?: Record<string, string | null>;
+  };
   replayChecks?: Array<{ label?: string; rejected?: boolean; message?: string }>;
+  effectChecks?: Array<{ label?: string; ok?: boolean; reason?: string }>;
   tokenBalances?: {
     before?: Record<string, string>;
     after?: Record<string, string>;
     afterClose?: Record<string, string> | null;
   };
   limitation?: string;
+  proofStatus?: string;
+  proofStatusNote?: string;
 };
 
 type Verifier = {
@@ -32,8 +51,8 @@ type Verifier = {
   tokenBalances?: Record<string, string>;
 };
 
-const DEFAULT_MANIFEST_PATH = path.join('tmp', 'localnet-causal-commerce.json');
-const DEFAULT_VERIFIER_PATH = path.join('tmp', 'localnet-causal-commerce-verifier.json');
+const DEFAULT_MANIFEST_PATH = path.join('app', 'public', 'proofs', 'devnet-causal-commerce.json');
+const DEFAULT_VERIFIER_PATH = path.join('tmp', 'devnet-causal-commerce-verifier.json');
 const DEFAULT_PACKET_PATH = path.join('docs', 'frontier-submission-packet.md');
 const DEFAULT_GO_NO_GO_PATH = path.join('docs', 'frontier-final-go-no-go.md');
 
@@ -46,11 +65,11 @@ function usage() {
   return `
 Usage:
   npm run frontier:submission
-  npm run frontier:submission -- --manifest tmp/localnet-causal-commerce.json --verifier tmp/localnet-causal-commerce-verifier.json
+  npm run frontier:submission -- --manifest app/public/proofs/devnet-causal-commerce.json --verifier tmp/devnet-causal-commerce-verifier.json
 
 Options:
-  --manifest <path>   Manifest from npm run localnet:smoke. Default: ${DEFAULT_MANIFEST_PATH}
-  --verifier <path>   Verifier output from npm run localnet:smoke. Default: ${DEFAULT_VERIFIER_PATH}
+  --manifest <path>   Devnet manifest from npm run devnet:causal-commerce. Default: ${DEFAULT_MANIFEST_PATH}
+  --verifier <path>   REQUIRED verifier output from npm run devnet:verify-receipt -- --output <path>. Default: ${DEFAULT_VERIFIER_PATH}
   --packet <path>     Write the judge packet markdown. Default: ${DEFAULT_PACKET_PATH}
   --go-no-go <path>   Write the final go/no-go markdown. Default: ${DEFAULT_GO_NO_GO_PATH}
 `;
@@ -68,15 +87,17 @@ function readJson<T>(filePath: string): T {
   return JSON.parse(readText(filePath)) as T;
 }
 
+function readOptionalJson<T>(filePath: string): T | undefined {
+  const resolved = path.resolve(filePath);
+  if (!existsSync(resolved)) return undefined;
+  return JSON.parse(readFileSync(resolved, 'utf8')) as T;
+}
+
 function writeOutput(filePath: string, value: string) {
   const resolved = path.resolve(filePath);
   mkdirSync(path.dirname(resolved), { recursive: true });
   writeFileSync(resolved, value);
   return resolved;
-}
-
-function hasInstruction(idlText: string, instruction: string) {
-  return idlText.includes(`"name": "${instruction}"`);
 }
 
 function requireText(label: string, content: string, expected: string, failures: string[]) {
@@ -98,51 +119,93 @@ function tokenBalance(manifest: Manifest, phase: 'before' | 'after' | 'afterClos
 
 function replayVerdict(manifest: Manifest) {
   const checks = manifest.replayChecks ?? [];
-  if (checks.length === 0) {
-    return 'missing';
-  }
+  if (checks.length === 0) return 'missing';
   return checks.every((check) => check.rejected) ? 'PASS' : 'FAIL';
 }
 
-function buildPacket(params: {
-  manifest: Manifest;
-  verifier: Verifier;
-  generatedAt: string;
-}) {
+function effectVerdict(manifest: Manifest) {
+  const checks = manifest.effectChecks ?? [];
+  if (checks.length === 0) return 'missing';
+  const valid = checks.find((check) => check.label?.toLowerCase().includes('valid'));
+  const malicious = checks.filter((check) => !check.label?.toLowerCase().includes('valid'));
+  return valid?.ok === true && malicious.length > 0 && malicious.every((check) => check.ok === false)
+    ? 'PASS'
+    : 'FAIL';
+}
+
+
+function staleProofStatus(manifest: Manifest) {
+  const status = manifest.proofStatus ?? '';
+  return /needs|stale|unsafe/i.test(status);
+}
+
+function signatureValue(value: ProofSignature | undefined) {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  return value.signature ?? null;
+}
+
+function signatureVerdict(manifest: Manifest, key: string) {
+  return signatureValue(manifest.signatures?.[key]) ? 'PASS' : 'MISSING';
+}
+
+function txLink(manifest: Manifest, key: string) {
+  return manifest.explorerLinks?.transactions?.[key] ?? null;
+}
+
+function buildPacket(params: { manifest: Manifest; verifier?: Verifier; generatedAt: string }) {
   const { manifest, verifier, generatedAt } = params;
+  const verifierStatus = verifier ? (verifier.ok ? 'PASS' : 'FAIL') : 'MISSING';
   return `# Frontier Submission Packet
 
 Generated: ${generatedAt}
 
 ## One-Sentence Pitch
 
-Viral Sync is the Causal Receipt protocol for Solana: merchants fund rewards, customers share signed invites, staff confirm real visits, and the resulting proof can be verified and composed by anyone.
+Viral Sync is a Causal Commerce protocol for Solana: merchants fund rewards and pay only when a staff-confirmed offline visit produces an on-chain causal receipt that commits to the visit evidence, campaign nullifier, and intent manifest hash.
 
-## Winning Proof Path
+## Judge-Facing Proof Path
 
 1. Merchant registers a Causal Commerce config.
 2. Merchant creates and funds a Growth Bounty.
 3. The program records a Causal Receipt with a campaign-scoped nullifier.
-4. The program settles exactly once from the SPL reward vault.
-5. The merchant closes the bounty, reclaims unused funds, and closes the vault account.
-6. The verifier independently checks receipt, settlement, nullifier, token balances, and replay rejection.
+4. The receipt stores the \`intent_manifest_hash\` commitment.
+5. The program settles exactly once from the SPL reward vault.
+6. The proof page shows explorer links and Causal Receipt Intent Validator results.
 
-## Localnet Evidence
+## Devnet Evidence
 
 | Field | Value |
 |---|---|
+| Cluster | \`${manifest.cluster ?? 'missing'}\` |
 | Program | \`${manifest.programId ?? 'missing'}\` |
 | RPC | \`${manifest.rpcUrl ?? 'missing'}\` |
-| Wallet | \`${manifest.wallet ?? 'missing'}\` |
+| Generated | \`${manifest.generatedAt ?? 'missing'}\` |
+| Intent checked | \`${manifest.effectCheckedAt ?? 'missing'}\` |
 | Campaign | \`${manifest.pdas?.growthCampaign ?? 'missing'}\` |
 | Reward escrow | \`${manifest.pdas?.rewardEscrow ?? 'missing'}\` |
 | Reward vault | \`${manifest.pdas?.rewardVault ?? 'missing'}\` |
 | Causal receipt | \`${manifest.pdas?.causalReceipt ?? 'missing'}\` |
-| Settlement record | \`${manifest.pdas?.settlementRecord ?? 'missing'}\` |
-| Verifier | ${verifier.ok ? 'PASS' : 'FAIL'} |
+| Nullifier | \`${manifest.pdas?.nullifierRecord ?? 'missing'}\` |
+| Intent manifest hash | \`${manifest.hashes?.intentManifestHash ?? 'missing'}\` |
+| Visit attestation hash | \`${manifest.hashes?.visitAttestationHash ?? 'missing'}\` |
 | Replay checks | ${replayVerdict(manifest)} |
+| Intent validation checks | ${effectVerdict(manifest)} |
+| Required verifier | ${verifierStatus} |
+
+## Core Transaction Links
+
+| Step | Signature | Explorer |
+|---|---|---|
+| register_merchant | \`${signatureValue(manifest.signatures?.registerMerchant) ?? 'missing'}\` | ${txLink(manifest, 'registerMerchant') ?? 'missing'} |
+| create_growth_campaign | \`${signatureValue(manifest.signatures?.createGrowthCampaign) ?? 'missing'}\` | ${txLink(manifest, 'createGrowthCampaign') ?? 'missing'} |
+| fund_growth_bounty | \`${signatureValue(manifest.signatures?.fundGrowthBounty) ?? 'missing'}\` | ${txLink(manifest, 'fundGrowthBounty') ?? 'missing'} |
+| record_causal_receipt | \`${signatureValue(manifest.signatures?.recordCausalReceipt) ?? 'missing'}\` | ${txLink(manifest, 'recordCausalReceipt') ?? 'missing'} |
+| settle_receipt_reward | \`${signatureValue(manifest.signatures?.settleReceiptReward) ?? 'missing'}\` | ${txLink(manifest, 'settleReceiptReward') ?? 'missing'} |
 
 ## SPL Custody Ledger
+
+${manifest.inputs?.closeCheck ? 'This proof includes close-check evidence after expiry.' : 'This public proof focuses on record + settle; the script supports close-check with `--close-check`, but vault reclaim is not claimed as proven in this artifact.'}
 
 | Account | Before | After settlement | After close |
 |---|---:|---:|---:|
@@ -155,36 +218,26 @@ Viral Sync is the Causal Receipt protocol for Solana: merchants fund rewards, cu
 
 \`\`\`bash
 npm ci
-npm run verify
 npm run build:program
-npm run localnet:smoke
-npm run localnet:proof-graph
-npm run localnet:evidence-report
+npm run devnet:causal-commerce
+npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json
 npm run frontier:submission
 \`\`\`
 
-## Hosted App Relayer Surface
+## Hosted App Proof Surface
 
+- Devnet proof page: \`/frontier-proof\`
 - Policy: \`GET /api/launch/relayer/policy\`
 - Causal Commerce intent builder: \`GET|POST /api/launch/relayer/causal-commerce\`
 - Sponsored transaction simulator: \`POST /api/launch/relayer/sponsor\`
 
-## Judge Assets
-
-- \`docs/winner-scope.md\`
-- \`docs/golden-demo-path.md\`
-- \`docs/localnet-proof-graph.md\`
-- \`docs/localnet-evidence-report.md\`
-- \`docs/week-40-52-completion.md\`
-- \`docs/frontier-final-go-no-go.md\`
-
 ## Honest Limitations
 
-${manifest.limitation ?? 'Localnet/devnet pilot only. Mainnet funds require external audit, funded relayer operations, and production incident coverage.'}
+${manifest.limitation ?? 'Devnet pilot only. Mainnet funds require external audit, funded relayer operations, and production incident coverage.'}
 `;
 }
 
-function buildGoNoGo(params: { manifest: Manifest; verifier: Verifier; generatedAt: string; failures: string[] }) {
+function buildGoNoGo(params: { manifest: Manifest; verifier?: Verifier; generatedAt: string; failures: string[] }) {
   const { manifest, verifier, generatedAt, failures } = params;
   const go = failures.length === 0;
   return `# Frontier Final Go/No-Go
@@ -199,12 +252,17 @@ ${go ? 'GO: submit this build for Frontier judging.' : 'NO-GO: fix the blockers 
 
 | Gate | Result |
 |---|---|
-| Program IDL includes Causal Commerce lifecycle | ${go ? 'PASS' : 'CHECK LOG'} |
-| Localnet verifier | ${verifier.ok ? 'PASS' : 'FAIL'} |
+| Devnet proof manifest | ${manifest.cluster === 'devnet' ? 'PASS' : 'CHECK'} |
+| register_merchant signature | ${signatureVerdict(manifest, 'registerMerchant')} |
+| create_growth_campaign signature | ${signatureVerdict(manifest, 'createGrowthCampaign')} |
+| fund_growth_bounty signature | ${signatureVerdict(manifest, 'fundGrowthBounty')} |
+| record_causal_receipt signature | ${signatureVerdict(manifest, 'recordCausalReceipt')} |
+| settle_receipt_reward signature | ${signatureVerdict(manifest, 'settleReceiptReward')} |
+| intent_manifest_hash present | ${manifest.hashes?.intentManifestHash ? 'PASS' : 'FAIL'} |
 | Replay rejection | ${replayVerdict(manifest)} |
-| Vault close | ${tokenBalance(manifest, 'afterClose', 'rewardVault') === 'closed' ? 'PASS' : 'FAIL'} |
-| Hosted relayer endpoint | ${existsSync(path.resolve('app/src/app/api/launch/relayer/causal-commerce/route.ts')) ? 'PASS' : 'FAIL'} |
-| Judge docs | ${failures.some((failure) => failure.includes('docs/')) ? 'FAIL' : 'PASS'} |
+| Intent validation | ${effectVerdict(manifest)} |
+| Required verifier | ${verifier ? (verifier.ok ? 'PASS' : 'FAIL') : 'MISSING'} |
+| Hosted proof page | ${existsSync(path.resolve('app/src/app/frontier-proof/page.tsx')) ? 'PASS' : 'FAIL'} |
 
 ## Blockers
 
@@ -212,7 +270,7 @@ ${failures.length ? failures.map((failure) => `- ${failure}`).join('\n') : '- no
 
 ## Submission Stance
 
-Lead with localnet proof, not broad product surface area. The winning story is the verified-visit primitive: funded SPL custody, Causal Receipt, exact-once settlement, replay rejection, and vault reclaim.
+Lead with the devnet receipt proof, not broad product surface area. The winning story is the verified-visit primitive: funded SPL custody, Causal Receipt, exact-once settlement, nullifier replay rejection, and on-chain \`intent_manifest_hash\` commitment.
 `;
 }
 
@@ -231,63 +289,53 @@ async function main() {
   const failures: string[] = [];
   [
     'README.md',
-    'docs/winner-scope.md',
-    'docs/golden-demo-path.md',
-    'docs/winning-demo.md',
-    'docs/year-plan-audit.md',
-    'docs/protocol-invariants.md',
-    'docs/security-model.md',
-    'docs/composability.md',
-    'docs/localnet-proof-graph.md',
-    'docs/localnet-evidence-report.md',
-    'docs/week-30-40-completion.md',
-    'docs/week-40-52-completion.md',
+    'app/src/app/frontier-proof/page.tsx',
     'app/src/app/api/launch/relayer/causal-commerce/route.ts',
-    'target/idl/viral_sync.json',
+    'programs/viral_sync/src/lib.rs',
     manifestPath,
-    verifierPath,
   ].forEach((filePath) => requireFile(filePath, failures));
 
   const manifest = failures.some((failure) => failure.includes(manifestPath))
     ? {}
     : readJson<Manifest>(manifestPath);
-  const verifier = failures.some((failure) => failure.includes(verifierPath))
-    ? {}
-    : readJson<Verifier>(verifierPath);
+  requireFile(verifierPath, failures);
+  const verifier = existsSync(path.resolve(verifierPath)) ? readJson<Verifier>(verifierPath) : undefined;
 
-  if (existsSync(path.resolve('target/idl/viral_sync.json'))) {
-    const idl = readText('target/idl/viral_sync.json');
-    [
-      'register_merchant',
-      'create_growth_campaign',
-      'fund_growth_bounty',
-      'record_causal_receipt',
-      'settle_receipt_reward',
-      'close_growth_bounty',
-    ].forEach((instruction) => {
-      if (!hasInstruction(idl, instruction)) {
-        failures.push(`IDL is missing instruction ${instruction}`);
-      }
-    });
+  if (manifest.cluster && manifest.cluster !== 'devnet') {
+    failures.push(`Proof manifest cluster is ${manifest.cluster}, expected devnet`);
+  }
+  if (staleProofStatus(manifest)) {
+    failures.push(`Proof manifest is marked stale: ${manifest.proofStatus}${manifest.proofStatusNote ? ` — ${manifest.proofStatusNote}` : ''}`);
   }
 
-  if (!verifier.ok) {
-    failures.push(`Verifier is not passing: ${(verifier.failures ?? ['unknown failure']).join('; ')}`);
+  ['registerMerchant', 'createGrowthCampaign', 'fundGrowthBounty', 'recordCausalReceipt', 'settleReceiptReward'].forEach((key) => {
+    if (!signatureValue(manifest.signatures?.[key])) {
+      failures.push(`Manifest is missing signature for ${key}`);
+    }
+  });
+
+  if (!manifest.hashes?.intentManifestHash) {
+    failures.push('Manifest is missing hashes.intentManifestHash');
+  }
+  if (!manifest.hashes?.visitAttestationHash) {
+    failures.push('Manifest is missing hashes.visitAttestationHash');
   }
   if (replayVerdict(manifest) !== 'PASS') {
     failures.push('Replay checks are not all rejected');
   }
-  if (tokenBalance(manifest, 'afterClose', 'rewardVault') !== 'closed') {
-    failures.push('Reward vault is not closed after close_growth_bounty');
+  if (effectVerdict(manifest) !== 'PASS') {
+    failures.push('Intent validation checks do not show valid accepted and malicious rejected');
   }
-  if (manifest.inputs?.closeCheck !== true) {
-    failures.push('Localnet manifest was not produced with --close-check');
+  if (!verifier) {
+    failures.push(`Required verifier output is missing: ${verifierPath}`);
+  } else if (!verifier.ok) {
+    failures.push(`Verifier is not passing: ${(verifier.failures ?? ['unknown failure']).join('; ')}`);
   }
 
   if (existsSync(path.resolve('README.md'))) {
     const readme = readText('README.md');
-    requireText('README', readme, 'Week 40-52', failures);
-    requireText('README', readme, 'frontier:submission', failures);
+    requireText('README', readme, 'Causal Commerce protocol', failures);
+    requireText('README', readme, '/frontier-proof', failures);
   }
 
   const generatedAt = new Date().toISOString();
@@ -300,6 +348,7 @@ async function main() {
     goNoGoPath: goNoGoOutput,
     manifestPath: path.resolve(manifestPath),
     verifierPath: path.resolve(verifierPath),
+    verifierProvided: Boolean(verifier),
     failures,
   }, null, 2));
 

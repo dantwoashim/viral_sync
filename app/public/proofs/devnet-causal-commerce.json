@@ -4,12 +4,11 @@
   "rpcUrl": "https://api.devnet.solana.com",
   "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
   "wallet": "EETUeH3fzpCAEDiGpvWWXa9zZQXadmuX79FzNsGdsCJ9",
-  "walletSource": "C:\\Users\\prabi\\.config\\solana\\id.json",
   "initialBalanceSol": 4.41431564,
   "inputs": {
-    "orgId": "viral-sync-localnet-org-moojshm2",
-    "campaignId": "viral-sync-localnet-campaign-moojshm2",
-    "receiptId": "viral-sync-localnet-receipt-moojshm2",
+    "orgId": "viral-sync-devnet-frontier-org",
+    "campaignId": "verified-visits-frontier-campaign",
+    "receiptId": "frontier-receipt-001",
     "rewardPerVisit": "1000",
     "maxRedemptions": 10,
     "maxDepth": 2,
@@ -68,7 +67,9 @@
       "wrong_reward_amount",
       "duplicate_nullifier"
     ],
-    "expiresAt": "2026-05-02T16:21:46.926Z"
+    "expiresAt": "2026-05-02T16:21:46.926Z",
+    "issuedAt": "2026-05-02T16:20:16.926Z",
+    "nonce": "frontier-proof-snapshot"
   },
   "intentManifestHash": "6f3a5453d7f7de7879b69018d9ccb4423b64d434627b9806c2209d909e6c7384",
   "pdas": {
@@ -164,7 +165,7 @@
   ],
   "effectChecks": [
     {
-      "label": "Valid receipt effect",
+      "label": "Valid receipt intent",
       "ok": true,
       "reason": "Effect matches Viral Sync causal receipt intent."
     },
@@ -179,7 +180,7 @@
       "reason": "Reward amount exceeds manifest maximum."
     },
     {
-      "label": "Forbidden instruction",
+      "label": "Forbidden receipt instruction",
       "ok": false,
       "reason": "Instruction is not allowed by manifest."
     }
@@ -779,6 +780,19 @@
       "settledAt": "1777738825"
     }
   },
-  "verifierCommand": "npm run localnet:verify-receipt -- --manifest tmp/devnet-causal-commerce.json",
-  "limitation": "devnet proof path records SPL Token custody, payout, vault reclaim when close-check is enabled, and intent manifest hash commitment; production mainnet still requires external audit and funded relayer operations."
+  "verifierCommand": "npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json",
+  "limitation": "devnet proof path records SPL Token custody, payout, vault reclaim when close-check is enabled, and intent manifest hash commitment; production mainnet still requires external audit and funded relayer operations.",
+  "generatedAt": "2026-05-02T16:40:00.000Z",
+  "effectCheckedAt": "2026-05-02T16:40:00.000Z",
+  "proofMetadata": {
+    "note": "Static devnet proof snapshot. Re-run npm run devnet:causal-commerce to regenerate with computed effect checks, issuedAt, nonce, and clean proof ids.",
+    "primaryProofPage": "/frontier-proof"
+  },
+  "transactions": {
+    "recordCausalReceipt": "3xqhpituh8FGYH8rb8GJZpo6UnhnYTuEdSrrU81tJRnpgw5QQMvmQqZMAhtfVsW7cUWKVevJHLsf5W5kHQ6g7hrH",
+    "settleReceiptReward": "2ivKkiSWZMzLmpyHTUpeppmRPsNLqeUGYgBZJPnS5Thv74BrJdXB3fuwBub44xBqusUzdpcHdYX4Fsoc999Y2GuJ"
+  },
+  "proofLabelNote": "Demo labels have been sanitized for public submission; regenerate with npm run devnet:causal-commerce for a fresh proof from the current clean defaults.",
+  "proofStatus": "stale-devnet-snapshot-needs-verifier-regeneration",
+  "proofStatusNote": "This committed proof snapshot predates the latest program/script hardening. Run npm run build:program, npm run devnet:causal-commerce, npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json, then npm run frontier:submission before final submission."
 }

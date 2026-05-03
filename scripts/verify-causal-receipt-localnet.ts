@@ -11,6 +11,9 @@ import {
 type ManifestShape = {
   rpcUrl?: string;
   programId?: string;
+  hashes?: {
+    intentManifestHash?: string;
+  };
   pdas?: {
     causalReceipt?: string;
     rewardVault?: string;
@@ -36,7 +39,7 @@ type CliOptions = {
 
 const DEFAULT_RPC_URL = 'http://127.0.0.1:8899';
 const IDL_PATH = path.join(process.cwd(), 'target', 'idl', 'viral_sync.json');
-const PROGRAM_ID = new PublicKey('AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46');
+const DEFAULT_PROGRAM_ID = new PublicKey('AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46');
 
 function usage() {
   return `
@@ -133,8 +136,12 @@ async function tokenAccountClosed(connection: Connection, tokenAccount: PublicKe
   return (await connection.getAccountInfo(tokenAccount)) === null;
 }
 
-function findPda(seedPrefix: string, seeds: Buffer[]) {
-  return PublicKey.findProgramAddressSync([Buffer.from(seedPrefix), ...seeds], PROGRAM_ID);
+function findPda(seedPrefix: string, seeds: Buffer[], programId: PublicKey) {
+  return PublicKey.findProgramAddressSync([Buffer.from(seedPrefix), ...seeds], programId);
+}
+
+function hashArrayToHex(value: number[] | Uint8Array) {
+  return Buffer.from(value).toString('hex');
 }
 
 async function fetchAccount<T>(program: anchor.Program, accountName: string, address: PublicKey) {
@@ -200,6 +207,7 @@ async function main() {
     preflightCommitment: 'confirmed',
   });
   const program = new anchor.Program(loadIdl(), provider);
+  const programId = manifest?.programId ? new PublicKey(manifest.programId) : DEFAULT_PROGRAM_ID;
   const causalReceiptPda = options.receipt;
 
   type Receipt = {
@@ -209,6 +217,7 @@ async function main() {
     claimerNullifierHash: number[];
     rewardAmount: anchor.BN;
     settledAmount: anchor.BN;
+    intentManifestHash?: number[];
     status: unknown;
     settledAt: anchor.BN;
   };
@@ -239,12 +248,12 @@ async function main() {
 
   const receipt = await fetchAccount<Receipt>(program, 'causalReceipt', causalReceiptPda);
   const campaign = await fetchAccount<Campaign>(program, 'growthCampaign', receipt.campaign);
-  const [rewardEscrowPda] = findPda('reward_escrow', [receipt.campaign.toBuffer(), campaign.rewardMint.toBuffer()]);
-  const [settlementRecordPda] = findPda('settlement', [causalReceiptPda.toBuffer()]);
+  const [rewardEscrowPda] = findPda('reward_escrow', [receipt.campaign.toBuffer(), campaign.rewardMint.toBuffer()], programId);
+  const [settlementRecordPda] = findPda('settlement', [causalReceiptPda.toBuffer()], programId);
   const [nullifierRecordPda] = findPda('campaign_nullifier', [
     receipt.campaign.toBuffer(),
     Buffer.from(receipt.claimerNullifierHash),
-  ]);
+  ], programId);
   const escrow = await fetchAccount<Escrow>(program, 'rewardEscrow', rewardEscrowPda);
   const settlement = await fetchAccount<Settlement>(program, 'settlementRecord', settlementRecordPda);
   const nullifier = await fetchAccount<Nullifier>(program, 'nullifierRecord', nullifierRecordPda);
@@ -259,6 +268,12 @@ async function main() {
   }
   expectPublicKey('nullifier campaign', nullifier.campaign, receipt.campaign, failures);
   expectPublicKey('nullifier first receipt', nullifier.firstReceipt, causalReceiptPda, failures);
+  if (manifest?.hashes?.intentManifestHash) {
+    const actualIntentManifestHash = receipt.intentManifestHash ? hashArrayToHex(receipt.intentManifestHash) : undefined;
+    if (actualIntentManifestHash !== manifest.hashes.intentManifestHash) {
+      failures.push(`receipt intent_manifest_hash expected ${manifest.hashes.intentManifestHash} but got ${actualIntentManifestHash ?? 'missing'}`);
+    }
+  }
   expectBn('settled amount', receipt.settledAmount, receipt.rewardAmount, failures);
   expectBn('campaign reward per visit', campaign.rewardPerVerifiedVisit, receipt.rewardAmount, failures);
   if (!settlement.referrerAmount.add(settlement.visitorAmount).eq(receipt.rewardAmount)) {
@@ -311,8 +326,7 @@ async function main() {
     ok: failures.length === 0,
     rpcUrl: options.rpcUrl,
     manifestPath: options.manifestPath,
-    programId: PROGRAM_ID.toBase58(),
-    walletSource: walletInfo.source,
+    programId: programId.toBase58(),
     pdas: {
       causalReceipt: causalReceiptPda.toBase58(),
       growthCampaign: receipt.campaign.toBase58(),
