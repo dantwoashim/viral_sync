@@ -1,6 +1,6 @@
 # Frontier Submission Packet
 
-Generated: 2026-05-02T18:07:33.008Z
+Generated: 2026-05-03T02:23:39.025Z
 
 ## One-Sentence Pitch
 
@@ -17,35 +17,33 @@ Viral Sync is a Causal Commerce protocol for Solana: merchants fund rewards and 
 
 ## Devnet Evidence
 
-> Current committed proof status: `stale-devnet-snapshot-needs-verifier-regeneration`. Regenerate the devnet proof and verifier before final submission.
-
 | Field | Value |
 |---|---|
 | Cluster | `devnet` |
 | Program | `AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46` |
 | RPC | `https://api.devnet.solana.com` |
-| Generated | `2026-05-02T16:40:00.000Z` |
-| Intent checked | `2026-05-02T16:40:00.000Z` |
-| Campaign | `34GkfA2fWygoKtgs7kQkpeiXwjMZiqSBZ4YN7WdgR4bC` |
-| Reward escrow | `2vL4MN95KtjXX4VjSco9KhxH6etf2wFjSRjrz8Xmua1r` |
-| Reward vault | `7g6R9ohAC3srQaJqjM2DyeB3ymo1JKUP8NPfSY6f1tBH` |
-| Causal receipt | `52xZUCvJQZmw9dja4p6cB3AZ5A866i8scn8BeqmTMQpX` |
-| Nullifier | `HS5e7sRLWrp42FGF7ADpK4dDZfp51zfRxY7mw3kiP6HB` |
-| Intent manifest hash | `6f3a5453d7f7de7879b69018d9ccb4423b64d434627b9806c2209d909e6c7384` |
-| Visit attestation hash | `4fb018529e0abc3c2d8e5f33763a8447691776107ae9360a00a617b30bc71faa` |
+| Generated | `2026-05-03T02:19:45.903Z` |
+| Intent checked | `2026-05-03T02:19:45.902Z` |
+| Campaign | `6N5WX7dzdbX9pxaKTmx33RNVTCcZ9uipCG8bj1DzFpmv` |
+| Reward escrow | `Di7Q9Zg2G75U5tej4mpWXgQuhds6ZnxDahkJSyqBzNYx` |
+| Reward vault | `CdcWzWPQxpyyTG7UpAagrkbKdwGcDFbBgkWFtLy3dN4a` |
+| Causal receipt | `AdbQrEQHMaSkshS6bykEA33FPQj6ymRwaQz88AkhQUBN` |
+| Nullifier | `8wbj9DY9Vw1hK6sLx6TMALYkaFQgGPFFn4NDBc5QEGSm` |
+| Intent manifest hash | `d3e4b835bf7029d301dbad83d53456cdd3272af636ed2d83b35a532dec9ee8d3` |
+| Visit attestation hash | `479afa8d6284844fef6be29cacc281137363200708c767d0bb5a5a7e7b80673f` |
 | Replay checks | PASS |
 | Intent validation checks | PASS |
-| Required verifier | MISSING |
+| Required verifier | PASS |
 
 ## Core Transaction Links
 
 | Step | Signature | Explorer |
 |---|---|---|
-| register_merchant | `5RckxgGvCpyghD8FMyHZpd2evV1azkSZbXViv2qVudqu4fe5mC5w1pErb4tyEZRxDmMzVVTpqoo91Jn5kXYigBjR` | https://explorer.solana.com/tx/5RckxgGvCpyghD8FMyHZpd2evV1azkSZbXViv2qVudqu4fe5mC5w1pErb4tyEZRxDmMzVVTpqoo91Jn5kXYigBjR?cluster=devnet |
-| create_growth_campaign | `3usEUSP6sx34AXMDkSZ5fq7XDbMvPY2N3ZjSZ3RGUeTGaWDkD6tqYKy7JwwAZvwr4QRkV5RxcTWWG1UmQhyXmsb7` | https://explorer.solana.com/tx/3usEUSP6sx34AXMDkSZ5fq7XDbMvPY2N3ZjSZ3RGUeTGaWDkD6tqYKy7JwwAZvwr4QRkV5RxcTWWG1UmQhyXmsb7?cluster=devnet |
-| fund_growth_bounty | `gAnzJ6J6VNZvYQ74QQVNzdgzNryfgU4SvE1JQcsjzkJ4jfSjfYhFW8L4mKcas3gYU2AMe9WPj4R3dkBFiR1Q5MV` | https://explorer.solana.com/tx/gAnzJ6J6VNZvYQ74QQVNzdgzNryfgU4SvE1JQcsjzkJ4jfSjfYhFW8L4mKcas3gYU2AMe9WPj4R3dkBFiR1Q5MV?cluster=devnet |
-| record_causal_receipt | `3xqhpituh8FGYH8rb8GJZpo6UnhnYTuEdSrrU81tJRnpgw5QQMvmQqZMAhtfVsW7cUWKVevJHLsf5W5kHQ6g7hrH` | https://explorer.solana.com/tx/3xqhpituh8FGYH8rb8GJZpo6UnhnYTuEdSrrU81tJRnpgw5QQMvmQqZMAhtfVsW7cUWKVevJHLsf5W5kHQ6g7hrH?cluster=devnet |
-| settle_receipt_reward | `2ivKkiSWZMzLmpyHTUpeppmRPsNLqeUGYgBZJPnS5Thv74BrJdXB3fuwBub44xBqusUzdpcHdYX4Fsoc999Y2GuJ` | https://explorer.solana.com/tx/2ivKkiSWZMzLmpyHTUpeppmRPsNLqeUGYgBZJPnS5Thv74BrJdXB3fuwBub44xBqusUzdpcHdYX4Fsoc999Y2GuJ?cluster=devnet |
+| register_merchant | `2aetwMZ1iVzctY2zc1NKrmHc5rb7iLsNh9aGHhKKYZ9z2HgGTfYhT4r6qFnczSQQVTWxiVXCvEcyR6sd5waGf9z2` | https://explorer.solana.com/tx/2aetwMZ1iVzctY2zc1NKrmHc5rb7iLsNh9aGHhKKYZ9z2HgGTfYhT4r6qFnczSQQVTWxiVXCvEcyR6sd5waGf9z2?cluster=devnet |
+| create_growth_campaign | `5aKGgmuCepEKFPwtpo1Go1mUYnGZa7Y5N116vUuJuvMSfKG7Hbg7hGiy6cvBswuYpbqJz4fYq8SfT1EuDAhyx5Eu` | https://explorer.solana.com/tx/5aKGgmuCepEKFPwtpo1Go1mUYnGZa7Y5N116vUuJuvMSfKG7Hbg7hGiy6cvBswuYpbqJz4fYq8SfT1EuDAhyx5Eu?cluster=devnet |
+| fund_growth_bounty | `5438ZH9GgcKfnxiQBTYx2FeHDDV47geryjHmUcorHHzZKrjEGnaTQyHJC4jBWLXR1gRyNurhA4R62ecddfEUo7WP` | https://explorer.solana.com/tx/5438ZH9GgcKfnxiQBTYx2FeHDDV47geryjHmUcorHHzZKrjEGnaTQyHJC4jBWLXR1gRyNurhA4R62ecddfEUo7WP?cluster=devnet |
+| record_causal_receipt | `5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw` | https://explorer.solana.com/tx/5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw?cluster=devnet |
+| settle_receipt_reward | `7LmCR2i2yeiaBziTE7bRAGH85kRiCo2K2CqnLv4UTtFSQxezgK2s3tyQyxMCCuSdD7HQETCaUmrzbCFk7SsdoUS` | https://explorer.solana.com/tx/7LmCR2i2yeiaBziTE7bRAGH85kRiCo2K2CqnLv4UTtFSQxezgK2s3tyQyxMCCuSdD7HQETCaUmrzbCFk7SsdoUS?cluster=devnet |
 
 ## SPL Custody Ledger
 
