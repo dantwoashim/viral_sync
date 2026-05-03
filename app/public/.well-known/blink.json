@@ -1,0 +1,8 @@
+{
+  "rules": [
+    {
+      "pathPattern": "/api/actions/campaign/*",
+      "apiPath": "/api/actions/campaign/*"
+    }
+  ]
+}

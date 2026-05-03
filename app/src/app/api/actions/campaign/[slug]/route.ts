@@ -20,36 +20,31 @@ function findCampaign(slug: string) {
   return orderbook.campaigns?.find((campaign) => campaign.slug === slug);
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
+function appBaseUrl(request: Request) {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return new URL(request.url).origin || 'http://localhost:3000';
+}
+
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const campaign = findCampaign(slug);
   if (!campaign) return NextResponse.json({ error: 'campaign_not_found' }, { status: 404 });
+  const baseUrl = appBaseUrl(request);
+  const campaignPath = campaign.publicPath ?? `/campaign/${slug}`;
   return NextResponse.json({
-    title: campaign.title,
-    icon: 'https://dummyimage.com/96x96/0b2a22/ffffff.png&text=VS',
-    description: `${campaign.merchantAlias ?? 'Merchant'} - ${campaign.proofBacked ? 'proof-backed demo campaign' : 'vision-only preview'} - reward ${String(campaign.bounty?.rewardUnits ?? 'future')} units after POC-1 conversion.`,
-    label: campaign.proofBacked ? 'Claim pass preview' : 'Preview campaign',
-    links: { actions: [{ label: 'Open campaign', href: campaign.publicPath ?? `/campaign/${slug}` }] },
+    icon: `${baseUrl}/icon.png`,
+    title: campaign.title ?? 'Claim visit pass: Thamel Brew House',
+    description: 'POC-1 proof-of-outcome campaign. Settlement requires terminal + visitor counter-attestation.',
+    links: { actions: [{ label: 'View proof', href: `${baseUrl}${campaignPath}` }] },
     viralSync: {
-      type: 'blink_style_preview_only',
+      type: 'get_only_blink_campaign_metadata',
       proofBacked: campaign.proofBacked === true,
       proofLevel: campaign.proofLevel,
       attestationModel: campaign.attestationModel,
       verification: campaign.verification,
       status: campaign.status,
-      limitation: 'This endpoint returns metadata for a campaign link. It does not build or submit a production Solana transaction.',
+      limitation: 'GET-only metadata. Transactional claim-pass creation stays out of this route until the devnet terminal flow is stable.',
     },
-  });
-}
-
-export async function POST(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const campaign = findCampaign(slug);
-  if (!campaign) return NextResponse.json({ error: 'campaign_not_found' }, { status: 404 });
-  return NextResponse.json({
-    type: 'external_link',
-    label: campaign.proofBacked ? 'Open proof-backed claim pass preview' : 'Open vision-only campaign preview',
-    href: campaign.publicPath ?? `/campaign/${slug}`,
-    message: 'Viral Sync uses this as a safe Blink-style preview. Live transaction construction remains inside the verified proof script and terminal flow.',
   });
 }

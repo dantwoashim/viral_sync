@@ -12,6 +12,7 @@ const lib = read('programs/viral_sync/src/lib.rs');
 const anchorMatch = anchorToml.match(/viral_sync\s*=\s*"([^"]+)"/);
 const declareMatch = lib.match(/declare_id!\("([^"]+)"\)/);
 const failures: string[] = [];
+const strict = process.env.PROGRAM_ID_STRICT === '1' || process.argv.includes('--strict');
 
 if (!anchorMatch) failures.push('Anchor.toml viral_sync program ID missing');
 if (!declareMatch) failures.push('declare_id! missing in lib.rs');
@@ -32,6 +33,8 @@ if (fs.existsSync(path.resolve(keypairPath))) {
   if (anchorId && deployKeypair !== anchorId) {
     failures.push(`deploy keypair ${deployKeypair} != Anchor.toml ${anchorId}`);
   }
+} else if (strict) {
+  failures.push('target/deploy/viral_sync-keypair.json missing');
 }
 
 for (const id of [anchorId, declareId, deployKeypair].filter(Boolean)) {

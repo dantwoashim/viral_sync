@@ -1,7 +1,7 @@
 {
   "type": "viral-sync-frontier-readiness",
-  "generatedAt": "2026-05-03T16:51:30.105Z",
-  "status": "READY_FOR_FINAL_PROOF_RUN",
+  "generatedAt": "2026-05-03T21:41:25.457Z",
+  "status": "GO",
   "gates": [
     {
       "id": "program-build-command",
@@ -24,44 +24,44 @@
     {
       "id": "counter-attestation-manifest",
       "label": "Counter-attestation manifest",
-      "status": "PENDING",
-      "detail": "Pending fresh final counter-attested proof manifest."
+      "status": "PASS",
+      "detail": "Manifest is fresh and counter-attested."
     },
     {
       "id": "verifier-output",
       "label": "Verifier output",
-      "status": "PENDING",
-      "detail": "Pending final verifier output with strict flags."
+      "status": "PASS",
+      "detail": "Verifier ok=true with terminal/visitor/lineage/settlement/nullifier flags."
     },
     {
       "id": "fraud-gauntlet",
       "label": "Fraud Gauntlet",
-      "status": "PENDING",
-      "detail": "0/15 cases currently blocked."
+      "status": "PASS",
+      "detail": "16/16 attacks blocked with expected error evidence."
     },
     {
       "id": "merchant-passport",
       "label": "Merchant Passport",
-      "status": "PENDING",
-      "detail": "Passport pending strict counter-attestation facts."
+      "status": "PASS",
+      "detail": "Passport facts are all verified."
     },
     {
       "id": "orderbook-proof-slot",
       "label": "Orderbook proof-backed slot",
-      "status": "PENDING",
-      "detail": "Orderbook proof-backed slot is not fully verified."
+      "status": "PASS",
+      "detail": "Orderbook has verified proof-backed campaign."
     },
     {
       "id": "campaign-links",
       "label": "Campaign links",
-      "status": "PENDING",
-      "detail": "Campaign link proof flags are incomplete."
+      "status": "PASS",
+      "detail": "At least one campaign link is proof-backed and verified."
     },
     {
       "id": "proof-feed",
       "label": "Proof Feed",
-      "status": "PENDING",
-      "detail": "Proof feed contains pending/attention entries."
+      "status": "PASS",
+      "detail": "Every proof feed entry is verified."
     },
     {
       "id": "merchant-validation-kit",
@@ -87,5 +87,13 @@
     "declareId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
     "deployKeypair": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
     "matches": true
-  }
+  },
+  "programSourceHash": "92cd14949d4e3bc0c099b54cedb2730a1e09a550679fd3615d86d809d38f32c7",
+  "idlHash": "1a5a37491319e4ae75dbc97d62466ac86e6301a850b6570fac4e82cf6c30bc5e",
+  "proofGeneratorHash": "01fd1e3fc0bbdae64e61e594ea52fe7ad68acab4205219ea8368e901e7edfbd2",
+  "verifierHash": "9b8b5e6c3d804765056bdd9e81751479d97a21bf12bfcbc10f1895f4bfdc078a",
+  "rawVerifierHash": "9492e853435dc62dfa7301e1b7d9cf088c721ca25f661c05ff48874f950cb856",
+  "publishedVerifierHash": "78b0f67ddc031e3564ab1cbf18f01708555f4ebf8a063fbb6d098aa0e7c19811",
+  "artifactHash": "ef30113968ab7fb009f9bbba9fad168f4492a2558ee828b9637a1a5a77a3fb59",
+  "stampMode": "final-candidate"
 }

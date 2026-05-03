@@ -82,4 +82,25 @@ pub enum ViralSyncError {
     
     #[msg("Access Denied or Invalid Authority")]
     AccessDenied,
+
+    #[msg("Terminal device is not active.")]
+    TerminalDeviceInactive,
+
+    #[msg("Terminal device does not belong to this merchant.")]
+    InvalidTerminalDevice,
+
+    #[msg("Terminal authority does not match enrolled terminal device.")]
+    InvalidTerminalAuthority,
+
+    #[msg("Visitor authority must match visitor beneficiary.")]
+    InvalidVisitorAuthority,
+
+    #[msg("Claim pass is not active or does not match this receipt path.")]
+    InvalidClaimPass,
+
+    #[msg("Claim pass depth exceeds campaign max depth.")]
+    MaxDepthExceeded,
+
+    #[msg("Receipt intent does not match campaign settlement terms")]
+    IntentMismatch,
 }

@@ -520,6 +520,23 @@ async function main() {
   const claimPassVisitorVerified = Boolean(claimPass && receipt.visitorAuthority && claimPass.visitorAuthority.equals(receipt.visitorAuthority));
   const claimPassLineageHashVerified = !manifest?.hashes?.lineageProofHash || Boolean(claimPass?.lineageProofHash && hashArrayToHex(claimPass.lineageProofHash) === manifest.hashes.lineageProofHash);
   const receiptLineageHashVerified = !manifest?.hashes?.lineageProofHash || Boolean(receipt.lineageProofHash && hashArrayToHex(receipt.lineageProofHash) === manifest.hashes.lineageProofHash);
+  const terminalChecks = {
+    accountExists: Boolean(terminalDeviceAccount),
+    statusActive: Boolean(terminalDeviceAccount && enumName(terminalDeviceAccount.status) === 'active'),
+    merchantConfigMatches: Boolean(terminalDeviceAccount && terminalDeviceAccount.merchantConfig.equals(receipt.merchantConfig)),
+    terminalAuthorityMatches: Boolean(terminalDeviceAccount && receipt.terminalAuthority && terminalDeviceAccount.terminalAuthority.equals(receipt.terminalAuthority)),
+    merchantAuthorityMatches: Boolean(terminalDeviceAccount && (!campaign.merchantAuthority || terminalDeviceAccount.merchantAuthority.equals(campaign.merchantAuthority))),
+  };
+  const lineageChecks = {
+    manifestMatchesClaimPass: claimPassLineageHashVerified,
+    manifestMatchesReceipt: receiptLineageHashVerified,
+    claimPassMatchesReceipt: Boolean(
+      claimPass &&
+      receipt.lineageProofHash &&
+      claimPass.lineageProofHash &&
+      hashArrayToHex(claimPass.lineageProofHash) === hashArrayToHex(receipt.lineageProofHash),
+    ),
+  };
   const nullifierAccountVerified = Boolean(nullifier.campaign.equals(receipt.campaign) && nullifier.firstReceipt.equals(causalReceiptPda));
   const settlementAccountVerified = Boolean(settlement.receipt.equals(causalReceiptPda) && settlement.campaign.equals(receipt.campaign));
   const duplicateAttack = manifest?.attackEvidence?.find((entry: any) => entry?.id === 'duplicate-nullifier');
@@ -543,9 +560,9 @@ async function main() {
     vaultPayoutDeltaMatches,
     escrowAccountingMatches: escrowAccountingVerified,
   };
-  const terminalVerified = terminalDevicePresent && terminalDeviceAccountVerified && terminalAuthorityVerified && terminalMerchantBindingVerified;
+  const terminalVerified = Object.values(terminalChecks).every(Boolean);
   const visitorVerified = visitorAuthorityVerified && claimPassVisitorVerified;
-  const lineageVerified = Boolean(claimPass && enumName(claimPass.status) === 'recorded' && claimPassCampaignVerified && claimPassLineageHashVerified && receiptLineageHashVerified && (typeof campaign.maxDepth !== 'number' || claimPass.depth <= campaign.maxDepth));
+  const lineageVerified = Boolean(claimPass && enumName(claimPass.status) === 'recorded' && claimPassCampaignVerified && Object.values(lineageChecks).every(Boolean) && (typeof campaign.maxDepth !== 'number' || claimPass.depth <= campaign.maxDepth));
   const nullifierVerified = Object.values(nullifierChecks).every(Boolean);
   const settlementVerified = Object.values(settlementChecks).every(Boolean);
 
@@ -582,6 +599,8 @@ async function main() {
     splitVerified,
     escrowAccountingVerified,
     duplicateNullifierAttackRejected,
+    terminalChecks,
+    lineageChecks,
     nullifierChecks,
     settlementChecks,
     tokenAccountChecks,

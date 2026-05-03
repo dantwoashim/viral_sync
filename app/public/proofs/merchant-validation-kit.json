@@ -1,13 +1,13 @@
 {
   "type": "viral-sync-merchant-validation-kit",
   "version": "1.0.0",
-  "generatedAt": "2026-05-03T15:29:34.925Z",
+  "generatedAt": "2026-05-03T21:41:22.101Z",
   "validationStatus": "not_claimed_until_real_merchant_evidence_is_added",
   "merchantAlias": "Thamel Brew House",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "passportHash": "5f291bc836b101b410473ecbde023517a51e1942022adb393100b8ebb8b9ad7a",
-  "orderbookHash": "35af0aab42bf659e433be09370565695ca639d0da6b2b6735c1fd3b3edd3d238",
+  "passportHash": "da2d93007b918065c4b3fb090614a337f1789d7c4600aa37fb749894f56a81ad",
+  "orderbookHash": "76668c25bb2e3c854abdfa256f14bca175547988b82458138063420160803710",
   "rules": [
     "Do not claim live merchant traction unless evidenceSlots are filled with real permissioned evidence.",
     "Screenshots, quotes, and videos must be from a real merchant or must be labeled demo-only.",
@@ -46,5 +46,13 @@
     }
   ],
   "safeSubmissionWording": "The Frontier submission includes a complete devnet proof and verifier. Real-world merchant validation is not claimed unless this kit is filled with permissioned evidence.",
-  "validationKitHash": "0e7efd5371bfc91b36987c48a907d52cb872bf78f88ac1449f740e8fa1599252"
+  "validationKitHash": "8c1e2c9eea20eccae758c478482457ed6c07b4d75189ed71de219e5751517699",
+  "programSourceHash": "92cd14949d4e3bc0c099b54cedb2730a1e09a550679fd3615d86d809d38f32c7",
+  "idlHash": "1a5a37491319e4ae75dbc97d62466ac86e6301a850b6570fac4e82cf6c30bc5e",
+  "proofGeneratorHash": "01fd1e3fc0bbdae64e61e594ea52fe7ad68acab4205219ea8368e901e7edfbd2",
+  "verifierHash": "9b8b5e6c3d804765056bdd9e81751479d97a21bf12bfcbc10f1895f4bfdc078a",
+  "rawVerifierHash": "9492e853435dc62dfa7301e1b7d9cf088c721ca25f661c05ff48874f950cb856",
+  "publishedVerifierHash": "78b0f67ddc031e3564ab1cbf18f01708555f4ebf8a063fbb6d098aa0e7c19811",
+  "artifactHash": "a75d1892e75cb1ce31c372f5dd8fe3a5fa3a58ceffe472dd34ab91ff960b2e1c",
+  "stampMode": "final-candidate"
 }

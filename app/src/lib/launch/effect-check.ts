@@ -19,6 +19,7 @@ export type CausalReceiptIntentManifest = {
   inviteHash: string;
   visitAttestationHash: string;
   rewardAmount: number;
+  referrerSplitBps?: number;
   referrerBeneficiary: string;
   visitorBeneficiary: string;
   allowedInstructions: string[];
@@ -38,6 +39,7 @@ export function validateCausalReceiptEffect(params: {
   action: string;
   accounts: Record<string, string>;
   rewardAmount: number;
+  referrerSplitBps?: number;
   referrerBeneficiary: string;
   visitorBeneficiary: string;
   now?: Date;
@@ -62,6 +64,14 @@ export function validateCausalReceiptEffect(params: {
 
   if (params.rewardAmount > params.manifest.rewardAmount) {
     return { ok: false as const, reason: 'Reward amount exceeds manifest maximum.' };
+  }
+
+  if (
+    typeof params.manifest.referrerSplitBps === 'number' &&
+    typeof params.referrerSplitBps === 'number' &&
+    params.referrerSplitBps !== params.manifest.referrerSplitBps
+  ) {
+    return { ok: false as const, reason: 'IntentMismatch: referrer split does not match manifest.' };
   }
 
   if (params.referrerBeneficiary !== params.manifest.referrerBeneficiary) {

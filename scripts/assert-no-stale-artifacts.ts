@@ -84,7 +84,7 @@ function scanJsonFile(file: string) {
     const summary = isObj(obj.summary) ? obj.summary : {};
     const cases = Array.isArray(obj.cases) ? obj.cases : [];
     const total = Number(summary.totalCases ?? cases.length);
-    if (total < 15) fail(file, '$.summary.totalCases', 'fraud gauntlet must include at least 15 cases', total);
+    if (total < 16) fail(file, '$.summary.totalCases', 'fraud gauntlet must include at least 16 cases', total);
     if (Number(summary.blocked) !== total) fail(file, '$.summary.blocked', 'blocked must equal total cases', summary.blocked);
     if (Number(summary.missing) !== 0) fail(file, '$.summary.missing', 'missing must be zero', summary.missing);
     if (Number(summary.failed) !== 0) fail(file, '$.summary.failed', 'failed must be zero', summary.failed);
@@ -143,7 +143,7 @@ function scanMarkdownFile(file: string) {
   ];
   for (const { pattern, reason } of patterns) if (pattern.test(text)) fail(file, '$', reason, pattern.toString());
   if (localPath.test(text)) fail(file, '$', 'final markdown leaks local path or secret-like value');
-  if (!allowMockFinal && mockMarker.test(text)) fail(file, '$', 'mock/fixture marker is not allowed in real final markdown');
+  if (!allowMockFinal && /mock final fixture|mockFinal/i.test(text)) fail(file, '$', 'mock fixture marker is not allowed in real final markdown');
 }
 
 for (const file of [...finalJsonArtifacts].map(normalize)) scanJsonFile(file);

@@ -36,10 +36,12 @@
     "devnet:causal-commerce:final": "ts-node scripts/run-causal-commerce-localnet.ts --rpc https://api.devnet.solana.com --airdrop-sol 0 --replay-check --attack-check --output app/public/proofs/devnet-causal-commerce.json",
     "devnet:causal-commerce:frontier-final": "ts-node scripts/run-causal-commerce-localnet.ts --rpc https://api.devnet.solana.com --airdrop-sol 0 --replay-check --attack-check --org thamel-brew-frontier-final-2026 --campaign proof-of-conversion-thamel-brew-2026 --receipt receipt-thamel-brew-counter-attested-2026 --output app/public/proofs/devnet-causal-commerce.json",
     "proof:program-id-check": "ts-node scripts/check-program-id-consistency.ts",
-    "frontier:verify-artifacts": "npm run proof:publish-verifier && npm run merchant:passport && npm run fraud:gauntlet && npm run conversion:orderbook && npm run campaign:links && npm run merchant:validation && npm run proof:feed && npm run invariants && npm run frontier:readiness && npm run proof:stamp && npm run proof:schema:final && npm run frontier:submission && npm run auditor:packet && npm run frontier:assert-final",
+    "frontier:preproof-docs": "cross-env ALLOW_PREPROOF_DOCS=1 ts-node scripts/prepare-frontier-submission.ts",
+    "frontier:verify-artifacts": "npm run proof:publish-verifier && npm run merchant:passport && npm run fraud:gauntlet && npm run conversion:orderbook && npm run campaign:links && npm run merchant:validation && npm run proof:feed && npm run invariants && npm run frontier:readiness && npm run proof:stamp && npm run proof:schema:final && npm run frontier:submission",
     "frontier:preflight": "npm run frontier:offline-preflight && npm run build:program && npm run proof:program-id-check && npm run test:protocol:attack",
-    "frontier:final": "npm run build:program && npm run proof:program-id-check && anchor deploy --provider.cluster devnet && npm run devnet:causal-commerce:frontier-final && npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json && npm run frontier:verify-artifacts",
-    "frontier:offline-preflight": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-sdk && npm run build --workspace relayer && npm run proof:schema && npm run proof:program-id-check && npm run invariants && npm run frontier:readiness",
+    "frontier:final-core": "npm run build:program && npm run proof:program-id-check:strict && anchor deploy --provider.cluster devnet && npm run devnet:causal-commerce:frontier-final && npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json && npm run frontier:verify-artifacts",
+    "frontier:final": "npm run frontier:final-core && npm run auditor:packet && npm run frontier:assert-final",
+    "frontier:offline-preflight": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-sdk && npm run build --workspace relayer && npm run proof:schema && npm run proof:program-id-check && npm run invariants && npm run frontier:readiness && npm run frontier:preproof-docs",
     "merchant:passport": "ts-node scripts/generate-merchant-passport.ts",
     "fraud:gauntlet": "ts-node scripts/generate-fraud-gauntlet.ts",
     "proof:feed": "ts-node scripts/generate-proof-feed.ts",
@@ -54,6 +56,7 @@
     "frontier:assert-final": "ts-node scripts/assert-no-stale-artifacts.ts",
     "proof:schema:final": "cross-env PROOF_SCHEMA_FINAL=1 ts-node scripts/validate-proof-schemas.ts",
     "proof:publish-verifier": "ts-node scripts/publish-verifier.ts",
+    "proof:program-id-check:strict": "cross-env PROGRAM_ID_STRICT=1 ts-node scripts/check-program-id-consistency.ts",
     "frontier:mock-final": "ts-node scripts/run-mock-final-pipeline.ts"
   },
   "overrides": {

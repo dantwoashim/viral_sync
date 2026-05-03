@@ -23,6 +23,11 @@ These are the invariants the Frontier build must preserve.
 - Recording a receipt can only reserve reward if escrow has enough unreserved funds.
 - Settlement cannot exceed the recorded receipt reward amount.
 - Settlement can run only once per receipt.
+- Settlement cannot execute if receipt terms no longer match campaign terms:
+  - `intent_manifest_hash` must be present.
+  - Referrer split must match the campaign.
+  - Reward amount must match the campaign.
+  - Reward mint must match the campaign.
 - Referrer and visitor amounts must add exactly to the receipt reward amount.
 - `close_growth_bounty` can run only when `total_reserved == 0`.
 - Closing a bounty must reclaim unused funds and close the reward vault token account.

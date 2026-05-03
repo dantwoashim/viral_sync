@@ -72,7 +72,7 @@ const DEFAULT_MANIFEST = path.join('app', 'public', 'proofs', 'devnet-causal-com
 const DEFAULT_VERIFIER = path.join('tmp', 'devnet-causal-commerce-verifier.json');
 const DEFAULT_OUTPUT = path.join('app', 'public', 'proofs', 'fraud-gauntlet.json');
 
-const CASE_DEFS: Array<Omit<GauntletCase, 'observed' | 'status' | 'errorCode' | 'expectedErrorCode' | 'actualError' | 'expectedErrorMatched' | 'accountsMutated' | 'accountsMutationVerified' | 'proofSource' | 'evidence'> & { fallbackError: string }> = [
+const CASE_DEFS: Array<Omit<GauntletCase, 'observed' | 'status' | 'errorCode' | 'expectedErrorCode' | 'actualError' | 'expectedErrorMatched' | 'accountsMutated' | 'accountsMutationVerified' | 'proofSource' | 'evidence' | 'failureKind'> & { fallbackError: string }> = [
   { id: 'merchant-only-receipt', title: 'Merchant-only fake receipt', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'An admin can mark a conversion manually.', viralSyncDefense: 'Receipt requires enrolled terminal + visitor signer + merchant authority.', fallbackError: 'MissingRequiredSignature' },
   { id: 'wrong-terminal-signer', title: 'Wrong terminal signer', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'Anyone with staff access can approve a fake code.', viralSyncDefense: 'Terminal signer must match the enrolled terminal PDA.', fallbackError: 'InvalidTerminalAuthority' },
   { id: 'different-merchant-terminal', title: 'Terminal from different merchant', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'A copied terminal or another shop can attest the event.', viralSyncDefense: 'Terminal device is bound to the merchant config.', fallbackError: 'InvalidTerminalDevice' },
@@ -84,6 +84,7 @@ const CASE_DEFS: Array<Omit<GauntletCase, 'observed' | 'status' | 'errorCode' | 
   { id: 'claim-pass-depth-exceeds-max-depth', title: 'Claim pass depth exceeds max depth', expected: 'rejected', instruction: 'issue_claim_pass', normalReferralFailure: 'Referral trees can grow beyond merchant risk limits.', viralSyncDefense: 'Claim depth is capped by campaign.max_depth.', fallbackError: 'MaxDepthExceeded' },
   { id: 'duplicate-nullifier', title: 'Duplicate receipt nullifier', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'The same redemption can be replayed.', viralSyncDefense: 'Nullifier PDA initialization is exact-once.', fallbackError: 'AccountAlreadyInitialized' },
   { id: 'inflated-reward-amount', title: 'Inflated reward amount', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'Backend bugs can overpay a reward.', viralSyncDefense: 'Receipt intent validates reward against manifest cap.', fallbackError: 'RewardAmountExceedsManifest' },
+  { id: 'inflated-split-bps', title: 'Inflated referrer split bps', expected: 'rejected', instruction: 'settle_receipt_reward', normalReferralFailure: 'A backend can silently change payout split before settlement.', viralSyncDefense: 'Settlement terms are locked to the intent/campaign split.', fallbackError: 'IntentMismatch' },
   { id: 'wrong-reward-mint', title: 'Wrong reward mint', expected: 'rejected', instruction: 'fund_growth_bounty', normalReferralFailure: 'A fake token can be presented as campaign reward.', viralSyncDefense: 'Reward mint must match growth_campaign.reward_mint.', fallbackError: 'InvalidRewardMint' },
   { id: 'wrong-reward-vault', title: 'Wrong reward vault', expected: 'rejected', instruction: 'settle_receipt_reward', normalReferralFailure: 'Funds can be routed through a different vault.', viralSyncDefense: 'Reward vault is bound to reward escrow PDA.', fallbackError: 'ConstraintTokenOwner' },
   { id: 'settlement-replay', title: 'Settlement replay', expected: 'rejected', instruction: 'settle_receipt_reward', normalReferralFailure: 'A settled receipt can be paid again.', viralSyncDefense: 'Settlement PDA is initialized once per receipt.', fallbackError: 'AccountAlreadyInitialized' },
@@ -151,7 +152,7 @@ function main() {
     programId: manifest.programId,
     proofStatus,
     proofStatusNote: proofStatus === 'verified'
-      ? 'All 15 structured attackEvidence cases were rejected with expected errors, account mutation checks passed, and counter-attested verifier flags are true.'
+      ? 'All 16 structured attackEvidence cases were rejected with expected errors, account mutation checks passed, and counter-attested verifier flags are true.'
       : 'Run frontier:final to regenerate verified fraud evidence.',
     proofLevel: manifest.proofLevel ?? manifest.targetProofLevel ?? 'counter_attested',
     attestationModel: manifest.attestationModel ?? manifest.targetAttestationModel ?? 'merchant_terminal_visitor_signed',

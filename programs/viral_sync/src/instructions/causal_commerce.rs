@@ -9,12 +9,14 @@ use anchor_spl::{
 
 use crate::errors::ViralSyncError;
 use crate::events::{
-    CausalMerchantStatusUpdated, CausalReceiptRecorded, GrowthBountyClosed, GrowthBountyFunded,
-    GrowthCampaignCreated, GrowthCampaignStatusUpdated, MerchantRegistered, ReceiptRewardSettled,
+    CausalMerchantStatusUpdated, CausalReceiptRecorded, ClaimPassIssued, GrowthBountyClosed,
+    GrowthBountyFunded, GrowthCampaignCreated, GrowthCampaignStatusUpdated, MerchantRegistered,
+    ReceiptRewardSettled, TerminalDeviceEnrolled,
 };
 use crate::state::{
     CausalMerchantConfig, CausalMerchantStatus, CausalReceipt, CausalReceiptStatus,
-    GrowthCampaign, GrowthCampaignStatus, NullifierRecord, RewardEscrow, SettlementRecord,
+    ClaimPass, ClaimPassStatus, GrowthCampaign, GrowthCampaignStatus, NullifierRecord,
+    ReceiptAttestationModel, RewardEscrow, SettlementRecord, TerminalDevice, TerminalDeviceStatus,
 };
 
 #[derive(Accounts)]
@@ -37,6 +39,138 @@ pub struct RegisterMerchant<'info> {
     pub merchant_authority: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(label_hash: [u8; 32])]
+pub struct EnrollTerminalDevice<'info> {
+    #[account(
+        mut,
+        has_one = merchant_authority @ ViralSyncError::AccessDenied,
+        constraint = merchant_config.status == CausalMerchantStatus::Active @ ViralSyncError::InvalidState,
+    )]
+    pub merchant_config: Account<'info, CausalMerchantConfig>,
+
+    #[account(mut)]
+    pub merchant_authority: Signer<'info>,
+
+    pub terminal_authority: Signer<'info>,
+
+    #[account(
+        init,
+        payer = merchant_authority,
+        space = TerminalDevice::SIZE,
+        seeds = [
+            TerminalDevice::SEED_PREFIX,
+            merchant_config.key().as_ref(),
+            terminal_authority.key().as_ref(),
+        ],
+        bump
+    )]
+    pub terminal_device: Account<'info, TerminalDevice>,
+
+    pub system_program: Program<'info, System>,
+}
+
+pub fn enroll_terminal_device(
+    ctx: Context<EnrollTerminalDevice>,
+    label_hash: [u8; 32],
+) -> Result<()> {
+    require!(label_hash != [0; 32], ViralSyncError::InvalidConfig);
+
+    let now = Clock::get()?.unix_timestamp;
+    let device = &mut ctx.accounts.terminal_device;
+    device.bump = ctx.bumps.terminal_device;
+    device.merchant_config = ctx.accounts.merchant_config.key();
+    device.merchant_authority = ctx.accounts.merchant_authority.key();
+    device.terminal_authority = ctx.accounts.terminal_authority.key();
+    device.label_hash = label_hash;
+    device.status = TerminalDeviceStatus::Active;
+    device.enrolled_at = now;
+    device.updated_at = now;
+
+    emit!(TerminalDeviceEnrolled {
+        merchant_config: device.merchant_config,
+        merchant_authority: device.merchant_authority,
+        terminal_device: device.key(),
+        terminal_authority: device.terminal_authority,
+        label_hash,
+    });
+    Ok(())
+}
+
+#[derive(Accounts)]
+#[instruction(claim_hash: [u8; 32])]
+pub struct IssueClaimPass<'info> {
+    #[account(
+        mut,
+        has_one = merchant_authority @ ViralSyncError::AccessDenied,
+        constraint = growth_campaign.status == GrowthCampaignStatus::Active @ ViralSyncError::InvalidState,
+    )]
+    pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
+
+    #[account(
+        address = growth_campaign.merchant_config @ ViralSyncError::InvalidState,
+        constraint = merchant_config.status == CausalMerchantStatus::Active @ ViralSyncError::InvalidState,
+    )]
+    pub merchant_config: Box<Account<'info, CausalMerchantConfig>>,
+
+    #[account(mut)]
+    pub merchant_authority: Signer<'info>,
+
+    /// CHECK: The visitor must sign the later receipt; this instruction only binds the public key.
+    pub visitor_authority: UncheckedAccount<'info>,
+
+    #[account(
+        init,
+        payer = merchant_authority,
+        space = ClaimPass::SIZE,
+        seeds = [
+            ClaimPass::SEED_PREFIX,
+            growth_campaign.key().as_ref(),
+            visitor_authority.key().as_ref(),
+            claim_hash.as_ref(),
+        ],
+        bump
+    )]
+    pub claim_pass: Box<Account<'info, ClaimPass>>,
+
+    pub system_program: Program<'info, System>,
+}
+
+pub fn issue_claim_pass(
+    ctx: Context<IssueClaimPass>,
+    claim_hash: [u8; 32],
+    depth: u8,
+    lineage_proof_hash: [u8; 32],
+    referrer_receipt: Pubkey,
+) -> Result<()> {
+    require!(claim_hash != [0; 32], ViralSyncError::InvalidConfig);
+    require!(lineage_proof_hash != [0; 32], ViralSyncError::InvalidConfig);
+    require!(depth <= ctx.accounts.growth_campaign.max_depth, ViralSyncError::MaxDepthExceeded);
+
+    let now = Clock::get()?.unix_timestamp;
+    let claim_pass = &mut ctx.accounts.claim_pass;
+    claim_pass.bump = ctx.bumps.claim_pass;
+    claim_pass.campaign = ctx.accounts.growth_campaign.key();
+    claim_pass.visitor_authority = ctx.accounts.visitor_authority.key();
+    claim_pass.referrer_receipt = referrer_receipt;
+    claim_pass.claim_hash = claim_hash;
+    claim_pass.lineage_proof_hash = lineage_proof_hash;
+    claim_pass.depth = depth;
+    claim_pass.status = ClaimPassStatus::Active;
+    claim_pass.first_receipt = Pubkey::default();
+    claim_pass.created_at = now;
+    claim_pass.updated_at = now;
+
+    emit!(ClaimPassIssued {
+        claim_pass: claim_pass.key(),
+        growth_campaign: claim_pass.campaign,
+        visitor_authority: claim_pass.visitor_authority,
+        claim_hash,
+        depth,
+    });
+    Ok(())
 }
 
 #[derive(Accounts)]
@@ -335,6 +469,29 @@ pub struct RecordCausalReceipt<'info> {
     )]
     pub nullifier_record: Box<Account<'info, NullifierRecord>>,
 
+    #[account(
+        mut,
+        constraint = claim_pass.campaign == growth_campaign.key() @ ViralSyncError::InvalidClaimPass,
+        constraint = claim_pass.visitor_authority == visitor_authority.key() @ ViralSyncError::InvalidClaimPass,
+        constraint = claim_pass.status == ClaimPassStatus::Active @ ViralSyncError::InvalidClaimPass,
+        constraint = claim_pass.depth <= growth_campaign.max_depth @ ViralSyncError::MaxDepthExceeded,
+    )]
+    pub claim_pass: Box<Account<'info, ClaimPass>>,
+
+    #[account(
+        seeds = [
+            TerminalDevice::SEED_PREFIX,
+            merchant_config.key().as_ref(),
+            terminal_authority.key().as_ref(),
+        ],
+        bump = terminal_device.bump,
+    )]
+    pub terminal_device: Box<Account<'info, TerminalDevice>>,
+
+    pub terminal_authority: Signer<'info>,
+
+    pub visitor_authority: Signer<'info>,
+
     #[account(mut)]
     pub merchant_authority: Signer<'info>,
 
@@ -362,6 +519,11 @@ pub fn record_causal_receipt(
     require!(intent_manifest_hash != [0; 32], ViralSyncError::InvalidConfig);
     require!(referrer_beneficiary != Pubkey::default(), ViralSyncError::InvalidConfig);
     require!(visitor_beneficiary != Pubkey::default(), ViralSyncError::InvalidConfig);
+    require_keys_eq!(ctx.accounts.visitor_authority.key(), visitor_beneficiary, ViralSyncError::InvalidVisitorAuthority);
+    require!(ctx.accounts.terminal_device.status == TerminalDeviceStatus::Active, ViralSyncError::TerminalDeviceInactive);
+    require_keys_eq!(ctx.accounts.terminal_device.merchant_config, ctx.accounts.merchant_config.key(), ViralSyncError::InvalidTerminalDevice);
+    require_keys_eq!(ctx.accounts.terminal_device.merchant_authority, ctx.accounts.merchant_authority.key(), ViralSyncError::InvalidTerminalDevice);
+    require_keys_eq!(ctx.accounts.terminal_device.terminal_authority, ctx.accounts.terminal_authority.key(), ViralSyncError::InvalidTerminalAuthority);
 
     let campaign = &mut ctx.accounts.growth_campaign;
     let escrow = &mut ctx.accounts.reward_escrow;
@@ -382,12 +544,25 @@ pub fn record_causal_receipt(
 
     let receipt = &mut ctx.accounts.causal_receipt;
     let nullifier = &mut ctx.accounts.nullifier_record;
+    let claim_pass = &mut ctx.accounts.claim_pass;
 
     receipt.bump = ctx.bumps.causal_receipt;
     receipt.campaign = campaign.key();
     receipt.merchant_config = campaign.merchant_config;
     receipt.referrer_beneficiary = referrer_beneficiary;
     receipt.visitor_beneficiary = visitor_beneficiary;
+    receipt.reward_mint = campaign.reward_mint;
+    receipt.referrer_split_bps = campaign.referrer_split_bps;
+    receipt.terminal_device = ctx.accounts.terminal_device.key();
+    receipt.terminal_authority = ctx.accounts.terminal_authority.key();
+    receipt.visitor_authority = ctx.accounts.visitor_authority.key();
+    receipt.attestation_model = ReceiptAttestationModel::MerchantTerminalVisitorSigned;
+    receipt.claim_pass = claim_pass.key();
+    receipt.claim_pass_mint = campaign.claim_pass_mint;
+    receipt.claim_pass_token_account = Pubkey::default();
+    receipt.lineage_state = claim_pass.key();
+    receipt.lineage_generation = claim_pass.depth;
+    receipt.lineage_proof_hash = claim_pass.lineage_proof_hash;
     receipt.receipt_id_hash = receipt_id_hash;
     receipt.parent_receipt_id_hash = parent_receipt_id_hash;
     receipt.referrer_commitment = referrer_commitment;
@@ -408,6 +583,10 @@ pub fn record_causal_receipt(
     nullifier.first_receipt = receipt.key();
     nullifier.created_at = now;
 
+    claim_pass.status = ClaimPassStatus::Recorded;
+    claim_pass.first_receipt = receipt.key();
+    claim_pass.updated_at = now;
+
     escrow.total_reserved = escrow
         .total_reserved
         .checked_add(campaign.reward_per_verified_visit)
@@ -426,6 +605,10 @@ pub fn record_causal_receipt(
         claimer_nullifier_hash,
         intent_manifest_hash,
         reward_amount: receipt.reward_amount,
+        terminal_device: ctx.accounts.terminal_device.key(),
+        terminal_authority: ctx.accounts.terminal_authority.key(),
+        visitor_authority: ctx.accounts.visitor_authority.key(),
+        claim_pass: claim_pass.key(),
     });
 
     Ok(())
@@ -468,6 +651,10 @@ pub struct SettleReceiptReward<'info> {
         mut,
         constraint = causal_receipt.campaign == growth_campaign.key() @ ViralSyncError::InvalidState,
         constraint = causal_receipt.status == CausalReceiptStatus::Recorded @ ViralSyncError::SlotAlreadySettled,
+        constraint = causal_receipt.intent_manifest_hash != [0u8; 32] @ ViralSyncError::InvalidConfig,
+        constraint = causal_receipt.referrer_split_bps == growth_campaign.referrer_split_bps @ ViralSyncError::IntentMismatch,
+        constraint = causal_receipt.reward_amount == growth_campaign.reward_per_verified_visit @ ViralSyncError::IntentMismatch,
+        constraint = causal_receipt.reward_mint == growth_campaign.reward_mint @ ViralSyncError::IntentMismatch,
     )]
     pub causal_receipt: Box<Account<'info, CausalReceipt>>,
 
@@ -757,6 +944,8 @@ pub fn create_growth_campaign(
     campaign.merchant_authority = ctx.accounts.merchant_authority.key();
     campaign.campaign_id_hash = campaign_id_hash;
     campaign.reward_mint = ctx.accounts.reward_mint.key();
+    campaign.claim_pass_mint = ctx.accounts.reward_mint.key();
+    campaign.lineage_required = true;
     campaign.reward_per_verified_visit = reward_per_verified_visit;
     campaign.max_redemptions = max_redemptions;
     campaign.max_depth = max_depth;

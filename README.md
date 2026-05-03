@@ -1,10 +1,12 @@
 # Viral Sync
 
-Viral Sync is proof-of-conversion infrastructure for Solana commerce:
-merchants escrow rewards, terminals and customers counter-attest conversions,
+Viral Sync is proof-of-outcome infrastructure for Solana commerce:
+merchants escrow rewards, enrolled terminals and visitors counter-attest conversions,
 and payouts settle only when the POC-1 receipt verifies.
 
 Each receipt commits to the invite hash, campaign nullifier, visit attestation hash, and intent manifest hash. The point is not to reward clicks. The point is to make offline referral spend verifiable.
+
+The only way to create this receipt is for the merchant, enrolled terminal, and visitor to sign the same conversion.
 
 ```text
 Pay for verified visits, not unverifiable clicks.
@@ -66,6 +68,8 @@ The proof page is:
 ```
 
 It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, intent manifest hash, and the valid-vs-malicious Causal Receipt Intent Validator results.
+
+The fraud gauntlet is intentionally technical: 16 fraud attempts tested, 16 rejected, expected errors matched, and account mutation checks passed.
 
 The Merchant Proof Passport packages the same verifier-backed facts into a portable merchant-owned proof object without customer personal data.
 

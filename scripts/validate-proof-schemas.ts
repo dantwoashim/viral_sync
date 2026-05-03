@@ -117,7 +117,7 @@ function domainChecks(kind: string, artifact: any): ValidationError[] {
     const blocked = Number(summary.blocked ?? 0);
     const missing = Number(summary.missing ?? 0);
     const failed = Number(summary.failed ?? 0);
-    if (total < 15) errors.push({ path: '$.summary.totalCases', message: `fraud gauntlet must have at least 15 cases, got ${total}` });
+    if (total < 16) errors.push({ path: '$.summary.totalCases', message: `fraud gauntlet must have at least 16 cases, got ${total}` });
     if (enforceFresh) {
       if (blocked !== total) errors.push({ path: '$.summary.blocked', message: `blocked must equal total cases (${blocked} !== ${total})` });
       if (missing !== 0) errors.push({ path: '$.summary.missing', message: `missing must be zero in final mode, got ${missing}` });
@@ -234,13 +234,29 @@ const results = targets.map((target) => {
           terminalDevice: 'preproof', terminalAuthority: 'preproof', visitorAuthority: 'preproof', claimPass: 'preproof', causalReceipt: 'preproof', settlementRecord: 'preproof',
           ...(artifact.pdas ?? {}),
         },
-        attackEvidence: artifact.attackEvidence ?? Array.from({ length: 15 }, (_, index) => ({ id: `preproof-${index}`, expected: 'rejected', observed: 'not_proven' })),
+        attackEvidence: artifact.attackEvidence ?? Array.from({ length: 16 }, (_, index) => ({ id: `preproof-${index}`, expected: 'rejected', observed: 'not_proven' })),
       };
     }
     if (!finalMode && target.kind === 'fraud' && isPreproofStaleArtifact(artifact)) {
       value = {
         ...artifact,
-        cases: (artifact.cases ?? []).map((item: any) => ({
+        cases: [
+          ...(artifact.cases ?? []),
+          ...Array.from({ length: Math.max(0, 16 - (artifact.cases ?? []).length) }, (_, index) => ({
+            id: `preproof-missing-${index}`,
+            title: 'Pre-proof placeholder',
+            expected: 'rejected',
+            observed: 'not_proven',
+            normalReferralFailure: 'Pending final proof run.',
+            viralSyncDefense: 'Run frontier:final to regenerate the 16-case gauntlet.',
+            proofSource: 'intent_validator_check',
+            expectedErrorMatched: false,
+            accountsMutated: false,
+            accountsMutationVerified: false,
+            failureKind: 'intent_validator_rejection',
+            evidence: 'Pre-proof placeholder.',
+          })),
+        ].map((item: any) => ({
           ...item,
           proofSource: item.proofSource && ['devnet_transaction_execution', 'localnet_transaction_execution', 'intent_validator_check', 'mock_final_fixture'].includes(item.proofSource)
             ? item.proofSource

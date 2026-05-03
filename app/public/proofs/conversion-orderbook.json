@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "title": "Proof-of-Conversion Orderbook",
   "network": "solana-devnet",
-  "generatedAt": "2026-05-03T15:29:24.993Z",
+  "generatedAt": "2026-05-03T21:41:19.919Z",
   "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
   "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
-  "proofStatus": "needs-regeneration-after-counter-attestation-upgrade",
+  "proofStatus": "ready",
   "thesis": "Merchants escrow conversion bounties; referrers, creators, and agents route demand; enrolled terminals and visitors counter-attest conversions; Solana settles payouts through receipt objects.",
   "integrityRules": [
     "No payout without funded reward escrow.",
@@ -23,8 +23,8 @@
       "merchantAlias": "Thamel Brew House",
       "category": "local-commerce-visit",
       "publicPath": "/campaign/thamel-brew-counter-attested-visits",
-      "status": "needs_fresh_proof",
-      "proofBacked": false,
+      "status": "proof_backed_demo",
+      "proofBacked": true,
       "proofLevel": "counter_attested",
       "attestationModel": "merchant_terminal_visitor_signed",
       "bounty": {
@@ -37,19 +37,21 @@
       },
       "proofObjects": {
         "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
-        "campaignPda": "6N5WX7dzdbX9pxaKTmx33RNVTCcZ9uipCG8bj1DzFpmv",
-        "rewardEscrow": "Di7Q9Zg2G75U5tej4mpWXgQuhds6ZnxDahkJSyqBzNYx",
-        "receiptPda": "AdbQrEQHMaSkshS6bykEA33FPQj6ymRwaQz88AkhQUBN",
-        "nullifierPda": "8wbj9DY9Vw1hK6sLx6TMALYkaFQgGPFFn4NDBc5QEGSm",
-        "intentManifestHash": "d3e4b835bf7029d301dbad83d53456cdd3272af636ed2d83b35a532dec9ee8d3",
-        "passportHash": "5f291bc836b101b410473ecbde023517a51e1942022adb393100b8ebb8b9ad7a"
+        "campaignPda": "FDc6hUAeYTBDKDxtc3AgnJdMUVQAfT3nYBfn9quFcZCn",
+        "rewardEscrow": "5qTj41yaA4NRMxD29gPSJcJK2tYxLAesW51ia5Z9Zj75",
+        "receiptPda": "EeN6uwtUpc46AMREojuAG77LKGvh7VSWBSQo38WC3JBb",
+        "nullifierPda": "9MgZzLgh3xDrJ1AoQCeyeLQQvaGKX2H5j23RQL6CJkX4",
+        "terminalDevice": "BSN6Xyo3qJt65Eh6mzeuo55gtEabGWWpCBUwqvUccjMZ",
+        "claimPass": "78sQWmSi6wj73eWZpHMqbM3PqhU1AAYiNwmnResGSSPQ",
+        "intentManifestHash": "4ef33d31d7fd868e3800ddb017c834cea31cb836dd01fed206daef79d9822575",
+        "passportHash": "da2d93007b918065c4b3fb090614a337f1789d7c4600aa37fb749894f56a81ad"
       },
       "verification": {
         "verifierOk": true,
-        "terminalVerified": false,
-        "visitorVerified": false,
-        "lineageVerified": false,
-        "settlementVerified": false,
+        "terminalVerified": true,
+        "visitorVerified": true,
+        "lineageVerified": true,
+        "settlementVerified": true,
         "replayBlocked": true,
         "intentValidatorPassed": true
       },
@@ -58,8 +60,8 @@
         "gauntlet": "/frontier-gauntlet",
         "receipt": "/receipt/latest",
         "passport": "/merchant-passport",
-        "recordTx": "https://explorer.solana.com/tx/5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw?cluster=devnet",
-        "settleTx": "https://explorer.solana.com/tx/7LmCR2i2yeiaBziTE7bRAGH85kRiCo2K2CqnLv4UTtFSQxezgK2s3tyQyxMCCuSdD7HQETCaUmrzbCFk7SsdoUS?cluster=devnet"
+        "recordTx": "https://explorer.solana.com/tx/kBbsnRkRn2SRUXoyMMmbQemsZmar9SK3GTaqZKy3m3ycwPgz91tsKATx9FMxio6C6HqDMHH3YNRGztsi1PCGigc?cluster=devnet",
+        "settleTx": "https://explorer.solana.com/tx/2KUDpJvZB3o8uDZCNEAqaeQ4MDbiMD7g8gQBjTEkDMF2f27NaB94MrYz6UyNa5Ht8Jb5LLUastnCTmWwpLF5BQXt?cluster=devnet"
       }
     },
     {
@@ -89,5 +91,13 @@
       }
     }
   ],
-  "orderbookHash": "35af0aab42bf659e433be09370565695ca639d0da6b2b6735c1fd3b3edd3d238"
+  "orderbookHash": "76668c25bb2e3c854abdfa256f14bca175547988b82458138063420160803710",
+  "programSourceHash": "92cd14949d4e3bc0c099b54cedb2730a1e09a550679fd3615d86d809d38f32c7",
+  "idlHash": "1a5a37491319e4ae75dbc97d62466ac86e6301a850b6570fac4e82cf6c30bc5e",
+  "proofGeneratorHash": "01fd1e3fc0bbdae64e61e594ea52fe7ad68acab4205219ea8368e901e7edfbd2",
+  "verifierHash": "9b8b5e6c3d804765056bdd9e81751479d97a21bf12bfcbc10f1895f4bfdc078a",
+  "rawVerifierHash": "9492e853435dc62dfa7301e1b7d9cf088c721ca25f661c05ff48874f950cb856",
+  "publishedVerifierHash": "78b0f67ddc031e3564ab1cbf18f01708555f4ebf8a063fbb6d098aa0e7c19811",
+  "artifactHash": "aadf33f553b5bc367a6899994bd51c7bd1b438ee1ff262c21b4d38053f6ffd55",
+  "stampMode": "final-candidate"
 }

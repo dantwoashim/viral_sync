@@ -357,6 +357,7 @@ type CausalReceiptEffectManifest = {
   action: string;
   expiresAt: string;
   rewardAmount: number;
+  referrerSplitBps?: number;
   referrerBeneficiary: string;
   visitorBeneficiary: string;
   allowedInstructions: string[];
@@ -367,6 +368,7 @@ function validateCausalReceiptEffect(params: {
   action: string;
   accounts: Record<string, string>;
   rewardAmount: number;
+  referrerSplitBps?: number;
   referrerBeneficiary: string;
   visitorBeneficiary: string;
   now?: Date;
@@ -391,6 +393,14 @@ function validateCausalReceiptEffect(params: {
 
   if (params.rewardAmount > params.manifest.rewardAmount) {
     return { ok: false as const, reason: 'Reward amount exceeds manifest maximum.' };
+  }
+
+  if (
+    typeof params.manifest.referrerSplitBps === 'number' &&
+    typeof params.referrerSplitBps === 'number' &&
+    params.referrerSplitBps !== params.manifest.referrerSplitBps
+  ) {
+    return { ok: false as const, reason: 'IntentMismatch: referrer split does not match manifest.' };
   }
 
   if (params.referrerBeneficiary !== params.manifest.referrerBeneficiary) {
@@ -465,6 +475,18 @@ async function ensureLocalnetBalance(connection: Connection, publicKey: PublicKe
   }, 'confirmed');
 
   return connection.getBalance(publicKey);
+}
+
+async function fundSignerIfNeeded(connection: Connection, payer: Keypair, recipient: PublicKey, minimumLamports: number) {
+  const balance = await connection.getBalance(recipient);
+  if (balance >= minimumLamports) return null;
+  const needed = minimumLamports - balance;
+  const transaction = new Transaction().add(SystemProgram.transfer({
+    fromPubkey: payer.publicKey,
+    toPubkey: recipient,
+    lamports: needed,
+  }));
+  return sendAndConfirmTransaction(connection, transaction, [payer], { commitment: 'confirmed' });
 }
 
 function createInitializeMintInstruction(mint: PublicKey, mintAuthority: PublicKey) {
@@ -744,9 +766,25 @@ function classifyFailure(message: string): 'program_rejection' | 'client_error' 
   if (
     text.includes('custom program error') ||
     text.includes('anchorerror') ||
+    text.includes('error code:') ||
+    text.includes('error number:') ||
+    text.includes('program log:') ||
     text.includes('constraint') ||
+    text.includes('seeds constraint') ||
     text.includes('accountalreadyinitialized') ||
     text.includes('already in use') ||
+    text.includes('already initialized') ||
+    text.includes('account is already initialized') ||
+    text.includes('invalidclaimpass') ||
+    text.includes('invalidterminal') ||
+    text.includes('invalidvisitor') ||
+    text.includes('invalidreward') ||
+    text.includes('campaigninactive') ||
+    text.includes('maxdepthexceeded') ||
+    text.includes('claimpassalreadyrecorded') ||
+    text.includes('intentmismatch') ||
+    text.includes('signature verification failed') ||
+    text.includes('missing signature') ||
     (text.includes('invalid') && text.includes('authority'))
   ) {
     return 'program_rejection';
@@ -760,9 +798,12 @@ function classifyFailure(message: string): 'program_rejection' | 'client_error' 
   return 'client_error';
 }
 
-async function expectRejected(label: string, action: () => Promise<unknown>) {
+async function expectRejected(label: string, action: () => Promise<unknown>, extraWatchKeys: PublicKey[] = []) {
+  const watchedKeys = attackSnapshotContext
+    ? [...attackSnapshotContext.keys, ...extraWatchKeys]
+    : extraWatchKeys;
   const snapshot = attackSnapshotContext
-    ? await accountSnapshot(attackSnapshotContext.connection, attackSnapshotContext.keys)
+    ? await accountSnapshot(attackSnapshotContext.connection, watchedKeys)
     : undefined;
 
   try {
@@ -770,7 +811,7 @@ async function expectRejected(label: string, action: () => Promise<unknown>) {
   } catch (error) {
     const fullMessage = error instanceof Error ? error.message : String(error);
     const after = attackSnapshotContext
-      ? await accountSnapshot(attackSnapshotContext.connection, attackSnapshotContext.keys)
+      ? await accountSnapshot(attackSnapshotContext.connection, watchedKeys)
       : undefined;
     const mutationVerified = Boolean(snapshot && after);
     const accountsMutated = mutationVerified ? !sameSnapshot(snapshot, after) : false;
@@ -902,6 +943,7 @@ function expectedPatternsFor(errorCode: string): string[] {
     short.replace(/([a-z0-9])([A-Z])/g, '$1 $2'),
     `error code: ${short}`,
     `error number: ${short}`,
+    'custom program error',
     ...(aliases[short] ?? []),
   ];
 }
@@ -995,6 +1037,9 @@ async function main() {
   const visitorAuthority = Keypair.generate();
   const terminalAuthority = Keypair.generate();
   const attackerAuthority = Keypair.generate();
+  const fundAttackerAuthority = options.attackCheck
+    ? await fundSignerIfNeeded(connection, walletInfo.keypair, attackerAuthority.publicKey, Math.round(0.02 * LAMPORTS_PER_SOL))
+    : null;
   const claimHash = hashBytes('claim-pass', `${options.campaignId}:visitor-claim-pass`);
   const lineageProofHash = hashBytes('lineage-proof', `${options.campaignId}:visitor-depth-1`);
   const terminalLabelHash = hashBytes('terminal-label', `${options.orgId}:counter-terminal-1`);
@@ -1239,7 +1284,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }))));
+      })), [merchantOnlyReceipt, merchantOnlyNullifier]));
 
     const wrongTerminalReceiptIdHash = hashBytes('receipt', `${options.receiptId}:wrong-terminal`);
     const wrongTerminalNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:wrong-terminal`);
@@ -1271,7 +1316,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }), [attackerAuthority, visitorAuthority])));
+      }), [attackerAuthority, visitorAuthority]), [wrongTerminalReceipt, wrongTerminalNullifier, wrongTerminalDevice]));
 
     const terminalMismatchReceiptIdHash = hashBytes('receipt', `${options.receiptId}:terminal-mismatch`);
     const terminalMismatchNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:terminal-mismatch`);
@@ -1302,7 +1347,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }), [attackerAuthority, visitorAuthority])));
+      }), [attackerAuthority, visitorAuthority]), [terminalMismatchReceipt, terminalMismatchNullifier]));
 
     const wrongVisitorAuthority = Keypair.generate();
     const wrongVisitorReceiptIdHash = hashBytes('receipt', `${options.receiptId}:wrong-visitor-signer`);
@@ -1334,7 +1379,7 @@ async function main() {
         visitorAuthority: wrongVisitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }), [terminalAuthority, wrongVisitorAuthority])));
+      }), [terminalAuthority, wrongVisitorAuthority]), [wrongVisitorReceipt, wrongVisitorNullifier]));
 
     const wrongVisitorBeneficiaryReceiptIdHash = hashBytes('receipt', `${options.receiptId}:wrong-visitor-beneficiary`);
     const wrongVisitorBeneficiaryNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:wrong-visitor-beneficiary`);
@@ -1365,7 +1410,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }), [terminalAuthority, visitorAuthority])));
+      }), [terminalAuthority, visitorAuthority]), [wrongVisitorBeneficiaryReceipt, wrongVisitorBeneficiaryNullifier]));
 
     const tooDeepClaimHash = hashBytes('claim-pass', `${options.campaignId}:too-deep`);
     const [tooDeepClaimPass] = findPda('claim_pass', [growthCampaign.toBuffer(), visitorAuthority.publicKey.toBuffer(), tooDeepClaimHash]);
@@ -1382,7 +1427,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         claimPass: tooDeepClaimPass,
         systemProgram: SystemProgram.programId,
-      }))));
+      })), [tooDeepClaimPass]));
 
     const differentMerchantOrgHash = hashBytes('org', `${options.orgId}:different-merchant`);
     const [differentMerchantConfig] = findPda('causal_merchant', [attackerAuthority.publicKey.toBuffer(), differentMerchantOrgHash]);
@@ -1438,7 +1483,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }), [differentMerchantTerminalAuthority, visitorAuthority])));
+      }), [differentMerchantTerminalAuthority, visitorAuthority]), [differentMerchantTerminalReceipt, differentMerchantTerminalNullifier, differentMerchantTerminalDevice]));
 
     const mismatchCampaignIdHash = hashBytes('campaign', `${options.campaignId}:claim-pass-campaign-mismatch`);
     const [mismatchCampaign] = findPda('growth_campaign', [merchantConfig.toBuffer(), mismatchCampaignIdHash]);
@@ -1504,7 +1549,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }), [terminalAuthority, visitorAuthority])));
+      }), [terminalAuthority, visitorAuthority]), [mismatchReceipt, mismatchNullifier, mismatchClaimPass]));
 
     const wrongMint = await createLocalnetRewardMint(connection, walletInfo.keypair);
     const wrongMintMerchantAta = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, wallet.publicKey, wrongMint.publicKey);
@@ -1520,7 +1565,7 @@ async function main() {
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-      }))));
+      })), [wrongMintMerchantAta.address]));
 
     const pausedCampaignIdHash = hashBytes('campaign', `${options.campaignId}:paused-attack`);
     const [pausedCampaign] = findPda('growth_campaign', [merchantConfig.toBuffer(), pausedCampaignIdHash]);
@@ -1606,7 +1651,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }), [terminalAuthority, visitorAuthority])));
+      }), [terminalAuthority, visitorAuthority]), [pausedReceipt, pausedNullifier, pausedClaimPass]));
   }
 
   const recordCausalReceipt = await sendProgramInstruction(connection, walletInfo.keypair, methods.recordCausalReceipt(
@@ -1667,7 +1712,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }), [terminalAuthority, visitorAuthority])));
+      }), [terminalAuthority, visitorAuthority]), [recordedClaimReceipt, recordedClaimNullifier, claimPass]));
   }
 
   let issueReplayClaimPass: string | null = null;
@@ -1717,7 +1762,7 @@ async function main() {
         visitorAuthority: visitorAuthority.publicKey,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
-      }))));
+      }), [terminalAuthority, visitorAuthority]), [replayReceipt, nullifierRecord, replayClaimPass]));
   }
 
   if (options.attackCheck) {
@@ -1735,7 +1780,7 @@ async function main() {
         merchantAuthority: attackerAuthority.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-      }), [attackerAuthority])));
+      }), [attackerAuthority]), [settlementRecord]));
     replayChecks.push(await expectRejected('wrong beneficiary token account cannot receive settlement', () => sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
       .accounts({
         growthCampaign,
@@ -1750,7 +1795,7 @@ async function main() {
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-      }))));
+      })), [settlementRecord, attackerRewardAccount.address]));
   }
 
   if (options.attackCheck) {
@@ -1768,7 +1813,7 @@ async function main() {
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-      }))));
+      })), [settlementRecord, attackerRewardAccount.address]));
   }
 
   const tokenBalancesBeforeSettlement = {
@@ -1809,7 +1854,7 @@ async function main() {
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-      }))));
+      })), [settlementRecord]));
   }
 
   const tokenBalancesAfter = {
@@ -1874,6 +1919,7 @@ async function main() {
         action: 'record_causal_receipt',
         accounts: effectAccounts,
         rewardAmount: Number(options.rewardPerVisit.toString()),
+        referrerSplitBps: 8_000,
         referrerBeneficiary: referrerAuthority.publicKey.toBase58(),
         visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
         now: effectCheckNow,
@@ -1886,6 +1932,7 @@ async function main() {
         action: 'record_causal_receipt',
         accounts: effectAccounts,
         rewardAmount: Number(options.rewardPerVisit.toString()),
+        referrerSplitBps: 8_000,
         referrerBeneficiary: attackerAuthority.publicKey.toBase58(),
         visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
         now: effectCheckNow,
@@ -1898,6 +1945,7 @@ async function main() {
         action: 'record_causal_receipt',
         accounts: effectAccounts,
         rewardAmount: Number(options.rewardPerVisit.toString()) * 10,
+        referrerSplitBps: 8_000,
         referrerBeneficiary: referrerAuthority.publicKey.toBase58(),
         visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
         now: effectCheckNow,
@@ -1910,6 +1958,20 @@ async function main() {
         action: 'set_authority',
         accounts: effectAccounts,
         rewardAmount: Number(options.rewardPerVisit.toString()),
+        referrerSplitBps: 9_500,
+        referrerBeneficiary: referrerAuthority.publicKey.toBase58(),
+        visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
+        now: effectCheckNow,
+      }),
+    },
+    {
+      label: 'Inflated split bps',
+      ...validateCausalReceiptEffect({
+        manifest: intentManifest,
+        action: 'record_causal_receipt',
+        accounts: effectAccounts,
+        rewardAmount: Number(options.rewardPerVisit.toString()),
+        referrerSplitBps: 9_500,
         referrerBeneficiary: referrerAuthority.publicKey.toBase58(),
         visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
         now: effectCheckNow,
@@ -1931,6 +1993,7 @@ async function main() {
     replayEvidence('claim-pass-depth-exceeds-max-depth', 'Claim pass depth exceeds campaign max depth', 'issue_claim_pass', replayByLabel('depth exceeds'), 'MaxDepthExceeded'),
     replayEvidence('duplicate-nullifier', 'Duplicate receipt nullifier', 'record_causal_receipt', replayByLabel('duplicate campaign nullifier'), 'AccountAlreadyInitialized'),
     intentEvidence('inflated-reward-amount', 'Inflated reward amount', effectByLabel('Inflated reward'), 'RewardAmountExceedsManifest'),
+    intentEvidence('inflated-split-bps', 'Inflated referrer split bps', effectByLabel('Inflated split bps'), 'IntentMismatch'),
     replayEvidence('wrong-reward-mint', 'Wrong reward mint', 'fund_growth_bounty', replayByLabel('wrong reward mint'), 'InvalidRewardMint'),
     replayEvidence('wrong-reward-vault', 'Wrong reward vault', 'settle_receipt_reward', replayByLabel('wrong reward vault'), 'ConstraintTokenOwner'),
     replayEvidence('settlement-replay', 'Settlement replay', 'settle_receipt_reward', replayByLabel('duplicate receipt settlement'), 'AccountAlreadyInitialized'),
@@ -1945,8 +2008,12 @@ async function main() {
       entry.accountsMutationVerified !== true ||
       !['program_rejection', 'intent_validator_rejection'].includes(entry.failureKind)
     ));
-    if (attackEvidence.length !== 15 || incompleteAttackEvidence.length > 0) {
-      throw new Error(`Fraud gauntlet incomplete: ${attackEvidence.length}/15 cases emitted; ${incompleteAttackEvidence.length} cases not rejected: ${incompleteAttackEvidence.map((entry) => `${entry.id}:${entry.observed}`).join(', ')}`);
+    if (attackEvidence.length !== 16 || incompleteAttackEvidence.length > 0) {
+      throw new Error(
+        `Fraud gauntlet incomplete: ${attackEvidence.length}/16 cases emitted; ${incompleteAttackEvidence.length} cases not rejected: ${incompleteAttackEvidence
+          .map((entry) => `${entry.id}:${entry.observed}:${entry.failureKind}:${String(entry.actualError).slice(0, 160)}`)
+          .join(', ')}`,
+      );
     }
   }
 
@@ -2030,6 +2097,7 @@ async function main() {
       createRewardVault: rewardVault.signature,
       createReferrerRewardAccount: referrerRewardAccount.signature,
       createVisitorRewardAccount: visitorRewardAccount.signature,
+      fundAttackerAuthority,
       mintRewardTokens: mintRewardTokensSignature,
       registerMerchant,
       enrollTerminalDevice,

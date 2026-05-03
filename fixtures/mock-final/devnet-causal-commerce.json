@@ -121,7 +121,9 @@
     "fundGrowthBounty": "5438ZH9GgcKfnxiQBTYx2FeHDDV47geryjHmUcorHHzZKrjEGnaTQyHJC4jBWLXR1gRyNurhA4R62ecddfEUo7WP",
     "recordCausalReceipt": "5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw",
     "settleReceiptReward": "7LmCR2i2yeiaBziTE7bRAGH85kRiCo2K2CqnLv4UTtFSQxezgK2s3tyQyxMCCuSdD7HQETCaUmrzbCFk7SsdoUS",
-    "closeGrowthBounty": null
+    "closeGrowthBounty": null,
+    "enrollTerminalDevice": "5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw",
+    "issueClaimPass": "5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw"
   },
   "transactions": {
     "recordCausalReceipt": "5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw",
@@ -140,7 +142,9 @@
       "fundGrowthBounty": "https://explorer.solana.com/tx/5438ZH9GgcKfnxiQBTYx2FeHDDV47geryjHmUcorHHzZKrjEGnaTQyHJC4jBWLXR1gRyNurhA4R62ecddfEUo7WP?cluster=devnet",
       "recordCausalReceipt": "https://explorer.solana.com/tx/5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw?cluster=devnet",
       "settleReceiptReward": "https://explorer.solana.com/tx/7LmCR2i2yeiaBziTE7bRAGH85kRiCo2K2CqnLv4UTtFSQxezgK2s3tyQyxMCCuSdD7HQETCaUmrzbCFk7SsdoUS?cluster=devnet",
-      "closeGrowthBounty": null
+      "closeGrowthBounty": null,
+      "enrollTerminalDevice": "https://explorer.solana.com/tx/5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw?cluster=devnet",
+      "issueClaimPass": "https://explorer.solana.com/tx/5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw?cluster=devnet"
     },
     "accounts": {
       "merchantConfig": "https://explorer.solana.com/address/GXvWPpho5sV9pK8va3cyWHkr6d3oTeFMkc8oi94iaoyX?cluster=devnet",
@@ -1135,6 +1139,27 @@
       ],
       "accountSnapshotHashBefore": "mock-before-snapshot-hash",
       "accountSnapshotHashAfter": "mock-before-snapshot-hash"
+    },
+    {
+      "id": "inflated-split-bps",
+      "title": "Inflated referrer split bps",
+      "attempted": true,
+      "expected": "rejected",
+      "observed": "rejected",
+      "errorCode": "IntentMismatch",
+      "expectedErrorCode": "IntentMismatch",
+      "expectedErrorPatterns": [
+        "IntentMismatch",
+        "intent mismatch"
+      ],
+      "actualError": "IntentMismatch: referrer split does not match manifest.",
+      "expectedErrorMatched": true,
+      "failureKind": "intent_validator_rejection",
+      "instruction": "settle_receipt_reward",
+      "accountsMutated": false,
+      "accountsMutationVerified": true,
+      "proofSource": "mock_final_fixture",
+      "reason": "IntentMismatch: referrer split does not match manifest."
     },
     {
       "errorCode": "ProgramRejected",

@@ -1,26 +1,31 @@
 # Frontier Final Go/No-Go
 
-Generated: 2026-05-03T02:23:39.025Z
+Generated: 2026-05-03T21:41:29.037Z
 
 ## Decision
 
 GO: submit this build for Frontier judging.
 
-## Gate Results
+## Required Gates
 
-| Gate | Result |
+| Gate | Status |
 |---|---|
-| Devnet proof manifest | PASS |
-| register_merchant signature | PASS |
-| create_growth_campaign signature | PASS |
-| fund_growth_bounty signature | PASS |
+| Devnet proof manifest exists | PASS |
 | record_causal_receipt signature | PASS |
 | settle_receipt_reward signature | PASS |
 | intent_manifest_hash present | PASS |
 | Replay rejection | PASS |
 | Intent validation | PASS |
 | Required verifier | PASS |
+| Counter-attestation fields | PASS |
+| Merchant Proof Passport | PASS |
+| Fraud Gauntlet artifact | PASS |
+| Proof feed artifact | PASS |
+| Hosted fraud gauntlet page | PASS |
+| Hosted proof feed page | PASS |
+| Hosted receipt proof page | PASS |
 | Hosted proof page | PASS |
+| Hosted passport page | PASS |
 
 ## Blockers
 
@@ -28,4 +33,4 @@ GO: submit this build for Frontier judging.
 
 ## Submission Stance
 
-Lead with the devnet receipt proof, not broad product surface area. The winning story is the verified-visit primitive: funded SPL custody, Causal Receipt, exact-once settlement, nullifier replay rejection, and on-chain `intent_manifest_hash` commitment.
+Lead with the devnet receipt proof and Merchant Proof Passport, not broad product surface area. The winning story is proof-of-local-commerce: funded SPL custody, counter-attested Causal Receipt, exact-once settlement, nullifier replay rejection, on-chain `intent_manifest_hash` commitment, and a privacy-preserving merchant-owned proof packet.

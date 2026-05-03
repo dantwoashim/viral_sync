@@ -22,4 +22,4 @@ This starts with local merchants and events. The bigger market is permissionless
 
 ## 2:35-3:00 - Close
 
-Viral Sync is proof-of-conversion infrastructure for Solana commerce: merchants escrow rewards, terminals and customers counter-attest conversions, and payouts settle only when the POC-1 receipt verifies.
+Viral Sync is proof-of-outcome infrastructure for Solana commerce: merchants escrow rewards, enrolled terminals and visitors counter-attest conversions, and payouts settle only when the POC-1 receipt verifies.

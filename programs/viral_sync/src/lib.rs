@@ -170,6 +170,23 @@ pub mod viral_sync {
         instructions::causal_commerce::register_merchant(ctx, org_id_hash)
     }
 
+    pub fn enroll_terminal_device(
+        ctx: Context<EnrollTerminalDevice>,
+        label_hash: [u8; 32],
+    ) -> Result<()> {
+        instructions::causal_commerce::enroll_terminal_device(ctx, label_hash)
+    }
+
+    pub fn issue_claim_pass(
+        ctx: Context<IssueClaimPass>,
+        claim_hash: [u8; 32],
+        depth: u8,
+        lineage_proof_hash: [u8; 32],
+        referrer_receipt: Pubkey,
+    ) -> Result<()> {
+        instructions::causal_commerce::issue_claim_pass(ctx, claim_hash, depth, lineage_proof_hash, referrer_receipt)
+    }
+
     pub fn set_causal_merchant_status(
         ctx: Context<SetCausalMerchantStatus>,
         status: CausalMerchantStatus,

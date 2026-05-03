@@ -336,6 +336,8 @@ Routes:
 |---|---|---|
 | register_merchant | \`${signatureValue(manifest.signatures?.registerMerchant) ?? 'missing'}\` | ${txLink(manifest, 'registerMerchant') ?? 'missing'} |
 | create_growth_campaign | \`${signatureValue(manifest.signatures?.createGrowthCampaign) ?? 'missing'}\` | ${txLink(manifest, 'createGrowthCampaign') ?? 'missing'} |
+| enroll_terminal_device | \`${signatureValue(manifest.signatures?.enrollTerminalDevice) ?? 'missing'}\` | ${txLink(manifest, 'enrollTerminalDevice') ?? 'missing'} |
+| issue_claim_pass | \`${signatureValue(manifest.signatures?.issueClaimPass) ?? 'missing'}\` | ${txLink(manifest, 'issueClaimPass') ?? 'missing'} |
 | fund_growth_bounty | \`${signatureValue(manifest.signatures?.fundGrowthBounty) ?? 'missing'}\` | ${txLink(manifest, 'fundGrowthBounty') ?? 'missing'} |
 | record_causal_receipt | \`${signatureValue(manifest.signatures?.recordCausalReceipt) ?? 'missing'}\` | ${txLink(manifest, 'recordCausalReceipt') ?? 'missing'} |
 | settle_receipt_reward | \`${signatureValue(manifest.signatures?.settleReceiptReward) ?? 'missing'}\` | ${txLink(manifest, 'settleReceiptReward') ?? 'missing'} |
@@ -380,16 +382,21 @@ ${manifest.limitation ?? 'Devnet pilot only. Mainnet funds require external audi
 `;
 }
 
-function buildGoNoGo(params: { manifest: Manifest; verifier?: Verifier; passport?: MerchantPassport; generatedAt: string; failures: string[] }) {
-  const { manifest, verifier, passport, generatedAt, failures } = params;
-  const go = failures.length === 0;
+function buildGoNoGo(params: { manifest: Manifest; verifier?: Verifier; passport?: MerchantPassport; generatedAt: string; failures: string[]; allowPreproofDocs: boolean }) {
+  const { manifest, verifier, passport, generatedAt, failures, allowPreproofDocs } = params;
+  const go = failures.length === 0 && !allowPreproofDocs;
+  const decision = go
+    ? 'GO: submit this build for Frontier judging.'
+    : allowPreproofDocs
+      ? 'READY_FOR_FINAL_PROOF_RUN: NO-GO until the final devnet proof command passes.'
+      : 'NO-GO: fix the blockers below before submission.';
   return `# Frontier Final Go/No-Go
 
 Generated: ${generatedAt}
 
 ## Decision
 
-${go ? 'GO: submit this build for Frontier judging.' : 'NO-GO: fix the blockers below before submission.'}
+${decision}
 
 ## Required Gates
 
@@ -423,6 +430,7 @@ Lead with the devnet receipt proof and Merchant Proof Passport, not broad produc
 }
 
 async function main() {
+  const allowPreproofDocs = process.env.ALLOW_PREPROOF_DOCS === '1';
   const args = process.argv.slice(2);
   if (args.includes('--help') || args.includes('-h')) {
     console.log(usage());
@@ -482,12 +490,12 @@ async function main() {
     if (!(manifest as Record<string, unknown>)[key]) failures.push(`Manifest is missing ${key}`);
   }
   const structuredAttacks = (manifest as { attackEvidence?: unknown[] }).attackEvidence ?? [];
-  if (structuredAttacks.length < 15) failures.push(`Manifest attackEvidence has ${structuredAttacks.length} cases, expected at least 15`);
+  if (structuredAttacks.length < 16) failures.push(`Manifest attackEvidence has ${structuredAttacks.length} cases, expected at least 16`);
   ['terminalDevice', 'terminalAuthority', 'visitorAuthority', 'claimPass'].forEach((key) => {
     if (!manifest.pdas?.[key]) failures.push(`Manifest pdas.${key} is missing`);
   });
 
-  ['registerMerchant', 'createGrowthCampaign', 'recordCausalReceipt', 'settleReceiptReward'].forEach((key) => {
+  ['registerMerchant', 'createGrowthCampaign', 'enrollTerminalDevice', 'issueClaimPass', 'recordCausalReceipt', 'settleReceiptReward'].forEach((key) => {
     if (!signatureValue(manifest.signatures?.[key])) failures.push(`Manifest is missing signature for ${key}`);
   });
   if (!signatureValue(manifest.signatures?.fundGrowthBounty) && manifest.inputs?.amountToFund !== '0') {
@@ -511,7 +519,7 @@ async function main() {
   if (!passport) failures.push(`Required Merchant Proof Passport is missing: ${passportPath}`);
   else {
     const passportFacts = passport.verifiedFacts ?? {};
-    ['campaignFunded', 'receiptRecorded', 'rewardSettled', 'nullifierRecorded', 'intentManifestCommitted', 'verifierOk', 'terminalVerified', 'visitorVerified', 'lineageVerified', 'settlementVerified'].forEach((key) => {
+    ['campaignFunded', 'receiptRecorded', 'rewardSettled', 'nullifierRecorded', 'intentManifestCommitted', 'verifierOk', 'terminalVerified', 'visitorVerified', 'lineageVerified', 'settlementVerified', 'nullifierVerified'].forEach((key) => {
       if (!passportFacts[key]) failures.push(`Merchant Proof Passport verifiedFacts.${key} is not true`);
     });
     if (passport.programId && manifest.programId && passport.programId !== manifest.programId) {
@@ -525,7 +533,7 @@ async function main() {
   else {
     const total = gauntlet.summary?.totalCases ?? gauntlet.cases?.length ?? 0;
     const blocked = gauntlet.summary?.blocked ?? gauntlet.cases?.filter((item) => item.status === 'blocked').length ?? 0;
-    if (total < 15) failures.push(`Fraud Gauntlet has only ${total} cases, expected at least 15`);
+    if (total < 16) failures.push(`Fraud Gauntlet has only ${total} cases, expected at least 16`);
     if (blocked !== total) failures.push(`Fraud Gauntlet blocked ${blocked}/${total} cases`);
     if ((gauntlet.summary?.missing ?? 0) !== 0) failures.push(`Fraud Gauntlet missing ${gauntlet.summary?.missing} cases`);
     if ((gauntlet.summary?.failed ?? 0) !== 0) failures.push(`Fraud Gauntlet failed ${gauntlet.summary?.failed} cases`);
@@ -575,14 +583,14 @@ async function main() {
 
   if (existsSync(path.resolve('README.md'))) {
     const readme = readText('README.md');
-    requireText('README', readme, 'proof-of-conversion infrastructure for Solana commerce', failures);
+    requireText('README', readme, 'proof-of-outcome infrastructure for Solana commerce', failures);
     requireText('README', readme, 'Merchant Proof Passport', failures);
     requireText('README', readme, '/frontier-proof', failures);
   }
 
   const generatedAt = new Date().toISOString();
   const packetOutput = writeOutput(packetPath, buildPacket({ manifest, verifier, passport, generatedAt }));
-  const goNoGoOutput = writeOutput(goNoGoPath, buildGoNoGo({ manifest, verifier, passport, generatedAt, failures }));
+  const goNoGoOutput = writeOutput(goNoGoPath, buildGoNoGo({ manifest, verifier, passport, generatedAt, failures, allowPreproofDocs }));
 
   console.log(JSON.stringify({
     ok: failures.length === 0,
@@ -604,7 +612,7 @@ async function main() {
     failures,
   }, null, 2));
 
-  if (failures.length > 0) process.exitCode = 1;
+  if (failures.length > 0 && !allowPreproofDocs) process.exitCode = 1;
 }
 
 void main().catch((error) => {

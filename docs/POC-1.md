@@ -2,7 +2,7 @@
 
 POC-1 is the Viral Sync proof format for Solana commerce outcomes.
 
-Viral Sync is proof-of-conversion infrastructure for Solana commerce: merchants escrow rewards, terminals and customers counter-attest conversions, and payouts settle only when the POC-1 receipt verifies.
+Viral Sync is proof-of-outcome infrastructure for Solana commerce: merchants escrow rewards, enrolled terminals and visitors counter-attest conversions, and payouts settle only when the POC-1 receipt verifies.
 
 A POC-1 conversion is valid when a merchant-funded campaign, enrolled terminal signer, visitor signer, claim-pass account lineage, nullifier PDA, causal receipt PDA, settlement record, and `intent_manifest_hash` all agree.
 

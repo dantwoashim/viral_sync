@@ -49,6 +49,24 @@ pub struct MerchantRegistered {
 }
 
 #[event]
+pub struct TerminalDeviceEnrolled {
+    pub merchant_config: Pubkey,
+    pub merchant_authority: Pubkey,
+    pub terminal_device: Pubkey,
+    pub terminal_authority: Pubkey,
+    pub label_hash: [u8; 32],
+}
+
+#[event]
+pub struct ClaimPassIssued {
+    pub claim_pass: Pubkey,
+    pub growth_campaign: Pubkey,
+    pub visitor_authority: Pubkey,
+    pub claim_hash: [u8; 32],
+    pub depth: u8,
+}
+
+#[event]
 pub struct GrowthCampaignCreated {
     pub growth_campaign: Pubkey,
     pub merchant_config: Pubkey,
@@ -87,6 +105,10 @@ pub struct CausalReceiptRecorded {
     pub claimer_nullifier_hash: [u8; 32],
     pub intent_manifest_hash: [u8; 32],
     pub reward_amount: u64,
+    pub terminal_device: Pubkey,
+    pub terminal_authority: Pubkey,
+    pub visitor_authority: Pubkey,
+    pub claim_pass: Pubkey,
 }
 
 #[event]
