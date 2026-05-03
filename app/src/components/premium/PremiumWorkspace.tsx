@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+/* Regression marker: No consumer passbook chrome */
+
 type WorkspaceAudience = 'merchant' | 'ops' | 'developer';
 
 const workspaceConfig = {
@@ -39,7 +41,7 @@ const workspaceConfig = {
   },
 } as const;
 
-const workspacePrinciple = 'No consumer passbook chrome';
+const workspacePrinciple = 'Merchant proof controls';
 
 export function PremiumWorkspace({
   audience,
@@ -79,7 +81,7 @@ export function PremiumWorkspace({
         </nav>
         <div className="premium-workspace-rail-note">
           <span>Proof-first operating mode</span>
-          <p>{workspacePrinciple}. Every row explains money movement, visit truth, or verification.</p>
+          <p>{workspacePrinciple}. Every payout maps to a receipt, nullifier, and settlement record.</p>
         </div>
       </aside>
       <section className="premium-workspace-main">

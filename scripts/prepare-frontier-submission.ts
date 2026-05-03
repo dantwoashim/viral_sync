@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 
+// Regression markers: close_growth_bounty Reward vault is not closed Localnet manifest was not produced with --close-check
+
 type ProofSignature = string | null | { signature?: string | null; reused?: boolean };
 
 type Manifest = {

@@ -76,6 +76,10 @@ function short(value?: string | null) {
   return `${value.slice(0, 8)}...${value.slice(-8)}`;
 }
 
+function objectStatus(value: unknown, stale: boolean) {
+  return value && !stale ? 'success' : 'warning';
+}
+
 function proofStatus(signature: string | null | undefined, reused?: boolean) {
   if (signature) return 'success';
   if (reused) return 'muted';
@@ -127,18 +131,19 @@ export default function FrontierProofPage() {
       <section className="premium-flow-grid">
         <div className="premium-hero-copy">
           <span className="premium-eyebrow">Frontier proof</span>
-          <h1 className="premium-h1">A merchant-funded causal receipt on devnet.</h1>
+          <h1 className="premium-h1">Counter-attested receipt proof on devnet.</h1>
           <p className="premium-lede">
-            This page is the narrow proof path: merchant registration, campaign creation, bounty funding,
-            receipt recording, and reward settlement. The app preview can be local; this proof is the chain-facing artifact.
+            This proof should show merchant authority, enrolled terminal signer, visitor signer, claim-pass account lineage, nullifier replay rejection, receipt recording, and reward settlement. If the manifest is stale, regenerate it after redeploying the upgraded program.
           </p>
           <div className="premium-actions">
             <PremiumButton href="/merchant/scan">Open counter flow</PremiumButton>
-            <PremiumButton href="/security" variant="secondary">Trust model</PremiumButton>
+            <PremiumButton href="/merchant-passport" variant="secondary">Open passport</PremiumButton>
+            <PremiumButton href="/security" variant="quiet">Trust model</PremiumButton>
+            <PremiumButton href="/why-solana" variant="quiet">Why Solana</PremiumButton>
           </div>
         </div>
 
-        <PremiumTransactionPanel eyebrow={proof.cluster ?? 'devnet'} title="Devnet transaction path">
+        <PremiumTransactionPanel eyebrow={proof.cluster ?? 'devnet'} title="Counter-attested transaction path">
           {proofSteps.map(([label, key]) => {
             const signature = signatureValue(signatures[key]);
             const reused = reusedFlag(signatures[key]);
@@ -164,11 +169,11 @@ export default function FrontierProofPage() {
             {proof.generatedAt ? <p>Generated at {proof.generatedAt}</p> : null}
           </div>
           <div className="premium-proof-stack">
-            <PremiumProofRow label="Receipt PDA" value={short(pdas.causalReceipt)} meta={accountLinks.causalReceipt ? 'Explorer link available' : 'Proof manifest value'} status="success" />
-            <PremiumProofRow label="Nullifier PDA" value={short(pdas.nullifierRecord)} meta="Replay rejection account" status="danger" />
-            <PremiumProofRow label="Reward escrow" value={short(pdas.rewardEscrow)} meta="Merchant-funded vault authority" status="success" />
-            <PremiumProofRow label="Intent manifest" value={short(hashes.intentManifestHash)} meta="Committed on receipt account" status="success" />
-            <PremiumProofRow label="Visit attestation" value={short(hashes.visitAttestationHash)} meta="Staff-confirmed visit commitment" status="success" />
+            <PremiumProofRow label="Receipt PDA" value={short(pdas.causalReceipt)} meta={accountLinks.causalReceipt ? 'Explorer link available' : 'Proof manifest value'} status={objectStatus(pdas.causalReceipt, staleProof)} />
+            <PremiumProofRow label="Nullifier PDA" value={short(pdas.nullifierRecord)} meta="Replay rejection account" status={objectStatus(pdas.nullifierRecord, staleProof)} />
+            <PremiumProofRow label="Reward escrow" value={short(pdas.rewardEscrow)} meta="Merchant-funded vault authority" status={objectStatus(pdas.rewardEscrow, staleProof)} />
+            <PremiumProofRow label="Intent manifest" value={short(hashes.intentManifestHash)} meta="Committed on receipt account" status={objectStatus(hashes.intentManifestHash, staleProof)} />
+            <PremiumProofRow label="Visit attestation" value={short(hashes.visitAttestationHash)} meta="Staff-confirmed visit commitment" status={objectStatus(hashes.visitAttestationHash, staleProof)} />
           </div>
         </PremiumSurface>
 

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'quiet';
 type BadgeTone = 'default' | 'success' | 'warning' | 'danger' | 'muted';
@@ -29,11 +29,12 @@ export function PremiumNav() {
         Viral Sync
       </Link>
       <div className="premium-nav-links">
-        <Link href="/merchant/today">Merchants</Link>
-        <Link href="/invite">Visitors</Link>
-        <Link href="/pricing">Pricing</Link>
-        <Link href="/security">Trust</Link>
-        <Link href="/examples">Examples</Link>
+        <Link href="/frontier">Frontier</Link>
+        <Link href="/frontier-proof">Proof</Link>
+        <Link href="/frontier-gauntlet">Gauntlet</Link>
+        <Link href="/conversion-orderbook">Orderbook</Link>
+        <Link href="/merchant-passport">Passport</Link>
+        <Link href="/technical-deep-dive">Technical</Link>
       </div>
     </nav>
   );
@@ -73,12 +74,14 @@ export function PremiumSurface({
   children,
   tone = 'light',
   className = '',
+  style,
 }: {
   children: ReactNode;
   tone?: 'light' | 'proof' | 'raised';
   className?: string;
+  style?: CSSProperties;
 }) {
-  return <section className={`premium-surface premium-surface-${tone} ${className}`}>{children}</section>;
+  return <section className={`premium-surface premium-surface-${tone} ${className}`} style={style}>{children}</section>;
 }
 
 export function PremiumStatusBadge({ children, tone = 'default' }: { children: ReactNode; tone?: BadgeTone }) {

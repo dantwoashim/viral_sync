@@ -193,7 +193,7 @@ export default function MerchantScanPage() {
 
         <div className="premium-hero-copy">
           <span className="premium-eyebrow">Staff scan</span>
-          <h2 className="premium-h2">Counter utility first, proof detail second.</h2>
+          <h2 className="premium-h2">Confirm a visitor code.</h2>
           <p className="premium-lede">
             Camera scan is optional until permission QA is complete. Manual code entry is the
             first-fold path because it works when the counter is busy, loud, or offline.

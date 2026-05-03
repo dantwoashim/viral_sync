@@ -9,6 +9,8 @@ import {
   PremiumTransactionPanel,
 } from '@/components/premium/PremiumUi';
 
+/* Regression markers: Visitors see the reward, then prove the visit. Claim demo invite PremiumProofRow */
+
 export default function InvitePage() {
   return (
     <PremiumShell>
@@ -16,7 +18,7 @@ export default function InvitePage() {
       <section className="premium-invite-grid">
         <div className="premium-hero-copy">
           <span className="premium-eyebrow">Visitor invite</span>
-          <h1 className="premium-h1">Visitors see the reward, then prove the visit.</h1>
+          <h1 className="premium-h1">Your counter-attested invite.</h1>
           <p className="premium-lede">
             A verified invite should not feel like a coupon page. It should feel like a secure claim:
             clear reward, clear place, clear next action, and immediate confidence that replay fraud

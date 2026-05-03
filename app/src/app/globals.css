@@ -5110,3 +5110,137 @@ p {
     margin-top: 0;
   }
 }
+
+/* Frontier proof-machine surfaces */
+.premium-proof-console {
+  padding: clamp(26px, 4vw, 56px) 0 clamp(72px, 9vw, 120px);
+}
+
+.premium-proof-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: end;
+}
+
+.premium-proof-title {
+  margin: 0;
+  font-size: clamp(44px, 5vw, 76px);
+  line-height: 0.92;
+  letter-spacing: -0.065em;
+  font-weight: 950;
+}
+
+.premium-compact-proof-card {
+  padding: 24px;
+  display: grid;
+  gap: 18px;
+}
+
+.premium-metrics.compact {
+  margin-top: 28px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.premium-gauntlet-list,
+.premium-feed-list {
+  margin-top: 34px;
+  display: grid;
+  gap: 16px;
+}
+
+.premium-gauntlet-case,
+.premium-feed-item {
+  padding: 22px;
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+.premium-gauntlet-case {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+}
+
+.premium-feed-item {
+  grid-template-columns: 54px minmax(0, 1fr) minmax(320px, 520px);
+}
+
+.premium-case-topline {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.premium-case-topline > span {
+  color: var(--premium-muted, #6f6a5f);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.premium-gauntlet-case h2,
+.premium-feed-item h2 {
+  margin: 0 0 8px;
+  font-size: clamp(22px, 2vw, 32px);
+  letter-spacing: -0.04em;
+}
+
+.premium-gauntlet-case p,
+.premium-feed-item p {
+  margin: 0;
+  color: var(--premium-muted, #6f6a5f);
+  line-height: 1.55;
+}
+
+.premium-gauntlet-evidence,
+.premium-feed-proof {
+  border: 1px solid rgba(20, 43, 34, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.66);
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.premium-gauntlet-evidence span,
+.premium-gauntlet-evidence small {
+  color: var(--premium-muted, #6f6a5f);
+  font-weight: 750;
+}
+
+.premium-gauntlet-evidence code {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.premium-feed-index {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #0b2a22;
+  color: #fff;
+  font-weight: 900;
+}
+
+.premium-receipt-qr {
+  width: 180px;
+  height: 180px;
+  border-radius: 22px;
+  border: 12px solid #fff;
+  box-shadow: 0 18px 50px rgba(10, 24, 18, 0.18);
+  justify-self: start;
+}
+
+@media (max-width: 1080px) {
+  .premium-proof-header,
+  .premium-gauntlet-case,
+  .premium-feed-item,
+  .premium-metrics.compact {
+    grid-template-columns: 1fr;
+  }
+}

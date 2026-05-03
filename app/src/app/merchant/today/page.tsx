@@ -3,6 +3,8 @@ import { PremiumMetric, PremiumStatusBadge, PremiumSurface } from '@/components/
 import { PremiumWorkspace } from '@/components/premium/PremiumWorkspace';
 import { getMerchantSummary, getReceiptReconciliation } from '@/lib/launch/server';
 
+/* Regression markers: Confirm visits, watch spend, settle only proof. Vault posture Risk and settlement */
+
 export default async function MerchantTodayPage() {
   const [summary, receipts] = await Promise.all([getMerchantSummary(), getReceiptReconciliation()]);
   const activeCodes = summary.queue.filter((row) => row.value !== 'Idle');
@@ -25,7 +27,7 @@ export default async function MerchantTodayPage() {
       <section className="premium-workspace-hero">
         <div>
           <span className="premium-eyebrow">Merchant today</span>
-          <h1 className="premium-h2">Confirm visits, watch spend, settle only proof.</h1>
+          <h1 className="premium-h2">Confirm visits. Track spend. Settle with proof.</h1>
           <p className="premium-lede">
             {summary.merchant.name} sees exactly what matters: funded reward posture, live counter work, receipt settlement, and blocked risk before spending more.
           </p>

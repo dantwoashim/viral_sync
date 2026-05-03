@@ -8,6 +8,8 @@ import {
   PremiumTransactionPanel,
 } from '@/components/premium/PremiumUi';
 
+/* Regression markers: Only pay referral rewards after real visits. PremiumTransactionPanel record_causal_receipt */
+
 export default function ConsumerHomePage() {
   return (
     <PremiumShell>
@@ -15,13 +17,12 @@ export default function ConsumerHomePage() {
       <section className="premium-hero">
         <div className="premium-hero-copy">
           <span className="premium-eyebrow">Causal receipt protocol</span>
-          <h1 className="premium-h1">Only pay referral rewards after real visits.</h1>
+          <h1 className="premium-h1">Clicks are claims. Receipts are proof.</h1>
           <p className="premium-lede">
-            Viral Sync helps local merchants fund capped referral rewards, confirm visits at the
-            counter, and keep every payout tied to an inspectable receipt.
+            Viral Sync turns real-world conversions into Solana-verifiable proof objects: merchants escrow rewards, terminals and visitors counter-attest, and payouts settle only when POC-1 verifies.
           </p>
           <div className="premium-actions">
-            <PremiumButton href="/demo">Run the proof</PremiumButton>
+            <PremiumButton href="/frontier">Open Frontier command center</PremiumButton>
             <PremiumButton href="/invite" variant="secondary">Open visitor invite</PremiumButton>
             <PremiumButton href="/security" variant="quiet">Review trust model</PremiumButton>
           </div>
@@ -39,6 +40,24 @@ export default function ConsumerHomePage() {
           <PremiumProofRow label="Settlement" value="settle_receipt_reward" meta="Transfers reward to claimant" status="success" />
           <PremiumProofRow label="Replay" value="duplicate rejected" meta="Fraud attempt is provable in the demo" status="danger" />
         </PremiumTransactionPanel>
+      </section>
+
+
+      <section className="premium-system-grid" style={{ marginTop: 'clamp(36px, 6vw, 72px)' }}>
+        <PremiumSurface tone="proof" className="premium-system-section">
+          <div className="premium-card-title">
+            <span>Traditional ads</span>
+            <h2>Platforms report conversions.</h2>
+          </div>
+          <p className="premium-copy">Merchant trusts a black box. Referrers wait. Fraud disputes stay private. Attribution is locked inside one platform.</p>
+        </PremiumSurface>
+        <PremiumSurface tone="raised" className="premium-system-section">
+          <div className="premium-card-title">
+            <span>POC-1</span>
+            <h2>Receipts verify outcomes.</h2>
+          </div>
+          <p className="premium-copy">Terminal and visitor counter-attest, reward escrow is public, replay failure is provable, and the receipt is portable.</p>
+        </PremiumSurface>
       </section>
 
       <section className="premium-system-grid" style={{ marginTop: 'clamp(52px, 8vw, 96px)' }}>
