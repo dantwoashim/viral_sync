@@ -75,6 +75,10 @@ if (isProduction && allowedWritableAccounts.length === 0) {
   throw new Error('ALLOWED_WRITABLE_ACCOUNTS must list explicit writable accounts in production.');
 }
 
+if (isProduction && allowAddressLookupTables) {
+  throw new Error('RELAYER_ALLOW_ADDRESS_LOOKUP_TABLES must remain false in production until loaded address validation is implemented.');
+}
+
 if (isProduction && (!REPLAY_CACHE_REST_URL || !REPLAY_CACHE_REST_TOKEN)) {
   throw new Error('RELAYER_REPLAY_CACHE_REST_URL and RELAYER_REPLAY_CACHE_REST_TOKEN are required in production.');
 }
@@ -432,6 +436,7 @@ app.get('/health', async (_req, res) => {
       balance,
       balanceSOL: balance / 1e9,
       rpcUrl: maskRpcUrl(RPC_URL),
+      addressLookupTablesAllowed: allowAddressLookupTables,
       uptime: process.uptime(),
     });
   } catch (error) {

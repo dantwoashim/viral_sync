@@ -1,3 +1,7 @@
+// Viral Sync-specific Causal Receipt Intent Validator.
+// This is intentionally not a generic Solana transaction firewall: it validates
+// constrained receipt-settlement intent fields before sponsorship/settlement.
+
 import { sha256Hex, stableJson } from '@/lib/launch/causal';
 
 export type CausalReceiptIntentManifest = {
@@ -20,6 +24,7 @@ export type CausalReceiptIntentManifest = {
   allowedInstructions: string[];
   allowedPrograms: string[];
   forbiddenEffects: string[];
+  issuedAt?: string;
   expiresAt: string;
   nonce?: string;
 };

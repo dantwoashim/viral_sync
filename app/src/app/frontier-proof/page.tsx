@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import {
   PremiumButton,
@@ -17,6 +17,8 @@ type ProofManifest = {
   kind?: string;
   cluster?: string;
   status?: string;
+  proofStatus?: string;
+  proofStatusNote?: string;
   programId?: string;
   hashes?: {
     intentManifestHash?: string;
@@ -30,16 +32,27 @@ type ProofManifest = {
   };
   replayChecks?: Array<{ label?: string; rejected?: boolean; message?: string }>;
   effectChecks?: Array<{ label?: string; ok?: boolean; reason?: string }>;
+  generatedAt?: string;
+  effectCheckedAt?: string;
   limitation?: string;
 };
 
-const proofPath = path.join(process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce.json');
+const proofCandidates = [
+  path.join(process.cwd(), 'public', 'proofs', 'devnet-causal-commerce.json'),
+  path.join(process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce.json'),
+];
 
 function loadProof(): ProofManifest {
-  try {
-    return JSON.parse(readFileSync(proofPath, 'utf8')) as ProofManifest;
-  } catch {
-    return {
+  for (const candidate of proofCandidates) {
+    if (!existsSync(candidate)) continue;
+    try {
+      return JSON.parse(readFileSync(candidate, 'utf8')) as ProofManifest;
+    } catch {
+      // Keep trying candidates so local workspace and monorepo roots both work.
+    }
+  }
+
+  return {
       kind: 'viral-sync-devnet-causal-commerce',
       cluster: 'devnet',
       status: 'proof-missing',
@@ -47,9 +60,8 @@ function loadProof(): ProofManifest {
       signatures: {},
       pdas: {},
       hashes: {},
-      explorerLinks: { transactions: {}, accounts: {} },
-    };
-  }
+    explorerLinks: { transactions: {}, accounts: {} },
+  };
 }
 
 function signatureValue(value: ProofSignature | undefined) {
@@ -89,10 +101,29 @@ export default function FrontierProofPage() {
     ['Reward settled', 'settleReceiptReward'],
   ] as const;
   const verifiedSteps = proofSteps.filter(([, key]) => signatureValue(signatures[key]) || reusedFlag(signatures[key])).length;
+  const staleProof = Boolean(proof.proofStatus && /needs|stale|unsafe/i.test(proof.proofStatus));
 
   return (
     <PremiumShell>
       <PremiumNav />
+      {staleProof ? (
+        <section
+          className="premium-system-section"
+          style={{
+            marginBottom: '24px',
+            border: '1px solid rgba(245, 158, 11, 0.45)',
+            borderRadius: '24px',
+            padding: '18px 20px',
+            background: 'rgba(245, 158, 11, 0.08)',
+          }}
+        >
+          <div className="premium-card-title">
+            <span>Proof needs regeneration</span>
+            <h2>This public manifest is marked stale.</h2>
+            <p>{proof.proofStatusNote ?? 'Run the devnet proof and verifier commands before submitting this build.'}</p>
+          </div>
+        </section>
+      ) : null}
       <section className="premium-flow-grid">
         <div className="premium-hero-copy">
           <span className="premium-eyebrow">Frontier proof</span>
@@ -130,6 +161,7 @@ export default function FrontierProofPage() {
           <div className="premium-card-title">
             <span>Proof objects</span>
             <h2>Accounts and commitments.</h2>
+            {proof.generatedAt ? <p>Generated at {proof.generatedAt}</p> : null}
           </div>
           <div className="premium-proof-stack">
             <PremiumProofRow label="Receipt PDA" value={short(pdas.causalReceipt)} meta={accountLinks.causalReceipt ? 'Explorer link available' : 'Proof manifest value'} status="success" />
@@ -142,8 +174,9 @@ export default function FrontierProofPage() {
 
         <PremiumSurface tone="raised" className="premium-system-section">
           <div className="premium-card-title">
-            <span>Malicious path</span>
-            <h2>What gets rejected.</h2>
+            <span>Causal Receipt Intent Validator</span>
+            <h2>Constrained receipt intents, not a generic transaction firewall.</h2>
+            {proof.effectCheckedAt ? <p>Effect checked at {proof.effectCheckedAt}</p> : null}
           </div>
           <div className="premium-proof-stack">
             {(proof.effectChecks?.length ? proof.effectChecks : [
@@ -153,9 +186,9 @@ export default function FrontierProofPage() {
             ]).map((check, index) => (
               <PremiumProofRow
                 key={`${check.label ?? 'effect'}-${index}`}
-                label={check.label ?? 'Effect check'}
+                label={check.label ?? 'Intent validation'}
                 value={check.ok ? 'accepted' : 'rejected'}
-                meta={check.reason ?? 'Effect policy result'}
+                meta={check.reason ?? 'Intent validation result'}
                 status={check.ok ? 'success' : 'danger'}
               />
             ))}
@@ -165,7 +198,7 @@ export default function FrontierProofPage() {
 
       <section className="premium-metrics" aria-label="Frontier proof summary">
         <PremiumMetric label="Program" value={short(proof.programId)} detail={proof.kind ?? 'viral-sync-devnet-causal-commerce'} />
-        <PremiumMetric label="Proof steps" value={`${verifiedSteps}/5`} detail={proof.status === 'pending-devnet-run' ? 'Devnet manifest still pending.' : 'Chain path manifest loaded.'} />
+        <PremiumMetric label="Proof steps" value={`${verifiedSteps}/5`} detail={staleProof ? 'Manifest marked stale; regenerate before judging.' : proof.status === 'pending-devnet-run' ? 'Devnet manifest still pending.' : 'Chain path manifest loaded.'} />
         <PremiumMetric label="Limit" value="Unaudited" detail={proof.limitation ?? 'External audit required before mainnet value.'} />
       </section>
     </PremiumShell>

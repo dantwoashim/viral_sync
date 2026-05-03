@@ -2875,6 +2875,10 @@ type DevnetCausalCommerceProof = {
   kind?: string;
   cluster?: string;
   programId?: string;
+  signatures?: {
+    recordCausalReceipt?: string;
+    settleReceiptReward?: string;
+  };
   transactions?: {
     recordCausalReceipt?: string;
     settleReceiptReward?: string;
@@ -2946,7 +2950,7 @@ async function submitReceiptToDevnet(params: {
   });
 
   const proof = JSON.parse(await fs.readFile(outputPath, 'utf8')) as DevnetCausalCommerceProof;
-  const settlementSignature = proof.transactions?.settleReceiptReward;
+  const settlementSignature = proof.signatures?.settleReceiptReward ?? proof.transactions?.settleReceiptReward;
   const receiptPda = proof.pdas?.causalReceipt;
   if (!settlementSignature || !receiptPda) {
     throw new Error('Devnet proof did not include a settlement signature and receipt PDA.');
@@ -3177,7 +3181,7 @@ export async function confirmRedeemCode(params: {
       });
       if (devnetProof) {
         receipt.receiptPda = devnetProof.pdas?.causalReceipt ?? receipt.receiptPda;
-        receipt.txSignature = devnetProof.transactions?.settleReceiptReward ?? receipt.txSignature;
+        receipt.txSignature = devnetProof.signatures?.settleReceiptReward ?? devnetProof.transactions?.settleReceiptReward ?? receipt.txSignature;
         receipt.status = 'settled';
         receipt.settledAt = new Date().toISOString();
       }

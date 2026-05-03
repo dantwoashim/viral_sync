@@ -143,7 +143,11 @@ export function staffDeviceProofFromRequest(request: NextRequest) {
 function getClientKey(request: NextRequest, scope: string) {
   const forwarded = TRUST_PROXY_HEADERS ? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() : '';
   const realIp = TRUST_PROXY_HEADERS ? request.headers.get('x-real-ip')?.trim() : '';
-  return `${scope}:${forwarded || realIp || 'unknown'}`;
+  const client = forwarded || realIp;
+  if (!client) {
+    return isProductionRuntime() ? null : `${scope}:unknown`;
+  }
+  return `${scope}:${client}`;
 }
 
 export function enforceRateLimit(request: NextRequest, scope: string, maxRequests: number) {
@@ -159,6 +163,15 @@ export function enforceRateLimit(request: NextRequest, scope: string, maxRequest
 
   const now = Date.now();
   const key = getClientKey(request, scope);
+  if (!key) {
+    return jsonError(
+      'Production rate limiting requires trusted proxy client headers.',
+      503,
+      'rate_limit_client_key_required',
+      requestId(request),
+      { scope },
+    );
+  }
   const recent = (RATE_LIMIT_BUCKETS.get(key) ?? []).filter((stamp) => now - stamp < RATE_LIMIT_WINDOW_MS);
 
   if (recent.length >= maxRequests) {
