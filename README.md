@@ -38,10 +38,34 @@ The generated proof manifest lives at:
 app/public/proofs/devnet-causal-commerce.json
 ```
 
-Run the proof script with:
+Run or regenerate the proof script with:
 
 ```bash
 npm run devnet:causal-commerce
+```
+
+This writes the judge-facing manifest to:
+
+```text
+app/public/proofs/devnet-causal-commerce.json
+```
+
+Verify the receipt account against the manifest before generating the submission packet:
+
+```bash
+npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json
+```
+
+Generate the final judge packet only after the verifier output exists:
+
+```bash
+npm run frontier:submission
+```
+
+For a stricter final gate, run:
+
+```bash
+npm run frontier:verify
 ```
 
 The proof page is:
@@ -50,7 +74,7 @@ The proof page is:
 /frontier-proof
 ```
 
-It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, and intent manifest hash.
+It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, intent manifest hash, and the valid-vs-malicious Causal Receipt Intent Validator results.
 
 ## Why Solana
 
@@ -107,13 +131,13 @@ Implemented hardening includes:
 
 The localnet smoke path exercises the Causal Commerce loop with merchant registration, campaign creation, escrow funding, receipt recording, settlement, replay rejection, and vault close behavior.
 
-The proof scripts document escrow funding, receipt recording, settlement, replay rejection, and close-check output before judge use.
+The proof scripts document escrow funding, receipt recording, settlement, replay rejection, computed Causal Receipt Intent Validator checks, and optional close-check output before judge use.
 
 ## Current Limitations
 
 - The public app includes a local commitment preview for merchant UX.
 - The judge-facing proof page uses devnet transaction output from the proof manifest.
-- The current relayer effect checker is Viral Sync-specific, not a generic Solana transaction firewall.
+- The current Causal Receipt Intent Validator is Viral Sync-specific. It validates constrained receipt intent fields before settlement/sponsorship, but it is not yet a generic Solana transaction firewall and does not deeply inspect arbitrary serialized transaction effects.
 - The program has not been externally audited.
 - The current intent manifest is committed on-chain by hash; full manifest storage remains off-chain.
 - Some advanced modules are intentionally disabled until their value-flow models are complete.
@@ -152,6 +176,9 @@ npm run verify
 npm run production:readiness
 npm run localnet:causal-commerce -- --replay-check --attack-check
 npm run devnet:causal-commerce
+npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json
+npm run frontier:submission
+npm run frontier:verify
 ```
 
 ## Environment
