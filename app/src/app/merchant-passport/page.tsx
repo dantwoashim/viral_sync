@@ -31,8 +31,8 @@ type Passport = {
 };
 
 const passportCandidates = [
-  path.join(process.cwd(), 'public', 'proofs', 'merchant-passport.json'),
-  path.join(process.cwd(), 'app', 'public', 'proofs', 'merchant-passport.json'),
+  path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', 'merchant-passport.json'),
+  path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', 'merchant-passport.json'),
 ];
 
 function loadPassport(): Passport {

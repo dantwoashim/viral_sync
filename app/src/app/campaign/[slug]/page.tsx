@@ -12,8 +12,8 @@ function proofTone(campaign?:Campaign):'success'|'warning'|'muted'{ if(campaign?
 
 export default async function CampaignPage({ params }: { params: Promise<{ slug: string }> }){
  const { slug } = await params;
- const orderbook=loadJson<Orderbook>([path.join(process.cwd(),'public','proofs','conversion-orderbook.json'),path.join(process.cwd(),'app','public','proofs','conversion-orderbook.json')],{campaigns:[]});
- const links=loadJson<Links>([path.join(process.cwd(),'public','proofs','campaign-links.json'),path.join(process.cwd(),'app','public','proofs','campaign-links.json')],{links:[]});
+ const orderbook=loadJson<Orderbook>([path.join(/* turbopackIgnore: true */ process.cwd(),'public','proofs','conversion-orderbook.json'),path.join(/* turbopackIgnore: true */ process.cwd(),'app','public','proofs','conversion-orderbook.json')],{campaigns:[]});
+ const links=loadJson<Links>([path.join(/* turbopackIgnore: true */ process.cwd(),'public','proofs','campaign-links.json'),path.join(/* turbopackIgnore: true */ process.cwd(),'app','public','proofs','campaign-links.json')],{links:[]});
  const campaign=orderbook.campaigns?.find((item)=>item.slug===slug);
  if(!campaign) notFound();
  const link=links.links?.find((item)=>item.slug===campaign.slug);

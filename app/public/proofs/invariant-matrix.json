@@ -1,0 +1,203 @@
+{
+  "type": "viral-sync-invariant-matrix",
+  "version": "1.0.0",
+  "generatedAt": "2026-05-03T16:51:28.790Z",
+  "rows": [
+    {
+      "id": "receipt-requires-merchant",
+      "invariant": "Receipt Requires Merchant",
+      "whyItMatters": "Prevents anonymous receipt creation",
+      "enforcedBy": "merchant_authority signer + campaign has_one",
+      "testedBy": "merchant-only-receipt",
+      "proofEvidence": "fraud-gauntlet.json → merchant-only-receipt",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "receipt-requires-terminal",
+      "invariant": "Receipt Requires Terminal",
+      "whyItMatters": "Prevents merchant-only fake conversions",
+      "enforcedBy": "terminal_authority signer + terminal_device PDA",
+      "testedBy": "wrong-terminal-signer",
+      "proofEvidence": "fraud-gauntlet.json → wrong-terminal-signer",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "terminal-bound-to-merchant",
+      "invariant": "Terminal Bound To Merchant",
+      "whyItMatters": "Prevents another shop terminal from attesting",
+      "enforcedBy": "terminal_device.merchant_config equality",
+      "testedBy": "different-merchant-terminal",
+      "proofEvidence": "fraud-gauntlet.json → different-merchant-terminal",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "terminal-signer-matches-account",
+      "invariant": "Terminal Signer Matches Account",
+      "whyItMatters": "Prevents terminal identity spoofing",
+      "enforcedBy": "terminal_device.terminal_authority equality",
+      "testedBy": "terminal-account-signer-mismatch",
+      "proofEvidence": "fraud-gauntlet.json → terminal-account-signer-mismatch",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "visitor-signs-receipt",
+      "invariant": "Visitor Signs Receipt",
+      "whyItMatters": "Prevents staff redeeming for visitor",
+      "enforcedBy": "visitor_authority signer",
+      "testedBy": "visitor-signer-mismatch",
+      "proofEvidence": "fraud-gauntlet.json → visitor-signer-mismatch",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "visitor-beneficiary-bound",
+      "invariant": "Visitor Beneficiary Bound",
+      "whyItMatters": "Prevents payout redirect",
+      "enforcedBy": "visitor signer equals visitor beneficiary",
+      "testedBy": "visitor-beneficiary-mismatch",
+      "proofEvidence": "fraud-gauntlet.json → visitor-beneficiary-mismatch",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "claim-pass-single-use",
+      "invariant": "Claim Pass Single Use",
+      "whyItMatters": "Prevents screenshot/code reuse",
+      "enforcedBy": "claim_pass.status transition",
+      "testedBy": "claim-pass-reused",
+      "proofEvidence": "fraud-gauntlet.json → claim-pass-reused",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "claim-pass-campaign-bound",
+      "invariant": "Claim Pass Campaign Bound",
+      "whyItMatters": "Prevents cross-campaign coupon reuse",
+      "enforcedBy": "claim_pass.campaign equality",
+      "testedBy": "claim-pass-campaign-mismatch",
+      "proofEvidence": "fraud-gauntlet.json → claim-pass-campaign-mismatch",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "max-depth-enforced",
+      "invariant": "Max Depth Enforced",
+      "whyItMatters": "Caps referral tree risk",
+      "enforcedBy": "claim_pass.depth <= campaign.max_depth",
+      "testedBy": "claim-pass-depth-exceeds-max-depth",
+      "proofEvidence": "fraud-gauntlet.json → claim-pass-depth-exceeds-max-depth",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "nullifier-exact-once",
+      "invariant": "Nullifier Exact Once",
+      "whyItMatters": "Prevents duplicate receipt record",
+      "enforcedBy": "campaign_nullifier PDA init",
+      "testedBy": "duplicate-nullifier",
+      "proofEvidence": "fraud-gauntlet.json → duplicate-nullifier",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "reward-cap-enforced",
+      "invariant": "Reward Cap Enforced",
+      "whyItMatters": "Prevents campaign overfund/overpay",
+      "enforcedBy": "total_funded <= max_capacity + manifest reward cap",
+      "testedBy": "inflated-reward-amount",
+      "proofEvidence": "fraud-gauntlet.json → inflated-reward-amount",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "reward-mint-bound",
+      "invariant": "Reward Mint Bound",
+      "whyItMatters": "Prevents fake reward mint",
+      "enforcedBy": "reward_mint equals campaign.reward_mint",
+      "testedBy": "wrong-reward-mint",
+      "proofEvidence": "fraud-gauntlet.json → wrong-reward-mint",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "vault-bound-to-escrow",
+      "invariant": "Vault Bound To Escrow",
+      "whyItMatters": "Prevents vault substitution",
+      "enforcedBy": "reward_escrow.reward_vault equality",
+      "testedBy": "wrong-reward-vault",
+      "proofEvidence": "fraud-gauntlet.json → wrong-reward-vault",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "settlement-exact-once",
+      "invariant": "Settlement Exact Once",
+      "whyItMatters": "Prevents double payout",
+      "enforcedBy": "settlement PDA init per receipt",
+      "testedBy": "settlement-replay",
+      "proofEvidence": "fraud-gauntlet.json → settlement-replay",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "campaign-active-window",
+      "invariant": "Campaign Active Window",
+      "whyItMatters": "Blocks stale campaigns",
+      "enforcedBy": "campaign status + starts/expires checks",
+      "testedBy": "paused-or-expired-campaign",
+      "proofEvidence": "fraud-gauntlet.json → paused-or-expired-campaign",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "intent-hash-committed",
+      "invariant": "Intent Hash Committed",
+      "whyItMatters": "Binds human intent to receipt",
+      "enforcedBy": "receipt.intent_manifest_hash stored",
+      "testedBy": "verifier",
+      "proofEvidence": "verifier JSON intent hash check",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "receipt-status-settled",
+      "invariant": "Receipt Status Settled",
+      "whyItMatters": "Shows finality of payout",
+      "enforcedBy": "receipt.status + settlement record",
+      "testedBy": "verifier",
+      "proofEvidence": "verifier JSON receipt.status",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "split-bps-enforced",
+      "invariant": "Split Bps Enforced",
+      "whyItMatters": "Controls referrer/visitor payout split",
+      "enforcedBy": "referrer_split_bps arithmetic",
+      "testedBy": "verifier",
+      "proofEvidence": "token balances 800/200 or configured split",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "escrow-custody",
+      "invariant": "Escrow Custody",
+      "whyItMatters": "Merchant cannot bypass payout path",
+      "enforcedBy": "SPL vault owned by program PDA",
+      "testedBy": "verifier",
+      "proofEvidence": "rewardEscrow + rewardVault accounts",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "proof-artifact-hashes",
+      "invariant": "Proof Artifact Hashes",
+      "whyItMatters": "Makes proof machinery reproducible",
+      "enforcedBy": "programSourceHash + idlHash + verifierHash",
+      "testedBy": "proof:schema",
+      "proofEvidence": "all proof artifacts",
+      "status": "PASS_ON_FRESH_PROOF"
+    },
+    {
+      "id": "no-stale-final-artifacts",
+      "invariant": "No Stale Final Artifacts",
+      "whyItMatters": "Prevents stale proof submission",
+      "enforcedBy": "frontier:assert-final",
+      "testedBy": "assert-no-stale-artifacts",
+      "proofEvidence": "no stale flags under app/public/proofs",
+      "status": "PASS_ON_FRESH_PROOF"
+    }
+  ],
+  "invariantMatrixHash": "ed819e8fd2087f9d04e93dd2d9001e58a42ade924dbf750953b221eb7e489690",
+  "programSourceHash": "7980cf3ab681aa11d7342da8f56f91d11b962adf2b45b8842d405eeb698268fd",
+  "idlHash": "5d810d166f36bbaa16d3d15a745b040d538552ce5cfcd4d57ae41e26fcce5402",
+  "proofGeneratorHash": "d4af6d6a1fb4d41e5e981be5c1b1f1902de0a630f918d983d5674b56a2283268",
+  "verifierHash": "830554f3b95d0b02597d031fe2cae196267dddc640121a7c1b37b9167d40088b",
+  "rawVerifierHash": "868c731a27d55a936a5eee218355f57452f52d7a9e9068546659f09fa1b235a2",
+  "publishedVerifierHash": null
+}

@@ -1,8 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-/* Regression marker: No consumer passbook chrome */
-
 type WorkspaceAudience = 'merchant' | 'ops' | 'developer';
 
 const workspaceConfig = {

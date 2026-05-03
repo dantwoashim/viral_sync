@@ -789,5 +789,13 @@
     }
   },
   "verifierCommand": "npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json",
-  "limitation": "devnet proof path records SPL Token custody, payout, vault reclaim when close-check is enabled, and intent manifest hash commitment; production mainnet still requires external audit and funded relayer operations."
+  "limitation": "This checked-in manifest is intentionally marked stale after the counter-attestation upgrade. Regenerate it on devnet to prove merchant + enrolled terminal + visitor + claim-pass account lineage.",
+  "proofStatus": "needs-regeneration-after-counter-attestation-upgrade",
+  "proofStatusNote": "The protocol now requires enrolled terminal, visitor signer, and claim-pass account lineage. Rebuild, redeploy, and rerun npm run devnet:causal-commerce before final submission.",
+  "targetAttestationModel": "merchant_terminal_visitor_signed",
+  "targetProofLevel": "counter_attested",
+  "programSourceHash": "38345477283d7ca81fc058bd7026c694411a69b0c4ac28a2dc807f208b63d3eb",
+  "idlHash": null,
+  "proofGeneratorHash": "88b192e70cd3d80da360850774b9c3e21f668adce9ca1bb3a3238ca6532580e2",
+  "verifierHash": "a2577e18461950db580f8d878d4c987187c0e783afe9fc3af110d5922b9bc62f"
 }

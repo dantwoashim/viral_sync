@@ -3,8 +3,6 @@ import { PremiumMetric, PremiumStatusBadge, PremiumSurface } from '@/components/
 import { PremiumWorkspace } from '@/components/premium/PremiumWorkspace';
 import { getMerchantSummary, getReceiptReconciliation } from '@/lib/launch/server';
 
-/* Regression markers: Confirm visits, watch spend, settle only proof. Vault posture Risk and settlement */
-
 export default async function MerchantTodayPage() {
   const [summary, receipts] = await Promise.all([getMerchantSummary(), getReceiptReconciliation()]);
   const activeCodes = summary.queue.filter((row) => row.value !== 'Idle');

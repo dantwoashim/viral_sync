@@ -1,0 +1,93 @@
+{
+  "type": "viral-sync-conversion-orderbook",
+  "version": "1.0.0",
+  "title": "Proof-of-Conversion Orderbook",
+  "network": "solana-devnet",
+  "generatedAt": "2026-05-03T15:29:24.993Z",
+  "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
+  "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
+  "sourcePassport": "app/public/proofs/merchant-passport.json",
+  "proofStatus": "needs-regeneration-after-counter-attestation-upgrade",
+  "thesis": "Merchants escrow conversion bounties; referrers, creators, and agents route demand; enrolled terminals and visitors counter-attest conversions; Solana settles payouts through receipt objects.",
+  "integrityRules": [
+    "No payout without funded reward escrow.",
+    "No receipt without enrolled terminal signer and visitor signer.",
+    "No replay without a fresh nullifier and active claim-pass account lineage.",
+    "No hidden effect without intent-manifest commitment and validator checks.",
+    "No customer PII is published in the public proof packet."
+  ],
+  "campaigns": [
+    {
+      "slug": "thamel-brew-counter-attested-visits",
+      "title": "Bring a real customer to Thamel Brew House",
+      "merchantAlias": "Thamel Brew House",
+      "category": "local-commerce-visit",
+      "publicPath": "/campaign/thamel-brew-counter-attested-visits",
+      "status": "needs_fresh_proof",
+      "proofBacked": false,
+      "proofLevel": "counter_attested",
+      "attestationModel": "merchant_terminal_visitor_signed",
+      "bounty": {
+        "rewardUnits": "1000",
+        "maxRedemptions": 10,
+        "fundedUnits": "10000",
+        "settledUnits": "1000",
+        "vaultRemainingUnits": "9000",
+        "payoutCondition": "Counter-attested receipt: merchant authority + enrolled terminal + visitor signer + claim-pass account lineage + unused nullifier."
+      },
+      "proofObjects": {
+        "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+        "campaignPda": "6N5WX7dzdbX9pxaKTmx33RNVTCcZ9uipCG8bj1DzFpmv",
+        "rewardEscrow": "Di7Q9Zg2G75U5tej4mpWXgQuhds6ZnxDahkJSyqBzNYx",
+        "receiptPda": "AdbQrEQHMaSkshS6bykEA33FPQj6ymRwaQz88AkhQUBN",
+        "nullifierPda": "8wbj9DY9Vw1hK6sLx6TMALYkaFQgGPFFn4NDBc5QEGSm",
+        "intentManifestHash": "d3e4b835bf7029d301dbad83d53456cdd3272af636ed2d83b35a532dec9ee8d3",
+        "passportHash": "5f291bc836b101b410473ecbde023517a51e1942022adb393100b8ebb8b9ad7a"
+      },
+      "verification": {
+        "verifierOk": true,
+        "terminalVerified": false,
+        "visitorVerified": false,
+        "lineageVerified": false,
+        "settlementVerified": false,
+        "replayBlocked": true,
+        "intentValidatorPassed": true
+      },
+      "links": {
+        "proof": "/frontier-proof",
+        "gauntlet": "/frontier-gauntlet",
+        "receipt": "/receipt/latest",
+        "passport": "/merchant-passport",
+        "recordTx": "https://explorer.solana.com/tx/5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw?cluster=devnet",
+        "settleTx": "https://explorer.solana.com/tx/7LmCR2i2yeiaBziTE7bRAGH85kRiCo2K2CqnLv4UTtFSQxezgK2s3tyQyxMCCuSdD7HQETCaUmrzbCFk7SsdoUS?cluster=devnet"
+      }
+    },
+    {
+      "slug": "college-canteen-student-meals",
+      "title": "Sponsor student meals at a local canteen",
+      "merchantAlias": "Demo Canteen",
+      "category": "impact-campaign",
+      "publicPath": "/campaign/college-canteen-student-meals",
+      "status": "vision_only_not_live",
+      "proofBacked": false,
+      "bounty": {
+        "rewardUnits": "future",
+        "payoutCondition": "Same POC-1 counter-attested receipt path; not part of current devnet proof."
+      }
+    },
+    {
+      "slug": "local-event-booth-visits",
+      "title": "Reward verified event booth visits",
+      "merchantAlias": "Demo Event Booth",
+      "category": "event-conversion",
+      "publicPath": "/campaign/local-event-booth-visits",
+      "status": "vision_only_not_live",
+      "proofBacked": false,
+      "bounty": {
+        "rewardUnits": "future",
+        "payoutCondition": "Same POC-1 counter-attested receipt path; not part of current devnet proof."
+      }
+    }
+  ],
+  "orderbookHash": "35af0aab42bf659e433be09370565695ca639d0da6b2b6735c1fd3b3edd3d238"
+}

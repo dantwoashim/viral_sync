@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+  "programIdConsistency": {
+    "anchorToml": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+    "declareId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+    "deployKeypair": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+    "matches": true
+  },
+  "failures": []
+}

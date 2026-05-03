@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Viral Sync Campaign Links",
+  "type": "object",
+  "required": [
+    "type",
+    "version",
+    "links"
+  ],
+  "properties": {
+    "type": {
+      "const": "viral-sync-campaign-links"
+    },
+    "version": {
+      "type": "string"
+    },
+    "proofStatus": {
+      "type": "string"
+    },
+    "links": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "slug",
+          "title",
+          "proofBacked",
+          "status",
+          "campaignUrl",
+          "actionApi"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "proofBacked": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "campaignUrl": {
+            "type": "string"
+          },
+          "actionApi": {
+            "type": "string"
+          },
+          "receiptUrl": {
+            "type": "string"
+          },
+          "proofLevel": {
+            "type": "string"
+          },
+          "campaignProofLevel": {
+            "type": "string"
+          },
+          "terminalVerified": {
+            "type": "boolean"
+          },
+          "visitorVerified": {
+            "type": "boolean"
+          },
+          "lineageVerified": {
+            "type": "boolean"
+          },
+          "settlementVerified": {
+            "type": "boolean"
+          },
+          "proofUrl": {
+            "type": "string"
+          },
+          "gauntletUrl": {
+            "type": "string"
+          },
+          "passportUrl": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "type": "viral-sync-proof-feed",
+  "version": "1.0.0",
+  "network": "solana-devnet",
+  "generatedAt": "2026-05-03T07:31:17.421Z",
+  "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
+  "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
+  "sourcePassport": "app/public/proofs/merchant-passport.json",
+  "sourceGauntlet": "app/public/proofs/fraud-gauntlet.json",
+  "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
+  "sourceCampaignLinks": "app/public/proofs/campaign-links.json",
+  "proofStatus": "needs-regeneration-after-counter-attestation-upgrade",
+  "proofLevel": "counter_attested",
+  "attestationModel": "merchant_terminal_visitor_signed",
+  "merchantAlias": "Thamel Brew House",
+  "entries": [
+    {
+      "id": "campaign-funded",
+      "title": "Campaign funded",
+      "kind": "escrow",
+      "status": "verified",
+      "detail": "Merchant funded the reward vault for counter-attested conversions.",
+      "signature": "5438ZH9GgcKfnxiQBTYx2FeHDDV47geryjHmUcorHHzZKrjEGnaTQyHJC4jBWLXR1gRyNurhA4R62ecddfEUo7WP",
+      "explorerLink": "https://explorer.solana.com/tx/5438ZH9GgcKfnxiQBTYx2FeHDDV47geryjHmUcorHHzZKrjEGnaTQyHJC4jBWLXR1gRyNurhA4R62ecddfEUo7WP?cluster=devnet",
+      "object": "Di7Q9Zg2G75U5tej4mpWXgQuhds6ZnxDahkJSyqBzNYx"
+    },
+    {
+      "id": "receipt-recorded",
+      "title": "Causal Receipt recorded",
+      "kind": "receipt",
+      "status": "verified",
+      "detail": "Counter-attested receipt committed the intent manifest and visit attestation hashes.",
+      "signature": "5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw",
+      "explorerLink": "https://explorer.solana.com/tx/5HifvhHX4Fz7e7ThtykCDBnCQdkNEes6DpeFBJEFKJnPEumJz9r6R2pRW9etVaM2CQYX9hCKLMU1wqdqUNiWqkhw?cluster=devnet",
+      "object": "AdbQrEQHMaSkshS6bykEA33FPQj6ymRwaQz88AkhQUBN",
+      "objectLink": "https://explorer.solana.com/address/AdbQrEQHMaSkshS6bykEA33FPQj6ymRwaQz88AkhQUBN?cluster=devnet"
+    },
+    {
+      "id": "settlement-paid",
+      "title": "Reward settled",
+      "kind": "settlement",
+      "status": "verified",
+      "detail": "Settlement amount: 1000 units.",
+      "signature": "7LmCR2i2yeiaBziTE7bRAGH85kRiCo2K2CqnLv4UTtFSQxezgK2s3tyQyxMCCuSdD7HQETCaUmrzbCFk7SsdoUS",
+      "explorerLink": "https://explorer.solana.com/tx/7LmCR2i2yeiaBziTE7bRAGH85kRiCo2K2CqnLv4UTtFSQxezgK2s3tyQyxMCCuSdD7HQETCaUmrzbCFk7SsdoUS?cluster=devnet",
+      "object": "3ZbSDJP6ExurZcZcyZvsiNRXSvjEEewsYkutD8nWY7Lt",
+      "objectLink": "https://explorer.solana.com/address/3ZbSDJP6ExurZcZcyZvsiNRXSvjEEewsYkutD8nWY7Lt?cluster=devnet"
+    },
+    {
+      "id": "fraud-gauntlet",
+      "title": "Fraud Gauntlet executed",
+      "kind": "security",
+      "status": "attention",
+      "detail": "0/15 expected fraud cases blocked by proof artifacts.",
+      "object": "4f637b7b31bfaf01a7858a8dc2da3c5f159388956316b36cb2b7f2fb57ba0acb"
+    },
+    {
+      "id": "merchant-passport",
+      "title": "Merchant Proof Passport generated",
+      "kind": "passport",
+      "status": "verified",
+      "detail": "Privacy-preserving proof-of-local-commerce packet generated from receipt and verifier artifacts.",
+      "object": "df7e666882942e1882cd713b22b3d89d5ab347da0d10c59e2a494809323e5468"
+    },
+    {
+      "id": "conversion-orderbook",
+      "title": "Conversion Orderbook published",
+      "kind": "orderbook",
+      "status": "attention",
+      "detail": "0/3 campaigns are proof-backed.",
+      "object": "8c41e653ab3adcad49118135f4e4ccfa2b01ddfb4b35043f82c5a5096eedfc1e"
+    },
+    {
+      "id": "campaign-links",
+      "title": "Campaign links generated",
+      "kind": "campaign-link",
+      "status": "attention",
+      "detail": "3 public campaign links generated for proof-of-conversion routing.",
+      "object": "cbca9f2802ebdecf77093869b8fda291d7447a5a4b0ef46855e987f7cec773cf"
+    }
+  ],
+  "programSourceHash": "38345477283d7ca81fc058bd7026c694411a69b0c4ac28a2dc807f208b63d3eb",
+  "idlHash": null,
+  "proofGeneratorHash": "88b192e70cd3d80da360850774b9c3e21f668adce9ca1bb3a3238ca6532580e2",
+  "verifierHash": "a2577e18461950db580f8d878d4c987187c0e783afe9fc3af110d5922b9bc62f"
+}

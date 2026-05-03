@@ -8,8 +8,6 @@ import {
   PremiumTransactionPanel,
 } from '@/components/premium/PremiumUi';
 
-/* Regression markers: Only pay referral rewards after real visits. PremiumTransactionPanel record_causal_receipt */
-
 export default function ConsumerHomePage() {
   return (
     <PremiumShell>

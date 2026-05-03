@@ -13,20 +13,46 @@ type ManifestShape = {
   programId?: string;
   hashes?: {
     intentManifestHash?: string;
+    visitAttestationHash?: string;
+    inviteHash?: string;
+    claimerNullifierHash?: string;
+    receiptIdHash?: string;
+    lineageProofHash?: string;
   };
   pdas?: {
     causalReceipt?: string;
     rewardVault?: string;
+    rewardMint?: string;
     merchantRewardAccount?: string;
+    referrerAuthority?: string;
+    terminalDevice?: string;
+    terminalAuthority?: string;
+    visitorAuthority?: string;
+    claimPass?: string;
+    settlementRecord?: string;
+    nullifierRecord?: string;
     referrerRewardAccount?: string;
     visitorRewardAccount?: string;
   };
   tokenBalances?: {
+    beforeSettlement?: {
+      merchantRewardAccount?: string;
+      referrerRewardAccount?: string;
+      visitorRewardAccount?: string;
+      rewardVault?: string;
+    };
+    afterSettlement?: {
+      merchantRewardAccount?: string;
+      referrerRewardAccount?: string;
+      visitorRewardAccount?: string;
+      rewardVault?: string;
+    };
     afterClose?: {
       merchantRewardAccount?: string;
       rewardVault?: string;
     } | null;
   };
+  attackEvidence?: Array<Record<string, unknown>>;
 };
 
 type CliOptions = {
@@ -40,6 +66,7 @@ type CliOptions = {
 const DEFAULT_RPC_URL = 'http://127.0.0.1:8899';
 const IDL_PATH = path.join(process.cwd(), 'target', 'idl', 'viral_sync.json');
 const DEFAULT_PROGRAM_ID = new PublicKey('AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46');
+const SPL_TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
 function usage() {
   return `
@@ -132,6 +159,23 @@ async function tokenAmount(connection: Connection, tokenAccount: PublicKey) {
   return new anchor.BN(balance.value.amount);
 }
 
+async function parsedTokenAccount(connection: Connection, tokenAccount: PublicKey) {
+  const info = await connection.getParsedAccountInfo(tokenAccount, 'confirmed');
+  if (!info.value) {
+    throw new Error(`Token account ${tokenAccount.toBase58()} does not exist.`);
+  }
+  const parsed = (info.value.data as any)?.parsed?.info;
+  if (!parsed?.mint || !parsed?.owner || parsed?.tokenAmount?.amount === undefined) {
+    throw new Error(`Token account ${tokenAccount.toBase58()} is not a parsed SPL token account.`);
+  }
+  return {
+    programOwner: info.value.owner,
+    mint: new PublicKey(parsed.mint),
+    owner: new PublicKey(parsed.owner),
+    amount: new anchor.BN(parsed.tokenAmount.amount),
+  };
+}
+
 async function tokenAccountClosed(connection: Connection, tokenAccount: PublicKey) {
   return (await connection.getAccountInfo(tokenAccount)) === null;
 }
@@ -218,13 +262,25 @@ async function main() {
     rewardAmount: anchor.BN;
     settledAmount: anchor.BN;
     intentManifestHash?: number[];
+    visitAttestationHash?: number[];
+    inviteHash?: number[];
+    lineageProofHash?: number[];
     status: unknown;
     settledAt: anchor.BN;
+    terminalDevice?: PublicKey;
+    terminalAuthority?: PublicKey;
+    visitorAuthority?: PublicKey;
+    claimPass?: PublicKey;
+    lineageGeneration?: number;
+    attestationModel?: unknown;
   };
   type Campaign = {
+    merchantAuthority?: PublicKey;
+    merchantConfig?: PublicKey;
     rewardMint: PublicKey;
     rewardPerVerifiedVisit: anchor.BN;
     totalSettled: anchor.BN;
+    maxDepth?: number;
     status: unknown;
   };
   type Escrow = {
@@ -245,6 +301,20 @@ async function main() {
     campaign: PublicKey;
     firstReceipt: PublicKey;
   };
+  type ClaimPass = {
+    campaign: PublicKey;
+    visitorAuthority: PublicKey;
+    status: unknown;
+    firstReceipt: PublicKey;
+    depth: number;
+    lineageProofHash: number[];
+  };
+  type TerminalDevice = {
+    merchantConfig: PublicKey;
+    merchantAuthority: PublicKey;
+    terminalAuthority: PublicKey;
+    status: unknown;
+  };
 
   const receipt = await fetchAccount<Receipt>(program, 'causalReceipt', causalReceiptPda);
   const campaign = await fetchAccount<Campaign>(program, 'growthCampaign', receipt.campaign);
@@ -257,6 +327,10 @@ async function main() {
   const escrow = await fetchAccount<Escrow>(program, 'rewardEscrow', rewardEscrowPda);
   const settlement = await fetchAccount<Settlement>(program, 'settlementRecord', settlementRecordPda);
   const nullifier = await fetchAccount<Nullifier>(program, 'nullifierRecord', nullifierRecordPda);
+  const claimPassPda = receipt.claimPass ?? (manifest?.pdas?.claimPass ? new PublicKey(manifest.pdas.claimPass) : undefined);
+  const claimPass = claimPassPda ? await fetchAccount<ClaimPass>(program, 'claimPass', claimPassPda) : undefined;
+  const terminalDevicePda = receipt.terminalDevice ?? (manifest?.pdas?.terminalDevice ? new PublicKey(manifest.pdas.terminalDevice) : undefined);
+  const terminalDeviceAccount = terminalDevicePda ? await fetchAccount<TerminalDevice>(program, 'terminalDevice', terminalDevicePda) : undefined;
 
   const failures: string[] = [];
   expectPublicKey('receipt campaign', receipt.campaign, settlement.campaign, failures);
@@ -274,6 +348,73 @@ async function main() {
       failures.push(`receipt intent_manifest_hash expected ${manifest.hashes.intentManifestHash} but got ${actualIntentManifestHash ?? 'missing'}`);
     }
   }
+
+
+  if (manifest?.hashes?.visitAttestationHash) {
+    const actual = receipt.visitAttestationHash ? hashArrayToHex(receipt.visitAttestationHash) : undefined;
+    if (actual !== manifest.hashes.visitAttestationHash) failures.push(`receipt visitAttestationHash expected ${manifest.hashes.visitAttestationHash} but got ${actual ?? 'missing'}`);
+  }
+  if (manifest?.hashes?.inviteHash) {
+    const actual = receipt.inviteHash ? hashArrayToHex(receipt.inviteHash) : undefined;
+    if (actual !== manifest.hashes.inviteHash) failures.push(`receipt inviteHash expected ${manifest.hashes.inviteHash} but got ${actual ?? 'missing'}`);
+  }
+  if (manifest?.hashes?.claimerNullifierHash) {
+    const actual = receipt.claimerNullifierHash ? hashArrayToHex(receipt.claimerNullifierHash) : undefined;
+    if (actual !== manifest.hashes.claimerNullifierHash) failures.push(`receipt claimerNullifierHash expected ${manifest.hashes.claimerNullifierHash} but got ${actual ?? 'missing'}`);
+  }
+  if (manifest?.hashes?.receiptIdHash) {
+    const actual = receipt.receiptIdHash ? hashArrayToHex(receipt.receiptIdHash) : undefined;
+    if (actual !== manifest.hashes.receiptIdHash) failures.push(`receipt receiptIdHash expected ${manifest.hashes.receiptIdHash} but got ${actual ?? 'missing'}`);
+  }
+  if (manifest?.hashes?.lineageProofHash) {
+    const expected = manifest.hashes.lineageProofHash;
+    const claimLineage = claimPass?.lineageProofHash ? hashArrayToHex(claimPass.lineageProofHash) : undefined;
+    const receiptLineage = receipt.lineageProofHash ? hashArrayToHex(receipt.lineageProofHash) : undefined;
+    if (claimLineage !== expected) failures.push(`claim pass lineageProofHash expected ${expected} but got ${claimLineage ?? 'missing'}`);
+    if (receiptLineage !== expected) failures.push(`receipt lineageProofHash expected ${expected} but got ${receiptLineage ?? 'missing'}`);
+  }
+
+  if (manifest?.pdas?.terminalDevice && receipt.terminalDevice) {
+    expectPublicKey('receipt terminal device', receipt.terminalDevice, new PublicKey(manifest.pdas.terminalDevice), failures);
+  } else if (!receipt.terminalDevice) {
+    failures.push('receipt terminal_device is missing');
+  }
+  if (manifest?.pdas?.terminalAuthority && receipt.terminalAuthority) {
+    expectPublicKey('receipt terminal authority', receipt.terminalAuthority, new PublicKey(manifest.pdas.terminalAuthority), failures);
+  } else if (!receipt.terminalAuthority) {
+    failures.push('receipt terminal_authority is missing');
+  }
+
+  if (terminalDeviceAccount && terminalDevicePda) {
+    if (enumName(terminalDeviceAccount.status) !== 'active') failures.push(`terminal device status is ${enumName(terminalDeviceAccount.status)}, expected active`);
+    expectPublicKey('terminal device merchant config', terminalDeviceAccount.merchantConfig, receipt.merchantConfig, failures);
+    if (campaign.merchantAuthority) expectPublicKey('terminal device merchant authority', terminalDeviceAccount.merchantAuthority, campaign.merchantAuthority, failures);
+    if (receipt.terminalAuthority) expectPublicKey('terminal device terminal authority', terminalDeviceAccount.terminalAuthority, receipt.terminalAuthority, failures);
+  } else {
+    failures.push('terminal device account is missing');
+  }
+
+  if (manifest?.pdas?.visitorAuthority && receipt.visitorAuthority) {
+    expectPublicKey('receipt visitor authority', receipt.visitorAuthority, new PublicKey(manifest.pdas.visitorAuthority), failures);
+  } else if (!receipt.visitorAuthority) {
+    failures.push('receipt visitor_authority is missing');
+  }
+  if (claimPass) {
+    expectPublicKey('claim pass campaign', claimPass.campaign, receipt.campaign, failures);
+    if (receipt.visitorAuthority) {
+      expectPublicKey('claim pass visitor authority', claimPass.visitorAuthority, receipt.visitorAuthority, failures);
+    }
+    expectPublicKey('claim pass first receipt', claimPass.firstReceipt, causalReceiptPda, failures);
+    if (enumName(claimPass.status) !== 'recorded') {
+      failures.push(`claim pass status is ${enumName(claimPass.status)}, expected recorded`);
+    }
+    if (typeof campaign.maxDepth === 'number' && claimPass.depth > campaign.maxDepth) {
+      failures.push(`claim pass depth ${claimPass.depth} exceeds campaign maxDepth ${campaign.maxDepth}`);
+    }
+  } else {
+    failures.push('claim pass account is missing');
+  }
+
   expectBn('settled amount', receipt.settledAmount, receipt.rewardAmount, failures);
   expectBn('campaign reward per visit', campaign.rewardPerVerifiedVisit, receipt.rewardAmount, failures);
   if (!settlement.referrerAmount.add(settlement.visitorAmount).eq(receipt.rewardAmount)) {
@@ -322,6 +463,92 @@ async function main() {
     expectBn('visitor token payout', visitorBalance, settlement.visitorAmount, failures);
   }
 
+  const tokenAccountChecks: Record<string, boolean> = {};
+  if (manifest?.pdas?.referrerRewardAccount) {
+    const referrerToken = await parsedTokenAccount(connection, new PublicKey(manifest.pdas.referrerRewardAccount));
+    tokenAccountChecks.referrerTokenProgramOwner = referrerToken.programOwner.equals(SPL_TOKEN_PROGRAM_ID);
+    tokenAccountChecks.referrerTokenMintMatches = referrerToken.mint.equals(campaign.rewardMint);
+    tokenAccountChecks.referrerTokenOwnerMatches = manifest.pdas.referrerAuthority
+      ? referrerToken.owner.equals(new PublicKey(manifest.pdas.referrerAuthority))
+      : true;
+  }
+  if (manifest?.pdas?.visitorRewardAccount) {
+    const visitorToken = await parsedTokenAccount(connection, new PublicKey(manifest.pdas.visitorRewardAccount));
+    tokenAccountChecks.visitorTokenProgramOwner = visitorToken.programOwner.equals(SPL_TOKEN_PROGRAM_ID);
+    tokenAccountChecks.visitorTokenMintMatches = visitorToken.mint.equals(campaign.rewardMint);
+    tokenAccountChecks.visitorTokenOwnerMatches = manifest.pdas.visitorAuthority
+      ? visitorToken.owner.equals(new PublicKey(manifest.pdas.visitorAuthority))
+      : true;
+  }
+  if (manifest?.pdas?.rewardVault && manifest?.tokenBalances?.afterClose?.rewardVault !== 'closed') {
+    const vaultToken = await parsedTokenAccount(connection, new PublicKey(manifest.pdas.rewardVault));
+    tokenAccountChecks.vaultTokenProgramOwner = vaultToken.programOwner.equals(SPL_TOKEN_PROGRAM_ID);
+    tokenAccountChecks.vaultTokenMintMatches = vaultToken.mint.equals(campaign.rewardMint);
+    tokenAccountChecks.vaultTokenOwnerMatches = vaultToken.owner.equals(rewardEscrowPda);
+  }
+  for (const [label, ok] of Object.entries(tokenAccountChecks)) {
+    if (!ok) failures.push(`token account check failed: ${label}`);
+  }
+
+  const beforeSettlement = manifest?.tokenBalances?.beforeSettlement;
+  const afterSettlement = manifest?.tokenBalances?.afterSettlement;
+  const referrerPayoutDeltaMatches = Boolean(beforeSettlement?.referrerRewardAccount && afterSettlement?.referrerRewardAccount &&
+    new anchor.BN(afterSettlement.referrerRewardAccount).sub(new anchor.BN(beforeSettlement.referrerRewardAccount)).eq(settlement.referrerAmount));
+  const visitorPayoutDeltaMatches = Boolean(beforeSettlement?.visitorRewardAccount && afterSettlement?.visitorRewardAccount &&
+    new anchor.BN(afterSettlement.visitorRewardAccount).sub(new anchor.BN(beforeSettlement.visitorRewardAccount)).eq(settlement.visitorAmount));
+  const vaultPayoutDeltaMatches = Boolean(beforeSettlement?.rewardVault && afterSettlement?.rewardVault &&
+    new anchor.BN(beforeSettlement.rewardVault).sub(new anchor.BN(afterSettlement.rewardVault)).eq(settlement.referrerAmount.add(settlement.visitorAmount)));
+  if (beforeSettlement && afterSettlement) {
+    if (!referrerPayoutDeltaMatches) failures.push('referrer payout delta does not match settlement amount');
+    if (!visitorPayoutDeltaMatches) failures.push('visitor payout delta does not match settlement amount');
+    if (!vaultPayoutDeltaMatches) failures.push('reward vault payout delta does not match settlement amount');
+  }
+
+  const expectedReferrer = settlement.referrerAmount;
+  const expectedVisitor = settlement.visitorAmount;
+  const splitVerified = expectedReferrer.add(expectedVisitor).eq(receipt.rewardAmount);
+  const escrowAccountingVerified = escrow.totalSettled.gte(receipt.rewardAmount) && escrow.totalFunded.gte(escrow.totalSettled.add(escrow.totalReserved));
+  if (!splitVerified) failures.push('settlement split does not equal receipt reward amount');
+  if (!escrowAccountingVerified) failures.push('reward escrow accounting is inconsistent');
+
+  const terminalDevicePresent = Boolean(receipt.terminalDevice && terminalDevicePda && terminalDeviceAccount);
+  const terminalDeviceAccountVerified = Boolean(terminalDeviceAccount && enumName(terminalDeviceAccount.status) === 'active' && terminalDeviceAccount.merchantConfig.equals(receipt.merchantConfig));
+  const terminalAuthorityVerified = Boolean(terminalDeviceAccount && receipt.terminalAuthority && terminalDeviceAccount.terminalAuthority.equals(receipt.terminalAuthority));
+  const terminalMerchantBindingVerified = Boolean(terminalDeviceAccount && (!campaign.merchantAuthority || terminalDeviceAccount.merchantAuthority.equals(campaign.merchantAuthority)));
+  const visitorAuthorityVerified = Boolean(receipt.visitorAuthority && (!manifest?.pdas?.visitorAuthority || receipt.visitorAuthority.equals(new PublicKey(manifest.pdas.visitorAuthority))));
+  const claimPassCampaignVerified = Boolean(claimPass && claimPass.campaign.equals(receipt.campaign));
+  const claimPassVisitorVerified = Boolean(claimPass && receipt.visitorAuthority && claimPass.visitorAuthority.equals(receipt.visitorAuthority));
+  const claimPassLineageHashVerified = !manifest?.hashes?.lineageProofHash || Boolean(claimPass?.lineageProofHash && hashArrayToHex(claimPass.lineageProofHash) === manifest.hashes.lineageProofHash);
+  const receiptLineageHashVerified = !manifest?.hashes?.lineageProofHash || Boolean(receipt.lineageProofHash && hashArrayToHex(receipt.lineageProofHash) === manifest.hashes.lineageProofHash);
+  const nullifierAccountVerified = Boolean(nullifier.campaign.equals(receipt.campaign) && nullifier.firstReceipt.equals(causalReceiptPda));
+  const settlementAccountVerified = Boolean(settlement.receipt.equals(causalReceiptPda) && settlement.campaign.equals(receipt.campaign));
+  const duplicateAttack = manifest?.attackEvidence?.find((entry: any) => entry?.id === 'duplicate-nullifier');
+  const duplicateNullifierAttackRejected = Boolean(duplicateAttack?.observed === 'rejected' && duplicateAttack?.expectedErrorMatched === true);
+  const receiptNullifierHashPresent = Boolean(receipt.claimerNullifierHash && Buffer.from(receipt.claimerNullifierHash).some((byte) => byte !== 0));
+  const nullifierChecks = {
+    nullifierAccountExists: Boolean(nullifier),
+    nullifierCampaignMatches: Boolean(nullifier.campaign.equals(receipt.campaign)),
+    nullifierReceiptMatches: Boolean(nullifier.firstReceipt.equals(causalReceiptPda)),
+    receiptNullifierHashPresent,
+    duplicateNullifierAttackRejected,
+  };
+  const settlementChecks = {
+    receiptSettled: enumName(receipt.status) === 'settled',
+    settlementAccountExists: Boolean(settlement),
+    settlementReceiptMatches: Boolean(settlement.receipt.equals(causalReceiptPda)),
+    settlementCampaignMatches: Boolean(settlement.campaign.equals(receipt.campaign)),
+    payoutSumMatches: splitVerified,
+    referrerPayoutDeltaMatches,
+    visitorPayoutDeltaMatches,
+    vaultPayoutDeltaMatches,
+    escrowAccountingMatches: escrowAccountingVerified,
+  };
+  const terminalVerified = terminalDevicePresent && terminalDeviceAccountVerified && terminalAuthorityVerified && terminalMerchantBindingVerified;
+  const visitorVerified = visitorAuthorityVerified && claimPassVisitorVerified;
+  const lineageVerified = Boolean(claimPass && enumName(claimPass.status) === 'recorded' && claimPassCampaignVerified && claimPassLineageHashVerified && receiptLineageHashVerified && (typeof campaign.maxDepth !== 'number' || claimPass.depth <= campaign.maxDepth));
+  const nullifierVerified = Object.values(nullifierChecks).every(Boolean);
+  const settlementVerified = Object.values(settlementChecks).every(Boolean);
+
   const result = {
     ok: failures.length === 0,
     rpcUrl: options.rpcUrl,
@@ -335,12 +562,41 @@ async function main() {
       rewardVault: escrow.rewardVault.toBase58(),
       settlementRecord: settlementRecordPda.toBase58(),
       nullifierRecord: nullifierRecordPda.toBase58(),
+      terminalDevice: receipt.terminalDevice?.toBase58(),
+      terminalAuthority: receipt.terminalAuthority?.toBase58(),
+      visitorAuthority: receipt.visitorAuthority?.toBase58(),
+      claimPass: claimPassPda?.toBase58(),
     },
+    attestationVerified: terminalVerified && visitorVerified && lineageVerified,
+    terminalDevicePresent,
+    terminalDeviceAccountVerified,
+    terminalAuthorityVerified,
+    terminalMerchantBindingVerified,
+    visitorAuthorityVerified,
+    claimPassCampaignVerified,
+    claimPassVisitorVerified,
+    claimPassLineageHashVerified,
+    receiptLineageHashVerified,
+    nullifierAccountVerified,
+    settlementAccountVerified,
+    splitVerified,
+    escrowAccountingVerified,
+    duplicateNullifierAttackRejected,
+    nullifierChecks,
+    settlementChecks,
+    tokenAccountChecks,
+    terminalVerified,
+    visitorVerified,
+    lineageVerified,
+    nullifierVerified,
+    settlementVerified,
     receipt: normalize(receipt),
     campaign: normalize(campaign),
     rewardEscrow: normalize(escrow),
     settlementRecord: normalize(settlement),
     nullifierRecord: normalize(nullifier),
+    claimPass: normalize(claimPass),
+    terminalDevice: normalize(terminalDeviceAccount),
     tokenBalances,
     failures,
   };

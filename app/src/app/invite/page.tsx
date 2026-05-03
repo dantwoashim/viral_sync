@@ -9,8 +9,6 @@ import {
   PremiumTransactionPanel,
 } from '@/components/premium/PremiumUi';
 
-/* Regression markers: Visitors see the reward, then prove the visit. Claim demo invite PremiumProofRow */
-
 export default function InvitePage() {
   return (
     <PremiumShell>

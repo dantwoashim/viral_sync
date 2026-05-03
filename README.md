@@ -1,6 +1,8 @@
 # Viral Sync
 
-Viral Sync is a Causal Commerce protocol for Solana. It lets a merchant fund a reward campaign and pay only when a staff-confirmed offline visit produces a causal receipt.
+Viral Sync is proof-of-conversion infrastructure for Solana commerce:
+merchants escrow rewards, terminals and customers counter-attest conversions,
+and payouts settle only when the POC-1 receipt verifies.
 
 Each receipt commits to the invite hash, campaign nullifier, visit attestation hash, and intent manifest hash. The point is not to reward clicks. The point is to make offline referral spend verifiable.
 
@@ -38,35 +40,24 @@ The generated proof manifest lives at:
 app/public/proofs/devnet-causal-commerce.json
 ```
 
-Run or regenerate the proof script with:
+The final proof command uses a pre-funded devnet wallet and does not request faucet SOL:
 
 ```bash
-npm run devnet:causal-commerce
+npm run frontier:offline-preflight
+npm run frontier:mock-final
+# fund the configured devnet wallet
+npm run frontier:final
 ```
 
-This writes the judge-facing manifest to:
+`frontier:mock-final` only tests the artifact pipeline using fixtures. It is not submission evidence, and the real final assertion rejects mock artifacts.
+
+The final command writes the judge-facing manifest to:
 
 ```text
 app/public/proofs/devnet-causal-commerce.json
 ```
 
-Verify the receipt account against the manifest before generating the submission packet:
-
-```bash
-npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json
-```
-
-Generate the final judge packet only after the verifier output exists:
-
-```bash
-npm run frontier:submission
-```
-
-For a stricter final gate, run:
-
-```bash
-npm run frontier:verify
-```
+`tmp/devnet-causal-commerce-verifier.json` is the raw verifier output. `app/public/proofs/devnet-causal-commerce-verifier.json` is the published verifier copy with publication metadata.
 
 The proof page is:
 
@@ -75,6 +66,8 @@ The proof page is:
 ```
 
 It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, intent manifest hash, and the valid-vs-malicious Causal Receipt Intent Validator results.
+
+The Merchant Proof Passport packages the same verifier-backed facts into a portable merchant-owned proof object without customer personal data.
 
 ## Why Solana
 
@@ -94,7 +87,7 @@ Useful routes:
 /offer/[token]      Offer claim flow
 /redeem             Consumer redemption code
 /merchant/scan      Staff counter confirmation
-/receipts/[id]      Receipt explorer
+/receipt/[id]       Canonical receipt proof
 /causal-graph       Attribution graph
 /merchant/today     Merchant operations view
 /security           Trust model
@@ -175,10 +168,10 @@ npm run typecheck
 npm run verify
 npm run production:readiness
 npm run localnet:causal-commerce -- --replay-check --attack-check
-npm run devnet:causal-commerce
+npm run devnet:causal-commerce:frontier-final
 npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json
-npm run frontier:submission
-npm run frontier:verify
+npm run frontier:verify-artifacts
+npm run frontier:final
 ```
 
 ## Environment
@@ -188,6 +181,7 @@ App:
 ```text
 NEXT_PUBLIC_SOLANA_RPC_URL
 NEXT_PUBLIC_PROGRAM_ID
+NEXT_PUBLIC_APP_URL
 NEXT_PUBLIC_MERCHANT_PUBKEY
 NEXT_PUBLIC_RELAYER_URL
 LAUNCH_DATABASE_URL
@@ -209,5 +203,7 @@ ALLOWED_INSTRUCTION_PREFIXES
 ALLOWED_WRITABLE_ACCOUNTS
 MAX_TRANSACTION_BYTES=2048
 ```
+
+After any future protocol, verifier, schema, or proof-generator change, rerun `frontier:final` before submission or deployment.
 
 The honest version: Viral Sync is not claiming production readiness. It is claiming a concrete, inspectable devnet path for merchant-funded causal receipts.

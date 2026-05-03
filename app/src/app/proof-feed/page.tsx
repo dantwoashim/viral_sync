@@ -5,7 +5,7 @@ import { PremiumButton, PremiumMetric, PremiumNav, PremiumProofRow, PremiumShell
 type FeedEntry = { id?: string; title?: string; kind?: string; status?: string; detail?: string; signature?: string | null; explorerLink?: string | null; object?: string; objectLink?: string | null };
 type ProofFeed = { type?: string; network?: string; generatedAt?: string; proofStatus?: string; proofLevel?: string; attestationModel?: string; merchantAlias?: string; entries?: FeedEntry[] };
 
-const candidates = [path.join(process.cwd(), 'public', 'proofs', 'proof-feed.json'), path.join(process.cwd(), 'app', 'public', 'proofs', 'proof-feed.json')];
+const candidates = [path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', 'proof-feed.json'), path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', 'proof-feed.json')];
 function loadFeed(): ProofFeed {
   for (const file of candidates) {
     if (!existsSync(file)) continue;

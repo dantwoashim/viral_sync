@@ -1,0 +1,91 @@
+{
+  "type": "viral-sync-frontier-readiness",
+  "generatedAt": "2026-05-03T16:51:30.105Z",
+  "status": "READY_FOR_FINAL_PROOF_RUN",
+  "gates": [
+    {
+      "id": "program-build-command",
+      "label": "Program build command",
+      "status": "PASS",
+      "detail": "Anchor program source present."
+    },
+    {
+      "id": "program-id-consistency",
+      "label": "Program ID consistency",
+      "status": "PASS",
+      "detail": "Anchor.toml, declare_id!, and deploy keypair match."
+    },
+    {
+      "id": "artifact-schema-gate",
+      "label": "Artifact schema gate",
+      "status": "PASS",
+      "detail": "POC-1 schema exists."
+    },
+    {
+      "id": "counter-attestation-manifest",
+      "label": "Counter-attestation manifest",
+      "status": "PENDING",
+      "detail": "Pending fresh final counter-attested proof manifest."
+    },
+    {
+      "id": "verifier-output",
+      "label": "Verifier output",
+      "status": "PENDING",
+      "detail": "Pending final verifier output with strict flags."
+    },
+    {
+      "id": "fraud-gauntlet",
+      "label": "Fraud Gauntlet",
+      "status": "PENDING",
+      "detail": "0/15 cases currently blocked."
+    },
+    {
+      "id": "merchant-passport",
+      "label": "Merchant Passport",
+      "status": "PENDING",
+      "detail": "Passport pending strict counter-attestation facts."
+    },
+    {
+      "id": "orderbook-proof-slot",
+      "label": "Orderbook proof-backed slot",
+      "status": "PENDING",
+      "detail": "Orderbook proof-backed slot is not fully verified."
+    },
+    {
+      "id": "campaign-links",
+      "label": "Campaign links",
+      "status": "PENDING",
+      "detail": "Campaign link proof flags are incomplete."
+    },
+    {
+      "id": "proof-feed",
+      "label": "Proof Feed",
+      "status": "PENDING",
+      "detail": "Proof feed contains pending/attention entries."
+    },
+    {
+      "id": "merchant-validation-kit",
+      "label": "Merchant validation kit",
+      "status": "PASS",
+      "detail": "Validation kit present; real traction is intentionally not claimed unless evidence slots are filled."
+    },
+    {
+      "id": "submission-generator",
+      "label": "Submission packet generator",
+      "status": "PASS",
+      "detail": "frontier:submission script exists."
+    },
+    {
+      "id": "final-command",
+      "label": "Final command prepared",
+      "status": "PASS",
+      "detail": "frontier:final includes final artifact assertion."
+    }
+  ],
+  "programIdConsistency": {
+    "anchorToml": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+    "declareId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+    "deployKeypair": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+    "matches": true
+  }
+}

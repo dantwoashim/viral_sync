@@ -32,14 +32,22 @@ type ProofManifest = {
   };
   replayChecks?: Array<{ label?: string; rejected?: boolean; message?: string }>;
   effectChecks?: Array<{ label?: string; ok?: boolean; reason?: string }>;
+  intentManifest?: { expiresAt?: string; expirySemantics?: string };
+  terminalVerified?: boolean;
+  visitorVerified?: boolean;
+  lineageVerified?: boolean;
+  settlementVerified?: boolean;
+  nullifierVerified?: boolean;
   generatedAt?: string;
   effectCheckedAt?: string;
   limitation?: string;
 };
+type VerifierArtifact = Pick<ProofManifest, 'terminalVerified' | 'visitorVerified' | 'lineageVerified' | 'settlementVerified' | 'nullifierVerified'> & { ok?: boolean };
+type ProgramIdConsistency = { programIdConsistency?: { matches?: boolean; anchorToml?: string; declareId?: string; deployKeypair?: string | null } };
 
 const proofCandidates = [
-  path.join(process.cwd(), 'public', 'proofs', 'devnet-causal-commerce.json'),
-  path.join(process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce.json'),
+  path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', 'devnet-causal-commerce.json'),
+  path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce.json'),
 ];
 
 function loadProof(): ProofManifest {
@@ -62,6 +70,20 @@ function loadProof(): ProofManifest {
       hashes: {},
     explorerLinks: { transactions: {}, accounts: {} },
   };
+}
+
+function loadArtifact<T>(file: string, fallback: T): T {
+  const candidates = [
+    path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', file),
+    path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', file),
+  ];
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    try {
+      return JSON.parse(readFileSync(candidate, 'utf8')) as T;
+    } catch {}
+  }
+  return fallback;
 }
 
 function signatureValue(value: ProofSignature | undefined) {
@@ -92,6 +114,8 @@ function reusedFlag(value: ProofSignature | undefined) {
 
 export default function FrontierProofPage() {
   const proof = loadProof();
+  const verifier = loadArtifact<VerifierArtifact>('devnet-causal-commerce-verifier.json', {});
+  const programIdConsistency = loadArtifact<ProgramIdConsistency>('program-id-consistency.json', {});
   const signatures = proof.signatures ?? {};
   const txLinks = proof.explorerLinks?.transactions ?? {};
   const accountLinks = proof.explorerLinks?.accounts ?? {};
@@ -106,6 +130,14 @@ export default function FrontierProofPage() {
   ] as const;
   const verifiedSteps = proofSteps.filter(([, key]) => signatureValue(signatures[key]) || reusedFlag(signatures[key])).length;
   const staleProof = Boolean(proof.proofStatus && /needs|stale|unsafe/i.test(proof.proofStatus));
+  const usingFallbackEffectChecks = !(proof.effectChecks?.length);
+  const comparisonRows = [
+    ['Terminal enrollment', proof.terminalVerified, verifier.terminalVerified, 'TerminalDevice account fetch'],
+    ['Visitor signature', proof.visitorVerified, verifier.visitorVerified, 'Claim-pass account and receipt visitor authority'],
+    ['Claim-pass lineage', proof.lineageVerified, verifier.lineageVerified, 'ClaimPass account fetch'],
+    ['Settlement', proof.settlementVerified, verifier.settlementVerified, 'Settlement PDA and token deltas'],
+    ['Nullifier', proof.nullifierVerified, verifier.nullifierVerified, 'Nullifier PDA and duplicate attack evidence'],
+  ] as const;
 
   return (
     <PremiumShell>
@@ -174,6 +206,27 @@ export default function FrontierProofPage() {
             <PremiumProofRow label="Reward escrow" value={short(pdas.rewardEscrow)} meta="Merchant-funded vault authority" status={objectStatus(pdas.rewardEscrow, staleProof)} />
             <PremiumProofRow label="Intent manifest" value={short(hashes.intentManifestHash)} meta="Committed on receipt account" status={objectStatus(hashes.intentManifestHash, staleProof)} />
             <PremiumProofRow label="Visit attestation" value={short(hashes.visitAttestationHash)} meta="Staff-confirmed visit commitment" status={objectStatus(hashes.visitAttestationHash, staleProof)} />
+            <PremiumProofRow label="Intent expiry" value={proof.intentManifest?.expiresAt ?? 'not published'} meta={proof.intentManifest?.expirySemantics ?? 'Expiry is checked when the receipt/effect is created.'} status={proof.intentManifest?.expiresAt ? 'success' : 'warning'} />
+            <PremiumProofRow label="Program ID consistency" value={programIdConsistency.programIdConsistency?.matches ? 'matched' : 'pending'} meta={`Anchor ${short(programIdConsistency.programIdConsistency?.anchorToml)} / declare ${short(programIdConsistency.programIdConsistency?.declareId)}`} status={programIdConsistency.programIdConsistency?.matches ? 'success' : 'warning'} />
+          </div>
+        </PremiumSurface>
+
+        <PremiumSurface tone="light" className="premium-system-section">
+          <div className="premium-card-title">
+            <span>Verifier comparison</span>
+            <h2>Manifest claims vs fetched account results.</h2>
+            <p>Manifest fields are the proof packet claims; verifier fields come from the account fetch.</p>
+          </div>
+          <div className="premium-proof-stack">
+            {comparisonRows.map(([label, manifestValue, verifierValue, source]) => (
+              <PremiumProofRow
+                key={label}
+                label={label}
+                value={`manifest=${String(manifestValue === true)} / verifier=${String(verifierValue === true)}`}
+                meta={source}
+                status={manifestValue === true && verifierValue === true ? 'success' : 'warning'}
+              />
+            ))}
           </div>
         </PremiumSurface>
 
@@ -183,6 +236,11 @@ export default function FrontierProofPage() {
             <h2>Constrained receipt intents, not a generic transaction firewall.</h2>
             {proof.effectCheckedAt ? <p>Effect checked at {proof.effectCheckedAt}</p> : null}
           </div>
+          {usingFallbackEffectChecks ? (
+            <div style={{ border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              Example checks only - run frontier:final to generate actual effect-check evidence.
+            </div>
+          ) : null}
           <div className="premium-proof-stack">
             {(proof.effectChecks?.length ? proof.effectChecks : [
               { label: 'Wrong beneficiary', ok: false, reason: 'Referrer beneficiary does not match manifest.' },

@@ -1,0 +1,50 @@
+{
+  "type": "viral-sync-merchant-validation-kit",
+  "version": "1.0.0",
+  "generatedAt": "2026-05-03T15:29:34.925Z",
+  "validationStatus": "not_claimed_until_real_merchant_evidence_is_added",
+  "merchantAlias": "Thamel Brew House",
+  "sourcePassport": "app/public/proofs/merchant-passport.json",
+  "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
+  "passportHash": "5f291bc836b101b410473ecbde023517a51e1942022adb393100b8ebb8b9ad7a",
+  "orderbookHash": "35af0aab42bf659e433be09370565695ca639d0da6b2b6735c1fd3b3edd3d238",
+  "rules": [
+    "Do not claim live merchant traction unless evidenceSlots are filled with real permissioned evidence.",
+    "Screenshots, quotes, and videos must be from a real merchant or must be labeled demo-only.",
+    "The technical proof can be submitted without live merchant traction, but the pitch must not imply traction that does not exist."
+  ],
+  "interviewScript": [
+    "What do you currently use to know whether a referral actually showed up?",
+    "Would you rather pay for clicks, coupons, or counter-confirmed visits?",
+    "Would a receipt-backed proof packet help you trust a campaign payout?",
+    "What would stop you from using this at your counter?"
+  ],
+  "evidenceSlots": [
+    {
+      "id": "merchant-quote-1",
+      "status": "empty",
+      "requiredForClaimingTraction": true,
+      "prompt": "One-sentence quote from a real merchant after trying the demo."
+    },
+    {
+      "id": "counter-demo-video-1",
+      "status": "empty",
+      "requiredForClaimingTraction": true,
+      "prompt": "Short video showing claim pass → terminal confirmation → proof page."
+    },
+    {
+      "id": "merchant-photo-permissioned-1",
+      "status": "empty",
+      "requiredForClaimingTraction": false,
+      "prompt": "Optional photo of merchant/counter with permission."
+    },
+    {
+      "id": "merchant-objection-log",
+      "status": "empty",
+      "requiredForClaimingTraction": false,
+      "prompt": "What the merchant disliked or would require before real use."
+    }
+  ],
+  "safeSubmissionWording": "The Frontier submission includes a complete devnet proof and verifier. Real-world merchant validation is not claimed unless this kit is filled with permissioned evidence.",
+  "validationKitHash": "0e7efd5371bfc91b36987c48a907d52cb872bf78f88ac1449f740e8fa1599252"
+}

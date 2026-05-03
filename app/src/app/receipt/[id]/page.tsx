@@ -13,14 +13,16 @@ function proofStatus(value: unknown, stale: boolean): 'success' | 'warning' { re
 
 export default async function ReceiptProofPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const manifest = loadJson<Manifest>([path.join(process.cwd(), 'public', 'proofs', 'devnet-causal-commerce.json'), path.join(process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce.json')], {});
-  const verifier = loadJson<Verifier>([path.join(process.cwd(), 'public', 'proofs', 'devnet-causal-commerce-verifier.json'), path.join(process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce-verifier.json'), path.join(process.cwd(), '..', 'tmp', 'devnet-causal-commerce-verifier.json'), path.join(process.cwd(), 'tmp', 'devnet-causal-commerce-verifier.json')], {});
+  const manifest = loadJson<Manifest>([path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', 'devnet-causal-commerce.json'), path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce.json')], {});
+  // Production proof pages use the published verifier artifact.
+  // tmp fallback is local-development only.
+  const verifier = loadJson<Verifier>([path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', 'devnet-causal-commerce-verifier.json'), path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce-verifier.json'), path.join(/* turbopackIgnore: true */ process.cwd(), '..', 'tmp', 'devnet-causal-commerce-verifier.json'), path.join(/* turbopackIgnore: true */ process.cwd(), 'tmp', 'devnet-causal-commerce-verifier.json')], {});
   const txLinks = manifest.explorerLinks?.transactions ?? {};
   const accountLinks = manifest.explorerLinks?.accounts ?? {};
   const receiptId = id === 'latest' ? manifest.inputs?.receiptId ?? 'latest' : id;
   const receiptSig = sig(manifest.signatures?.recordCausalReceipt) ?? manifest.transactions?.recordCausalReceipt;
   const settleSig = sig(manifest.signatures?.settleReceiptReward) ?? manifest.transactions?.settleReceiptReward;
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
   const publicUrl = `${baseUrl.replace(/\/$/, '')}/receipt/${encodeURIComponent(receiptId)}`;
   const stale = /needs|stale|unsafe/i.test(manifest.proofStatus ?? '');
   const qrDataUrl = await QRCode.toDataURL(publicUrl, { margin: 1, width: 180 });
@@ -73,6 +75,10 @@ export default async function ReceiptProofPage({ params }: { params: Promise<{ i
               <PremiumProofRow label="record_causal_receipt" value={short(receiptSig)} meta={txLinks.recordCausalReceipt ? 'Open in Explorer' : 'Missing link'} status={receiptSig ? 'success' : 'warning'} />
               <PremiumProofRow label="settle_receipt_reward" value={short(settleSig)} meta={txLinks.settleReceiptReward ? 'Open in Explorer' : 'Missing link'} status={settleSig ? 'success' : 'warning'} />
               <PremiumProofRow label="Reward vault" value={short(String(manifest.pdas?.rewardVault ?? ''))} meta={`Vault balance ${verifier.tokenBalances?.rewardVault ?? manifest.tokenBalances?.after?.rewardVault ?? 'unknown'}`} status={proofStatus(manifest.pdas?.rewardVault, stale)} />
+              <PremiumProofRow label="Fraud Gauntlet" value="Open result" meta="Links this receipt to the structured attack evidence." status="success" />
+            </div>
+            <div className="premium-actions" style={{ marginTop: 18 }}>
+              <PremiumButton href="/frontier-gauntlet" variant="secondary">Fraud Gauntlet</PremiumButton>
             </div>
           </PremiumSurface>
         </section>

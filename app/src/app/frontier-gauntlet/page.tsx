@@ -39,8 +39,8 @@ type Gauntlet = {
 };
 
 const candidates = [
-  path.join(process.cwd(), 'public', 'proofs', 'fraud-gauntlet.json'),
-  path.join(process.cwd(), 'app', 'public', 'proofs', 'fraud-gauntlet.json'),
+  path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', 'fraud-gauntlet.json'),
+  path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', 'fraud-gauntlet.json'),
 ];
 
 function loadGauntlet(): Gauntlet {

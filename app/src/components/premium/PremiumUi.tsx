@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'quiet';
 type BadgeTone = 'default' | 'success' | 'warning' | 'danger' | 'muted';
@@ -74,14 +74,12 @@ export function PremiumSurface({
   children,
   tone = 'light',
   className = '',
-  style,
 }: {
   children: ReactNode;
   tone?: 'light' | 'proof' | 'raised';
   className?: string;
-  style?: CSSProperties;
 }) {
-  return <section className={`premium-surface premium-surface-${tone} ${className}`} style={style}>{children}</section>;
+  return <section className={`premium-surface premium-surface-${tone} ${className}`}>{children}</section>;
 }
 
 export function PremiumStatusBadge({ children, tone = 'default' }: { children: ReactNode; tone?: BadgeTone }) {

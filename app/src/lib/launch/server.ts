@@ -5357,7 +5357,7 @@ export async function getWeeklyCreatorReview() {
 export function getCampaignAssistantSpec() {
   return {
     inputs: ['merchant type', 'margin', 'traffic', 'reward budget', 'historical funnel'],
-    promiseBoundary: 'Rule-based suggestions only; no guaranteed revenue, virality, or fraud-proof claims.',
+    promiseBoundary: 'Rule-based suggestions only; no guaranteed revenue, virality, or absolute fraud claims.',
     output: ['reward', 'cap', 'copy', 'risk warning', 'liability estimate'],
   };
 }
@@ -5404,7 +5404,7 @@ export function getCampaignCopyGenerator(merchant = 'Thamel Brew House', reward 
     offerCopy: `${merchant}: bring a friend, confirm your visit at the counter, and unlock ${reward}.`,
     whatsapp: `I found a verified-visit offer at ${merchant}. Claim it, visit together, and staff confirms the reward.`,
     instagram: `${merchant} is testing verified friend referrals. Visit, confirm, and unlock ${reward}.`,
-    qualityReview: 'No guaranteed earnings, no fake urgency, no unsupported fraud-proof claims.',
+    qualityReview: 'No guaranteed earnings, no fake urgency, no unsupported absolute fraud claims.',
   };
 }
 

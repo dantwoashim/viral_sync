@@ -7,7 +7,7 @@ This packet is the first pass for an external reviewer. Viral Sync is still not 
 - Anchor program: `programs/viral_sync/src/instructions/causal_commerce.rs`
 - Causal state: `programs/viral_sync/src/state/causal_commerce.rs`
 - Program errors/events: `programs/viral_sync/src/errors.rs`, `programs/viral_sync/src/events.rs`
-- Hosted launch ledger and API: `app/src/lib/launch/server.ts`, `app/src/lib/launch/api.ts`, `app/src/lib/launch/security.ts`
+- Hosted normalized launch read/write layer and API: `app/src/lib/launch/server.ts`, `app/src/lib/launch/api.ts`, `app/src/lib/launch/security.ts`
 - Relayer policy: `/api/launch/relayer/*` routes and `getRelayerPolicy()`
 - Test baseline: `tests/viral_sync.ts`
 - Production gates: `docs/production-readiness.md`, `scripts/validate-production-readiness.mjs`
@@ -29,9 +29,9 @@ This packet is the first pass for an external reviewer. Viral Sync is still not 
 ## Known Limits
 
 - External audit is not complete.
-- The hosted app still uses a JSONB launch ledger abstraction before full normalized production tables.
+- The hosted app keeps a legacy JSON ledger fallback for local development; normalized tables are the intended production read/write path.
 - Production login is token-backed pilot RBAC, not full enterprise SSO.
-- Staff-device signatures are represented by enrolled device identifiers in the hosted app; hardware-backed device signing remains a hardening step.
+- Staff-device signatures use enrolled terminal keys in the hosted app; hardware-backed non-extractable keys remain a hardening step.
 - POS webhook depth is still import-first for capped pilots.
 - Uncapped mainnet reward custody remains blocked.
 
@@ -45,3 +45,27 @@ This packet is the first pass for an external reviewer. Viral Sync is still not 
 6. Review relayer policy and replay protection.
 7. Review hosted auth/RBAC and route-level authorization.
 8. Review production readiness gates and deployment assumptions.
+
+## Frontier Proof Ritual
+
+```bash
+npm ci
+npm run frontier:offline-preflight
+npm run frontier:mock-final
+# fund the configured devnet wallet
+npm run frontier:final 2>&1 | tee dist/final-command-transcript.txt
+```
+
+`frontier:mock-final` is a fixture-only artifact pipeline rehearsal. It is not submission evidence.
+
+## Artifact Hashes
+
+- `programSourceHash`: hash of `programs/viral_sync/src`.
+- `idlHash`: hash of `target/idl/viral_sync.json`.
+- `proofGeneratorHash`: hash of proof-generator scripts.
+- `verifierHash`: hash of verifier and SDK verification source.
+- `artifactHash`: hash of a generated proof artifact, when present.
+- `rawVerifierHash`: hash of `tmp/devnet-causal-commerce-verifier.json`.
+- `publishedVerifierHash`: hash of `app/public/proofs/devnet-causal-commerce-verifier.json`.
+
+The raw verifier is the command output. The published verifier is the web/auditor copy with publication metadata.
