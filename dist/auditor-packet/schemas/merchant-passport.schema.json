@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Viral Sync Merchant Proof Passport",
+  "type": "object",
+  "required": [
+    "type",
+    "merchantAlias",
+    "verifiedFacts",
+    "privacyModel",
+    "proofStatus",
+    "proofLevel",
+    "attestationModel"
+  ],
+  "properties": {
+    "type": {
+      "const": "viral-sync-merchant-proof-passport"
+    },
+    "merchantAlias": {
+      "type": "string"
+    },
+    "proofLevel": {
+      "const": "counter_attested"
+    },
+    "attestationModel": {
+      "const": "merchant_terminal_visitor_signed"
+    },
+    "verifiedFacts": {
+      "type": "object",
+      "required": [
+        "campaignFunded",
+        "receiptRecorded",
+        "rewardSettled",
+        "nullifierRecorded",
+        "intentManifestCommitted",
+        "verifierOk",
+        "terminalVerified",
+        "visitorVerified",
+        "lineageVerified",
+        "settlementVerified"
+      ],
+      "properties": {
+        "campaignFunded": {
+          "type": "boolean"
+        },
+        "receiptRecorded": {
+          "type": "boolean"
+        },
+        "rewardSettled": {
+          "type": "boolean"
+        },
+        "nullifierRecorded": {
+          "type": "boolean"
+        },
+        "intentManifestCommitted": {
+          "type": "boolean"
+        },
+        "verifierOk": {
+          "type": "boolean"
+        },
+        "terminalVerified": {
+          "type": "boolean"
+        },
+        "visitorVerified": {
+          "type": "boolean"
+        },
+        "lineageVerified": {
+          "type": "boolean"
+        },
+        "settlementVerified": {
+          "type": "boolean"
+        },
+        "fraudGauntletBlocked": {
+          "type": "boolean"
+        },
+        "proofBackedOrderbook": {
+          "type": "boolean"
+        }
+      }
+    },
+    "privacyModel": {
+      "type": "string"
+    },
+    "proofStatus": {
+      "type": "string"
+    }
+  }
+}

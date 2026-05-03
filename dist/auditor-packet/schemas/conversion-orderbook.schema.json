@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Viral Sync Conversion Orderbook",
+  "type": "object",
+  "required": [
+    "type",
+    "campaigns"
+  ],
+  "properties": {
+    "type": {
+      "const": "viral-sync-conversion-orderbook"
+    },
+    "campaigns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "slug",
+          "title",
+          "status",
+          "proofBacked"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "proofBacked": {
+            "type": "boolean"
+          },
+          "proofLevel": {
+            "type": "string"
+          },
+          "verification": {
+            "type": "object"
+          },
+          "proofObjects": {
+            "type": "object"
+          },
+          "links": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

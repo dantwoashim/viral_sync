@@ -18,9 +18,11 @@ The core path is deliberately narrow:
 
 ```text
 merchant registers
+terminal device is enrolled
 campaign is created
+claim pass is issued
 bounty is funded
-staff-confirmed receipt is recorded
+terminal + visitor counter-attested receipt is recorded
 reward is settled from escrow
 ```
 
@@ -31,10 +33,12 @@ The app still includes product surfaces for merchants, consumers, receipts, and 
 This submission includes a devnet proof path:
 
 1. `register_merchant`
-2. `create_growth_campaign`
-3. `fund_growth_bounty`
-4. `record_causal_receipt`
-5. `settle_receipt_reward`
+2. `enroll_terminal_device`
+3. `create_growth_campaign`
+4. `issue_claim_pass`
+5. `fund_growth_bounty`
+6. `record_causal_receipt`
+7. `settle_receipt_reward`
 
 The generated proof manifest lives at:
 

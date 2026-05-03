@@ -2024,6 +2024,9 @@ async function main() {
   const manifest = {
     kind: `viral-sync-${cluster}-causal-commerce`,
     cluster,
+    proofStatus: 'verified',
+    proofStatusNote:
+      'Counter-attested devnet proof generated with terminal, visitor, claim-pass, settlement, nullifier, and fraud-gauntlet evidence.',
     generatedAt: new Date().toISOString(),
     effectCheckedAt,
     rpcUrl: options.rpcUrl,
