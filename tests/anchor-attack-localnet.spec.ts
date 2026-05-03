@@ -1,4 +1,4 @@
-import { execFileSync } from 'child_process';
+import { execSync } from 'child_process';
 import { expect } from 'chai';
 
 describe('localnet Anchor attack tests', () => {
@@ -8,11 +8,13 @@ describe('localnet Anchor attack tests', () => {
     }
 
     this.timeout(1_000_000);
-    const output = execFileSync('npm', ['run', 'test:anchor-attacks'], {
+
+    const output = execSync('npm run test:anchor-attacks', {
       cwd: process.cwd(),
       encoding: 'utf8',
       env: process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
     });
 
     expect(output).to.include('wrong merchant authority cannot settle receipt');
