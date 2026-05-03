@@ -1,5 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -29,6 +29,7 @@ type CliOptions = {
   rewardPerVisit: anchor.BN;
   maxRedemptions: number;
   maxDepth: number;
+  campaignDurationSeconds: number;
   fundAmount: anchor.BN;
   airdropSol: number;
   replayCheck: boolean;
@@ -108,6 +109,7 @@ type ProgramMethods = {
   ) => {
     accounts: (accounts: {
       growthCampaign: PublicKey;
+      merchantConfig: PublicKey;
       rewardEscrow: PublicKey;
       rewardVault: PublicKey;
       causalReceipt: PublicKey;
@@ -119,6 +121,7 @@ type ProgramMethods = {
   settleReceiptReward: () => {
     accounts: (accounts: {
       growthCampaign: PublicKey;
+      merchantConfig: PublicKey;
       rewardEscrow: PublicKey;
       rewardVault: PublicKey;
       causalReceipt: PublicKey;
@@ -151,9 +154,9 @@ Usage:
 Options:
   --rpc <url>                 Local validator RPC URL. Default: ${DEFAULT_RPC_URL}
   --wallet <path>             Keypair JSON file. Defaults to ANCHOR_WALLET, SOLANA_WALLET, or ~/.config/solana/id.json.
-  --org <id>                  Merchant org id to hash. Defaults to a unique localnet id.
-  --campaign <id>             Campaign id to hash. Defaults to a unique localnet id.
-  --receipt <id>              Receipt id to hash. Defaults to a unique localnet id.
+  --org <id>                  Merchant org id to hash. Defaults to a unique proof id.
+  --campaign <id>             Campaign id to hash. Defaults to a unique proof id.
+  --receipt <id>              Receipt id to hash. Defaults to a unique proof id.
   --receipt-id-hash <hex>     Use an existing 32-byte receipt hash instead of deriving one.
   --claimer-nullifier-hash <hex>
                               Use an existing 32-byte campaign nullifier hash.
@@ -164,6 +167,8 @@ Options:
   --reward-per-visit <units>  Reward units reserved per verified visit. Default: 1000
   --max-redemptions <count>   Campaign cap. Default: 10
   --max-depth <count>         Referral depth cap. Default: 2
+  --campaign-duration-seconds <seconds>
+                              Campaign lifetime. Default: 2592000, or 5 when --close-check is used.
   --fund-amount <units>       Funded state amount. Default: reward-per-visit * max-redemptions
   --airdrop-sol <number>      Request localnet SOL if balance is low. Default: 2
   --replay-check              Require duplicate nullifier and duplicate settlement attempts to fail.
@@ -217,6 +222,11 @@ function parseArgs(): CliOptions {
   const rewardPerVisit = new anchor.BN(parsePositiveInteger(argValue(args, '--reward-per-visit') ?? '1000', '--reward-per-visit'));
   const maxRedemptions = parsePositiveInteger(argValue(args, '--max-redemptions') ?? '10', '--max-redemptions');
   const maxDepth = parsePositiveInteger(argValue(args, '--max-depth') ?? '2', '--max-depth');
+  const closeCheck = args.includes('--close-check');
+  const campaignDurationSeconds = parsePositiveInteger(
+    argValue(args, '--campaign-duration-seconds') ?? (closeCheck ? '5' : String(60 * 60 * 24 * 30)),
+    '--campaign-duration-seconds',
+  );
   const fundAmount = new anchor.BN(argValue(args, '--fund-amount') ?? rewardPerVisit.mul(new anchor.BN(maxRedemptions)).toString());
   if (fundAmount.lte(new anchor.BN(0))) {
     throw new Error('--fund-amount must be positive.');
@@ -227,9 +237,9 @@ function parseArgs(): CliOptions {
   return {
     rpcUrl: argValue(args, '--rpc') ?? process.env.LOCALNET_RPC_URL ?? DEFAULT_RPC_URL,
     walletPath: argValue(args, '--wallet') ?? process.env.ANCHOR_WALLET ?? process.env.SOLANA_WALLET,
-    orgId: argValue(args, '--org') ?? `viral-sync-localnet-org-${Date.now().toString(36)}`,
-    campaignId: argValue(args, '--campaign') ?? `viral-sync-localnet-campaign-${Date.now().toString(36)}`,
-    receiptId: argValue(args, '--receipt') ?? `viral-sync-localnet-receipt-${Date.now().toString(36)}`,
+    orgId: argValue(args, '--org') ?? `viral-sync-devnet-org-${Date.now().toString(36)}`,
+    campaignId: argValue(args, '--campaign') ?? `viral-sync-frontier-campaign-${Date.now().toString(36)}`,
+    receiptId: argValue(args, '--receipt') ?? `viral-sync-frontier-receipt-${Date.now().toString(36)}`,
     receiptIdHash: parseHashHex(argValue(args, '--receipt-id-hash'), '--receipt-id-hash'),
     claimerNullifierHash: parseHashHex(argValue(args, '--claimer-nullifier-hash'), '--claimer-nullifier-hash'),
     inviteHash: parseHashHex(argValue(args, '--invite-hash'), '--invite-hash'),
@@ -238,11 +248,12 @@ function parseArgs(): CliOptions {
     rewardPerVisit,
     maxRedemptions,
     maxDepth,
+    campaignDurationSeconds,
     fundAmount,
     airdropSol: parseNonNegativeNumber(argValue(args, '--airdrop-sol') ?? '2', '--airdrop-sol'),
     replayCheck: args.includes('--replay-check'),
     attackCheck: args.includes('--attack-check'),
-    closeCheck: args.includes('--close-check'),
+    closeCheck,
     outputPath: argValue(args, '--output') ?? DEFAULT_OUTPUT_PATH,
   };
 }
@@ -304,6 +315,69 @@ function canonicalJson(value: unknown): string {
 
 function hashIntentManifest(value: Record<string, unknown>) {
   return createHash('sha256').update(canonicalJson(value)).digest();
+}
+
+
+type CausalReceiptEffectManifest = {
+  version: string;
+  action: string;
+  expiresAt: string;
+  rewardAmount: number;
+  referrerBeneficiary: string;
+  visitorBeneficiary: string;
+  allowedInstructions: string[];
+};
+
+function validateCausalReceiptEffect(params: {
+  manifest: CausalReceiptEffectManifest;
+  action: string;
+  accounts: Record<string, string>;
+  rewardAmount: number;
+  referrerBeneficiary: string;
+  visitorBeneficiary: string;
+  now?: Date;
+}) {
+  const now = params.now ?? new Date();
+
+  if (params.manifest.version !== 'viral-sync-intent-v1') {
+    return { ok: false as const, reason: 'Unsupported manifest version.' };
+  }
+
+  if (params.manifest.action !== 'record_causal_receipt_and_settle_reward') {
+    return { ok: false as const, reason: 'Unsupported manifest action.' };
+  }
+
+  if (!params.manifest.allowedInstructions.includes(params.action)) {
+    return { ok: false as const, reason: 'Instruction is not allowed by manifest.' };
+  }
+
+  if (new Date(params.manifest.expiresAt).getTime() <= now.getTime()) {
+    return { ok: false as const, reason: 'Intent manifest expired.' };
+  }
+
+  if (params.rewardAmount > params.manifest.rewardAmount) {
+    return { ok: false as const, reason: 'Reward amount exceeds manifest maximum.' };
+  }
+
+  if (params.referrerBeneficiary !== params.manifest.referrerBeneficiary) {
+    return { ok: false as const, reason: 'Referrer beneficiary does not match manifest.' };
+  }
+
+  if (params.visitorBeneficiary !== params.manifest.visitorBeneficiary) {
+    return { ok: false as const, reason: 'Visitor beneficiary does not match manifest.' };
+  }
+
+  for (const account of ['growthCampaign', 'rewardEscrow', 'causalReceipt', 'nullifierRecord']) {
+    if (!params.accounts[account]) {
+      return { ok: false as const, reason: `Missing required account: ${account}.` };
+    }
+  }
+
+  return {
+    ok: true as const,
+    reason: 'Effect matches Viral Sync causal receipt intent.',
+    manifestHash: hashIntentManifest(params.manifest as unknown as Record<string, unknown>).toString('hex'),
+  };
 }
 
 function detectCluster(rpcUrl: string) {
@@ -444,6 +518,10 @@ async function tokenAmount(connection: Connection, tokenAccount: PublicKey) {
   return balance.value.amount;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function tokenAmountOrClosed(connection: Connection, tokenAccount: PublicKey) {
   const account = await connection.getAccountInfo(tokenAccount);
   if (!account) {
@@ -497,6 +575,24 @@ async function fetchAccount<T>(program: anchor.Program, accountName: string, add
   return account.fetch(address);
 }
 
+
+function publicKeyFromAccountField(value: unknown, label: string) {
+  if (value instanceof PublicKey) return value;
+  if (typeof value === 'string') return new PublicKey(value);
+  if (value && typeof value === 'object' && typeof (value as { toBase58?: unknown }).toBase58 === 'function') {
+    return new PublicKey((value as { toBase58: () => string }).toBase58());
+  }
+  throw new Error(`Existing campaign is missing a usable ${label} public key. Rebuild the IDL and rerun the proof script.`);
+}
+
+async function tryFetchGrowthCampaign(program: anchor.Program, growthCampaign: PublicKey) {
+  try {
+    return await fetchAccount<Record<string, unknown>>(program, 'growthCampaign', growthCampaign);
+  } catch {
+    return undefined;
+  }
+}
+
 async function maybeRegisterMerchant(
   program: anchor.Program,
   methods: ProgramMethods,
@@ -536,6 +632,7 @@ async function maybeCreateCampaign(params: {
   referrerSplitBps: number;
   splitRulesHash: Buffer;
   fraudPolicyHash: Buffer;
+  campaignDurationSeconds: number;
 }) {
   try {
     await fetchAccount(params.program, 'growthCampaign', params.growthCampaign);
@@ -551,7 +648,7 @@ async function maybeCreateCampaign(params: {
       Array.from(params.splitRulesHash),
       Array.from(params.fraudPolicyHash),
       new anchor.BN(nowSeconds - 60),
-      new anchor.BN(nowSeconds + 60 * 60 * 24 * 30),
+      new anchor.BN(nowSeconds + params.campaignDurationSeconds),
     )
       .accounts({
         merchantConfig: params.merchantConfig,
@@ -635,6 +732,8 @@ async function main() {
   const referrerAuthority = Keypair.generate();
   const visitorAuthority = Keypair.generate();
   const attackerAuthority = Keypair.generate();
+  const manifestIssuedAtDate = new Date();
+  const manifestExpiresAtDate = new Date(manifestIssuedAtDate.getTime() + 30 * 60_000);
   const intentManifest = {
     version: 'viral-sync-intent-v1',
     action: 'record_causal_receipt_and_settle_reward',
@@ -674,14 +773,27 @@ async function main() {
       'wrong_reward_amount',
       'duplicate_nullifier',
     ],
-    expiresAt: new Date(Date.now() + 90_000).toISOString(),
+    issuedAt: manifestIssuedAtDate.toISOString(),
+    expiresAt: manifestExpiresAtDate.toISOString(),
+    nonce: randomUUID(),
   };
 
   const [merchantConfig, merchantConfigBump] = findPda('causal_merchant', [wallet.publicKey.toBuffer(), orgIdHash]);
   const [growthCampaign, growthCampaignBump] = findPda('growth_campaign', [merchantConfig.toBuffer(), campaignIdHash]);
 
+  const existingGrowthCampaign = await tryFetchGrowthCampaign(program, growthCampaign);
   let rewardMint = options.rewardMint;
   let createMintSignature: string | null = null;
+
+  if (existingGrowthCampaign) {
+    const existingRewardMint = publicKeyFromAccountField(existingGrowthCampaign.rewardMint, 'rewardMint');
+    if (rewardMint && !rewardMint.equals(existingRewardMint)) {
+      throw new Error(`Existing campaign ${growthCampaign.toBase58()} uses reward mint ${existingRewardMint.toBase58()}, but --reward-mint was ${rewardMint.toBase58()}. Use a new --campaign or pass the existing mint.`);
+    }
+    rewardMint = existingRewardMint;
+    console.error(`existing growth campaign found; reusing reward mint ${rewardMint.toBase58()}`);
+  }
+
   if (!rewardMint) {
     const mint = await createLocalnetRewardMint(connection, walletInfo.keypair);
     rewardMint = mint.publicKey;
@@ -737,6 +849,7 @@ async function main() {
     referrerSplitBps: 8_000,
     splitRulesHash,
     fraudPolicyHash,
+    campaignDurationSeconds: options.campaignDurationSeconds,
   });
   console.error('createGrowthCampaign complete');
 
@@ -768,6 +881,7 @@ async function main() {
   )
     .accounts({
       growthCampaign,
+      merchantConfig,
       rewardEscrow,
       rewardVault: rewardVault.address,
       causalReceipt,
@@ -795,6 +909,7 @@ async function main() {
     )
       .accounts({
         growthCampaign,
+        merchantConfig,
         rewardEscrow,
         rewardVault: rewardVault.address,
         causalReceipt: replayReceipt,
@@ -808,6 +923,7 @@ async function main() {
     replayChecks.push(await expectRejected('wrong merchant authority cannot settle receipt', () => sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
       .accounts({
         growthCampaign,
+        merchantConfig,
         rewardEscrow,
         rewardVault: rewardVault.address,
         causalReceipt,
@@ -822,6 +938,7 @@ async function main() {
     replayChecks.push(await expectRejected('wrong beneficiary token account cannot receive settlement', () => sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
       .accounts({
         growthCampaign,
+        merchantConfig,
         rewardEscrow,
         rewardVault: rewardVault.address,
         causalReceipt,
@@ -838,6 +955,7 @@ async function main() {
   const settleReceiptReward = await sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
     .accounts({
       growthCampaign,
+      merchantConfig,
       rewardEscrow,
       rewardVault: rewardVault.address,
       causalReceipt,
@@ -854,6 +972,7 @@ async function main() {
     replayChecks.push(await expectRejected('duplicate receipt settlement', () => sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
       .accounts({
         growthCampaign,
+        merchantConfig,
         rewardEscrow,
         rewardVault: rewardVault.address,
         causalReceipt,
@@ -877,6 +996,13 @@ async function main() {
   let closeGrowthBounty: string | null = null;
   let tokenBalancesAfterClose: Record<string, string> | null = null;
   if (options.closeCheck) {
+    const campaignExpiresAtMs = (Math.floor(Date.now() / 1000) + options.campaignDurationSeconds + 1) * 1000;
+    const waitMs = Math.max(0, campaignExpiresAtMs - Date.now());
+    if (waitMs > 0) {
+      console.error(`waiting ${waitMs}ms for campaign expiry before close check`);
+      await sleep(waitMs);
+    }
+
     closeGrowthBounty = await sendProgramInstruction(connection, walletInfo.keypair, methods.closeGrowthBounty()
       .accounts({
         growthCampaign,
@@ -905,36 +1031,77 @@ async function main() {
     settlementRecord: normalize(await fetchAccount(program, 'settlementRecord', settlementRecord)),
   };
 
+  const effectAccounts = {
+    growthCampaign: growthCampaign.toBase58(),
+    rewardEscrow: rewardEscrow.toBase58(),
+    causalReceipt: causalReceipt.toBase58(),
+    nullifierRecord: nullifierRecord.toBase58(),
+  };
+  const effectCheckedAt = new Date().toISOString();
+  const effectCheckNow = new Date(effectCheckedAt);
   const effectChecks = [
     {
       label: 'Valid receipt effect',
-      ok: true,
-      reason: 'Effect matches Viral Sync causal receipt intent.',
+      ...validateCausalReceiptEffect({
+        manifest: intentManifest,
+        action: 'record_causal_receipt',
+        accounts: effectAccounts,
+        rewardAmount: Number(options.rewardPerVisit.toString()),
+        referrerBeneficiary: referrerAuthority.publicKey.toBase58(),
+        visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
+        now: effectCheckNow,
+      }),
     },
     {
       label: 'Wrong referrer beneficiary',
-      ok: false,
-      reason: 'Referrer beneficiary does not match manifest.',
+      ...validateCausalReceiptEffect({
+        manifest: intentManifest,
+        action: 'record_causal_receipt',
+        accounts: effectAccounts,
+        rewardAmount: Number(options.rewardPerVisit.toString()),
+        referrerBeneficiary: attackerAuthority.publicKey.toBase58(),
+        visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
+        now: effectCheckNow,
+      }),
     },
     {
       label: 'Inflated reward',
-      ok: false,
-      reason: 'Reward amount exceeds manifest maximum.',
+      ...validateCausalReceiptEffect({
+        manifest: intentManifest,
+        action: 'record_causal_receipt',
+        accounts: effectAccounts,
+        rewardAmount: Number(options.rewardPerVisit.toString()) * 10,
+        referrerBeneficiary: referrerAuthority.publicKey.toBase58(),
+        visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
+        now: effectCheckNow,
+      }),
     },
     {
       label: 'Forbidden instruction',
-      ok: false,
-      reason: 'Instruction is not allowed by manifest.',
+      ...validateCausalReceiptEffect({
+        manifest: intentManifest,
+        action: 'set_authority',
+        accounts: effectAccounts,
+        rewardAmount: Number(options.rewardPerVisit.toString()),
+        referrerBeneficiary: referrerAuthority.publicKey.toBase58(),
+        visitorBeneficiary: visitorAuthority.publicKey.toBase58(),
+        now: effectCheckNow,
+      }),
     },
   ];
+
+  const verifierCommand = cluster === 'devnet'
+    ? 'npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json'
+    : `npm run localnet:verify-receipt -- --manifest ${options.outputPath ?? DEFAULT_OUTPUT_PATH}`;
 
   const manifest = {
     kind: `viral-sync-${cluster}-causal-commerce`,
     cluster,
+    generatedAt: new Date().toISOString(),
+    effectCheckedAt,
     rpcUrl: options.rpcUrl,
     programId: PROGRAM_ID.toBase58(),
     wallet: wallet.publicKey.toBase58(),
-    walletSource: walletInfo.source,
     initialBalanceSol: balance / LAMPORTS_PER_SOL,
     inputs: {
       orgId: options.orgId,
@@ -943,6 +1110,7 @@ async function main() {
       rewardPerVisit: options.rewardPerVisit.toString(),
       maxRedemptions: options.maxRedemptions,
       maxDepth: options.maxDepth,
+      campaignDurationSeconds: options.campaignDurationSeconds,
       fundAmount: options.fundAmount.toString(),
       replayCheck: options.replayCheck,
       attackCheck: options.attackCheck,
@@ -998,6 +1166,11 @@ async function main() {
       settleReceiptReward,
       closeGrowthBounty,
     },
+    // Compatibility alias for live app confirmation paths that expect proof.transactions.
+    transactions: {
+      recordCausalReceipt,
+      settleReceiptReward,
+    },
     explorerLinks: {
       transactions: {
         createRewardMint: explorerTx(createMintSignature, cluster),
@@ -1032,7 +1205,7 @@ async function main() {
       afterClose: tokenBalancesAfterClose,
     },
     accounts,
-    verifierCommand: `npm run localnet:verify-receipt -- --manifest ${options.outputPath ?? DEFAULT_OUTPUT_PATH}`,
+    verifierCommand,
     limitation: `${cluster} proof path records SPL Token custody, payout, vault reclaim when close-check is enabled, and intent manifest hash commitment; production mainnet still requires external audit and funded relayer operations.`,
   };
 

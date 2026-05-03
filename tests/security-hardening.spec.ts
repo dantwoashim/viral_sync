@@ -159,6 +159,7 @@ describe('production security hardening guards', () => {
     expect(script).to.include('intentManifestHash');
     expect(script).to.include('explorerLinks');
     expect(script).to.include('https://explorer.solana.com/tx/');
+    expect(effectCheck).to.include('Causal Receipt Intent Validator');
     expect(effectCheck).to.include('validateCausalReceiptEffect');
     expect(effectCheck).to.include('Referrer beneficiary does not match manifest.');
     expect(effectCheck).to.include('Reward amount exceeds manifest maximum.');
@@ -167,5 +168,22 @@ describe('production security hardening guards', () => {
     expect(proofPage).to.include('Causal receipt recorded');
     expect(proofPage).to.include('Intent manifest');
     expect(proofManifest).to.include('viral-sync-devnet-causal-commerce');
+    expect(proofManifest).to.include('"transactions"');
+  });
+
+  it('keeps the Frontier submission gate strict about verifier output and schema aliases', () => {
+    const submission = read('scripts/prepare-frontier-submission.ts');
+    const server = read('app/src/lib/launch/server.ts');
+    const relayer = read('relayer/src/index.ts');
+
+    expect(submission).to.include('Required verifier output is missing');
+    expect(server).to.include('proof.signatures?.settleReceiptReward ?? proof.transactions?.settleReceiptReward');
+    expect(relayer).to.include('RELAYER_ALLOW_ADDRESS_LOOKUP_TABLES must remain false in production');
+  });
+
+  it('enforces merchant status on receipt recording/settlement and expiry before closing bounty', () => {
+    const causalCommerce = read('programs/viral_sync/src/instructions/causal_commerce.rs');
+    expect(causalCommerce).to.include('constraint = merchant_config.status == CausalMerchantStatus::Active');
+    expect(causalCommerce).to.include('require!(now > campaign.expires_at, ViralSyncError::InvalidState);');
   });
 });

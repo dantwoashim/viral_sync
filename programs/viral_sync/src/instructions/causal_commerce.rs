@@ -208,9 +208,10 @@ pub fn close_growth_bounty(ctx: Context<CloseGrowthBounty>) -> Result<()> {
 
     let campaign = &mut ctx.accounts.growth_campaign;
     let escrow = &mut ctx.accounts.reward_escrow;
+    let now = Clock::get()?.unix_timestamp;
+    require!(now > campaign.expires_at, ViralSyncError::InvalidState);
     require!(escrow.total_reserved == 0, ViralSyncError::UnsettledSlotsRemain);
 
-    let now = Clock::get()?.unix_timestamp;
     let reclaimable = escrow
         .total_funded
         .checked_sub(escrow.total_settled)
@@ -284,6 +285,12 @@ pub struct RecordCausalReceipt<'info> {
         constraint = growth_campaign.status == GrowthCampaignStatus::Active @ ViralSyncError::InvalidState,
     )]
     pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
+
+    #[account(
+        address = growth_campaign.merchant_config @ ViralSyncError::InvalidState,
+        constraint = merchant_config.status == CausalMerchantStatus::Active @ ViralSyncError::InvalidState,
+    )]
+    pub merchant_config: Box<Account<'info, CausalMerchantConfig>>,
 
     #[account(
         mut,
@@ -432,6 +439,12 @@ pub struct SettleReceiptReward<'info> {
         constraint = growth_campaign.status == GrowthCampaignStatus::Active @ ViralSyncError::InvalidState,
     )]
     pub growth_campaign: Box<Account<'info, GrowthCampaign>>,
+
+    #[account(
+        address = growth_campaign.merchant_config @ ViralSyncError::InvalidState,
+        constraint = merchant_config.status == CausalMerchantStatus::Active @ ViralSyncError::InvalidState,
+    )]
+    pub merchant_config: Box<Account<'info, CausalMerchantConfig>>,
 
     #[account(
         mut,

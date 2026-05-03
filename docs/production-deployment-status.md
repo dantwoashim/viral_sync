@@ -70,7 +70,7 @@ GitHub Actions also runs `.github/workflows/production-smoke.yml` every 6 hours 
 
 ## Solana Snapshot
 
-- Program ID: `8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9`
+- Program ID: `AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46`
 - IDL snapshot: `docs/snapshots/solana/viral_sync-idl-devnet-2026-04-30.json`
 - Localnet deployment snapshot: `docs/snapshots/solana/viral_sync-localnet-deployment-snapshot-2026-04-30.json`
 - Deployment snapshot metadata: `docs/snapshots/solana/viral_sync-devnet-deployment-snapshot-2026-04-30.json`
@@ -86,5 +86,5 @@ Final devnet deployment is complete and verified. The deployed program is owned 
 Verify anytime with:
 
 ```bash
-wsl -d Ubuntu-24.04 -- bash -lc 'export PATH=/root/.local/share/solana/install/active_release/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; solana program show 8D5chmUeb97oxykaBv7CTFpZnBotVAMnqYAvyk6qcQz9 --url devnet'
+wsl -d Ubuntu-24.04 -- bash -lc 'export PATH=/root/.local/share/solana/install/active_release/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; solana program show AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46 --url devnet'
 ```
