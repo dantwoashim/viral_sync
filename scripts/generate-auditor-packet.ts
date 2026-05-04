@@ -36,7 +36,7 @@ const files = [
   'app/public/proofs/merchant-validation-kit.json',
   'app/public/proofs/invariant-matrix.json',
   'tmp/devnet-causal-commerce-verifier.json',
-  'target/idl/viral_sync.json',
+  'idl/viral_sync.json',
   'sdk/src/index.ts',
   'scripts/verify-causal-receipt-localnet.ts',
   'scripts/generate-fraud-gauntlet.ts',
@@ -52,16 +52,21 @@ copy('schemas', 'schemas');
 
 writeFileSync(path.join(out, 'known-limitations.md'), `# Known limitations\n\n- After future protocol, verifier, schema, or proof-generator changes, rerun frontier:final before submission or deployment.\n- Counter-attestation is merchant terminal + visitor signing, not GPS or independent physical-world oracle proof.\n- Mainnet use requires external audit, funded relayer operations, and production incident process.\n`);
 
-writeFileSync(path.join(out, 'how-to-reproduce.md'), `# Reproduce Frontier Proof\n\n1. Fund the configured devnet wallet. The final proof command uses --airdrop-sol 0 so it does not depend on faucet availability.\n2. Confirm the program ID in Anchor.toml, declare_id!, and the deploy keypair match.\n3. Run:\n\n\`\`\`bash\nnpm ci\nnpm run frontier:offline-preflight\nnpm run frontier:mock-final\nnpm run frontier:final 2>&1 | tee dist/final-command-transcript.txt\n\`\`\`\n\nThe mock command only rehearses the artifact pipeline with fixtures. It is not submission evidence.\n`);
+writeFileSync(path.join(out, 'how-to-reproduce.md'), `# Reproduce Frontier Proof\n\n1. Fund the configured devnet wallet. The final proof command uses --airdrop-sol 0 so it does not depend on faucet availability.\n2. Confirm the program ID in Anchor.toml, declare_id!, and the deploy keypair match.\n3. Run:\n\n\`\`\`bash\nnpm ci\nnpm run frontier:offline-preflight\nnpm run frontier:mock-final\nnpm run frontier:final-core:transcript\nnpm run auditor:packet\nnpm run frontier:assert-final\n\`\`\`\n\nRegenerating the same program ID requires the maintainer deploy keypair at target/deploy/viral_sync-keypair.json. Without that private key, use:\n\n\`\`\`bash\nnpm ci\nnpm run frontier:verify-submitted-artifacts\n\`\`\`\n\nThe mock command only rehearses the artifact pipeline with fixtures. It is not submission evidence.\n`);
 
-writeJson(path.join(out, 'artifact-hashes.json'), computeProofHashes([
-  'docs/POC-1.md',
-  'docs/invariant-matrix.md',
-  'schemas',
-  'sdk/src/index.ts',
-  'scripts/verify-causal-receipt-localnet.ts',
-  'scripts/generate-fraud-gauntlet.ts',
-]));
+writeJson(path.join(out, 'artifact-hashes.json'), {
+  proofArtifactSourceHashes: computeProofHashes(),
+  auditorPacketHashes: computeProofHashes([
+    'docs/POC-1.md',
+    'docs/invariant-matrix.md',
+    'schemas',
+    'sdk/src/index.ts',
+    'scripts/verify-causal-receipt-localnet.ts',
+    'scripts/generate-fraud-gauntlet.ts',
+    'scripts/generate-auditor-packet.ts',
+    'scripts/assert-no-stale-artifacts.ts',
+  ]),
+});
 
 writeFileSync(path.join(out, 'README.md'), `# Viral Sync Auditor Packet\n\nThis packet is a self-contained review bundle for Viral Sync POC-1 proof-of-conversion artifacts.\n\nStart with:\n\n1. docs/POC-1.md\n2. docs/invariant-matrix.md\n3. app/public/proofs/devnet-causal-commerce.json\n4. app/public/proofs/devnet-causal-commerce-verifier.json (published copy) and tmp/devnet-causal-commerce-verifier.json (raw verifier output)\n5. app/public/proofs/fraud-gauntlet.json\n6. app/public/proofs/proof-feed.json\n7. schemas/\n8. sdk/src/index.ts\n9. artifact-hashes.json\n10. how-to-reproduce.md\n11. final-command-transcript.txt, when present after a final run\n`);
 

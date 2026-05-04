@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { CheckCircle, Receipt, ShieldCheck, Wallet } from '@phosphor-icons/react/dist/ssr';
 import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
-import { getProofState } from '@/lib/proof/getProofState';
+import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 
 export default async function MerchantTodayPage() {
   const proof = getProofState();
@@ -56,7 +56,7 @@ export default async function MerchantTodayPage() {
         <article>
           <ShieldCheck size={20} />
           <span>Fraud checks</span>
-          <strong>{proof.gauntlet?.summary?.blocked ?? 16}/{proof.gauntlet?.summary?.totalCases ?? 16}</strong>
+          <strong>{gauntletLabel(proof.gauntlet)}</strong>
         </article>
       </section>
 

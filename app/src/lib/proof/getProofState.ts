@@ -19,10 +19,16 @@ function allVerifierFlags(verifier: VerifierArtifact) {
 function gauntletVerified(gauntlet: FraudGauntlet) {
   const total = gauntlet.summary?.totalCases ?? gauntlet.cases?.length ?? 0;
   const blocked = gauntlet.summary?.blocked ?? gauntlet.cases?.filter((item) => item.observed === 'rejected').length ?? 0;
-  return total >= 16 && blocked === total && gauntlet.cases?.every((item) =>
+  return total >= 16 &&
+    blocked === total &&
+    gauntlet.summary?.missing === 0 &&
+    gauntlet.summary?.failed === 0 &&
+    gauntlet.cases?.every((item) =>
     item.observed === 'rejected' &&
     item.expectedErrorMatched === true &&
     item.accountsMutationVerified === true &&
+    item.accountsMutated === false &&
+    (item.failureKind === 'program_rejection' || item.failureKind === 'intent_validator_rejection') &&
     item.proofSource !== 'mock_final_fixture'
   ) === true;
 }
@@ -46,6 +52,20 @@ function statusLabel(health: ProofHealth) {
   return 'Pending verification';
 }
 
+function formatReward(raw: string | number | undefined, symbol = 'USDC', decimals = 3) {
+  if (raw == null) return 'Pending';
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return 'Pending';
+  return `${(value / 10 ** decimals).toFixed(2)} ${symbol}`;
+}
+
+export function gauntletLabel(gauntlet: FraudGauntlet) {
+  const blocked = gauntlet.summary?.blocked;
+  const total = gauntlet.summary?.totalCases;
+  if (typeof blocked !== 'number' || typeof total !== 'number') return 'Pending';
+  return `${blocked}/${total}`;
+}
+
 export function getProofState(): NormalizedReceiptProof {
   const manifest = loadProofManifest();
   const verifier = loadVerifierArtifact();
@@ -57,11 +77,12 @@ export function getProofState(): NormalizedReceiptProof {
     health,
     statusLabel: statusLabel(health),
     receiptId: manifest.inputs?.receiptId ?? String(manifest.pdas?.causalReceipt ?? 'latest'),
-    merchantName: 'Thamel Brew',
+    merchantName: manifest.inputs?.merchantAlias ?? manifest.intentManifest?.merchantAlias ?? 'Verified merchant',
     cluster: manifest.cluster ?? 'devnet',
     programId: manifest.programId ?? 'missing',
-    proofLevel: manifest.proofLevel ?? manifest.targetProofLevel ?? 'merchant_terminal_visitor_signed',
-    rewardAmountLabel: `${manifest.intentManifest?.rewardAmount ?? manifest.inputs?.rewardPerVisit ?? '0'} units`,
+    proofLevel: manifest.proofLevel ?? manifest.targetProofLevel ?? 'missing',
+    attestationModel: manifest.attestationModel ?? manifest.targetAttestationModel ?? 'missing',
+    rewardAmountLabel: formatReward(manifest.inputs?.rewardPerVisit ?? manifest.intentManifest?.rewardAmount, 'USDC', 3),
     manifest,
     verifier,
     gauntlet,

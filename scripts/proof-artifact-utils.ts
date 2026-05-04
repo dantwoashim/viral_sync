@@ -65,7 +65,7 @@ export function hashFiles(paths: string[]): string | null {
 export function computeProofHashes(extraFiles: string[] = []) {
   return {
     programSourceHash: hashFiles(['programs/viral_sync/src']),
-    idlHash: hashFiles(['target/idl/viral_sync.json']),
+    idlHash: hashFiles(['idl/viral_sync.json']),
     proofGeneratorHash: hashFiles([
       'scripts/run-causal-commerce-localnet.ts',
       'scripts/generate-merchant-passport.ts',

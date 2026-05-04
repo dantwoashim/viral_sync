@@ -8,7 +8,16 @@
 npm ci
 npm run frontier:offline-preflight
 npm run frontier:mock-final
-npm run frontier:final 2>&1 | tee dist/final-command-transcript.txt
+npm run frontier:final-core:transcript
+npm run auditor:packet
+npm run frontier:assert-final
+```
+
+Regenerating the same program ID requires the maintainer deploy keypair at target/deploy/viral_sync-keypair.json. Without that private key, use:
+
+```bash
+npm ci
+npm run frontier:verify-submitted-artifacts
 ```
 
 The mock command only rehearses the artifact pipeline with fixtures. It is not submission evidence.

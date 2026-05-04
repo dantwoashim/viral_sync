@@ -3,12 +3,16 @@ export const PUBLIC_DEMO_ROUTES = new Set([
   '/merchant/today',
   '/merchant/scan',
   '/proof',
+  '/icon.png',
+  '/favicon.ico',
 ]);
 
 const PUBLIC_DEMO_PREFIXES = [
   '/campaign/',
   '/claim/',
   '/receipt/',
+  '/proofs/',
+  '/.well-known/',
 ];
 
 export function labsEnabled() {

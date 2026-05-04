@@ -4,7 +4,7 @@ import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import SignatureReceipt from '@/components/product/SignatureReceipt';
 import { TerminalPanel } from '@/components/product/TerminalPanel';
 import { VisitPass } from '@/components/product/VisitPass';
-import { getProofState } from '@/lib/proof/getProofState';
+import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 
 export default function HomePage() {
   const proof = getProofState();
@@ -12,7 +12,7 @@ export default function HomePage() {
     'Terminal signed',
     'Visitor signed',
     'Reward settled',
-    `${proof.gauntlet.summary?.blocked ?? 16}/${proof.gauntlet.summary?.totalCases ?? 16} fraud attempts rejected`,
+    `${gauntletLabel(proof.gauntlet)} fraud attempts rejected`,
   ];
   const flow = ['Share link', 'Claim pass', 'Counter scan', 'Signed receipt', 'Payout settled'];
 
@@ -90,7 +90,7 @@ export default function HomePage() {
         <div className="proof-stats">
           <span><b>{proof.statusLabel}</b><small>Proof status</small></span>
           <span><b>{proof.cluster}</b><small>Cluster</small></span>
-          <span><b>{proof.gauntlet.summary?.blocked ?? 16}/{proof.gauntlet.summary?.totalCases ?? 16}</b><small>Fraud checks</small></span>
+          <span><b>{gauntletLabel(proof.gauntlet)}</b><small>Fraud checks</small></span>
           <Link className="product-button primary" href="/proof">Open proof center</Link>
         </div>
       </section>

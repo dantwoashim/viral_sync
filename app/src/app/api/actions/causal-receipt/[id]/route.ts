@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const proof = getProofState();
   const receiptLookup = decodeURIComponent(id);
-  const matchesReceipt = receiptLookup === proof.receiptId || receiptLookup === proof.manifest.pdas?.causalReceipt;
+  const matchesReceipt = receiptLookup === 'latest' || receiptLookup === proof.receiptId || receiptLookup === proof.manifest.pdas?.causalReceipt;
   if (!matchesReceipt) {
     return actionHeaders(NextResponse.json({ error: 'Receipt proof not found.' }, { status: 404 }));
   }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   const proof = getProofState();
   const receiptLookup = decodeURIComponent(id);
-  const matchesReceipt = receiptLookup === proof.receiptId || receiptLookup === proof.manifest.pdas?.causalReceipt;
+  const matchesReceipt = receiptLookup === 'latest' || receiptLookup === proof.receiptId || receiptLookup === proof.manifest.pdas?.causalReceipt;
   if (!matchesReceipt) {
     return actionHeaders(NextResponse.json({ ok: false, error: 'Receipt proof not found.' }, { status: 404 }));
   }
@@ -84,8 +84,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   return actionHeaders(NextResponse.json({
     ok: true,
-    artifactType: 'poc1_receipt_verification_intent',
-    verificationIntent,
+    artifactType: 'poc1_receipt_verification_preview',
+    verificationPreview: verificationIntent,
     receiptPda: proof.manifest.pdas?.causalReceipt,
     account: body.account,
     proofStatus: proof.statusLabel,

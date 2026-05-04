@@ -38,9 +38,14 @@ const finalMarkdownFiles = new Set([
   'dist/auditor-packet/docs/frontier-final-run-readiness.md',
 ]);
 
+const finalTextFiles = new Set([
+  'dist/final-command-transcript.txt',
+  'dist/auditor-packet/dist/final-command-transcript.txt',
+]);
+
 const failures: Failure[] = [];
 const badStatus = /needs[-_\s]?regeneration|needs[-_\s]?final[-_\s]?proof|stale|unsafe|no-go|ready_for_final_proof_run/i;
-const localPath = /(C:\\Users|\/home\/|\.config\/solana\/id\.json|PRIVATE_KEY|SECRET|NEXTAUTH|API_KEY|RPC_TOKEN)/i;
+const localPath = /(C:\\Users|D:\\|\/home\/|\.config\/solana\/id\.json|PRIVATE_KEY|SECRET|NEXTAUTH|API_KEY|RPC_TOKEN)/i;
 const allowMockFinal = process.env.ALLOW_MOCK_FINAL === '1';
 const mockMarker = /mock final fixture|mockFinal|mock-final|mock_final_fixture|fixture/i;
 const currentProofHashes = computeProofHashes();
@@ -115,7 +120,9 @@ function scanJsonFile(file: string) {
         });
       }
     }
-    if (currentProofHashes.idlHash && obj.idlHash !== currentProofHashes.idlHash) {
+    if (!currentProofHashes.idlHash) {
+      fail(file, '$.idlHash', 'canonical idl/viral_sync.json is required for final idlHash verification');
+    } else if (obj.idlHash !== currentProofHashes.idlHash) {
       fail(file, '$.idlHash', 'idlHash does not match current repository state', {
         artifact: obj.idlHash,
         current: currentProofHashes.idlHash,
@@ -152,6 +159,16 @@ function scanJsonFile(file: string) {
   }
 }
 
+function scanTextFile(file: string) {
+  if (!finalTextFiles.has(file)) return;
+  if (!exists(file)) { fail(file, '$', 'required final transcript missing'); return; }
+  const text = read(file);
+  if (text.includes('\u0000')) fail(file, '$', 'transcript must be UTF-8 text, not UTF-16/null-byte encoded');
+  if (localPath.test(text)) fail(file, '$', 'final transcript leaks local path or secret-like value');
+  if (!allowMockFinal && mockMarker.test(text)) fail(file, '$', 'mock fixture marker is not allowed in real final transcript');
+  if (badStatus.test(text)) fail(file, '$', 'final transcript contains unsafe/pre-final status text');
+}
+
 function scanMarkdownFile(file: string) {
   if (!finalMarkdownFiles.has(file)) return;
   if (!exists(file)) { fail(file, '$', 'required final markdown missing'); return; }
@@ -169,6 +186,7 @@ function scanMarkdownFile(file: string) {
 
 for (const file of [...finalJsonArtifacts].map(normalize)) scanJsonFile(file);
 for (const file of [...finalMarkdownFiles].map(normalize)) scanMarkdownFile(file);
+for (const file of [...finalTextFiles].map(normalize)) scanTextFile(file);
 
 const result = { ok: failures.length === 0, scannedMode: allowMockFinal ? 'mock-final-artifact-assertion' : 'explicit-final-artifact-assertion', jsonArtifacts: [...finalJsonArtifacts].sort(), markdownArtifacts: [...finalMarkdownFiles].sort(), failures };
 console.log(JSON.stringify(result, null, 2));

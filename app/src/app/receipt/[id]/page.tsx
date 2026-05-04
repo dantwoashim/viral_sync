@@ -5,7 +5,7 @@ import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import SignatureReceipt from '@/components/product/SignatureReceipt';
 import { ProofTimeline } from '@/components/product/ProofTimeline';
 import { VerificationGrid } from '@/components/product/VerificationGrid';
-import { getProofState } from '@/lib/proof/getProofState';
+import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 import { receiptMatches } from '@/lib/proof/normalizeReceipt';
 import { explorerAddress, explorerTx, shortHash, signatureValue } from '@/lib/proof/links';
 
@@ -31,7 +31,7 @@ export default async function ReceiptProofPage({ params }: { params: Promise<{ i
           <div className="receipt-pills">
             <span>{proof.statusLabel}</span>
             <span>{proof.cluster}</span>
-            <span>{proof.gauntlet.summary?.blocked ?? 16}/{proof.gauntlet.summary?.totalCases ?? 16} fraud checks</span>
+            <span>{gauntletLabel(proof.gauntlet)} fraud checks</span>
           </div>
         </div>
         <SignatureReceipt proof={proof} />
@@ -41,7 +41,7 @@ export default async function ReceiptProofPage({ params }: { params: Promise<{ i
         <div className="receipt-panel">
           <span className="section-kicker">Timeline</span>
           <h2>How this receipt became payable.</h2>
-          <ProofTimeline />
+          <ProofTimeline proof={proof} />
         </div>
         <div className="receipt-panel">
           <span className="section-kicker">Share proof</span>

@@ -1,0 +1,4943 @@
+{
+  "address": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+  "metadata": {
+    "name": "viral_sync",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Viral Sync Solana program"
+  },
+  "instructions": [
+    {
+      "name": "burn_tokens",
+      "discriminator": [
+        76,
+        15,
+        51,
+        254,
+        229,
+        215,
+        121,
+        66
+      ],
+      "accounts": [
+        {
+          "name": "token_generation",
+          "writable": true
+        },
+        {
+          "name": "merchant_config",
+          "writable": true
+        },
+        {
+          "name": "owner_ata",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "claim_commission",
+      "discriminator": [
+        12,
+        9,
+        15,
+        170,
+        155,
+        235,
+        124,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "commission_ledger",
+          "writable": true
+        },
+        {
+          "name": "referral_record",
+          "writable": true
+        },
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "treasury_generation",
+          "writable": true
+        },
+        {
+          "name": "treasury_ata",
+          "writable": true
+        },
+        {
+          "name": "referrer_ata",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "treasury_signer",
+          "signer": true
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_escrow",
+      "discriminator": [
+        200,
+        80,
+        182,
+        159,
+        61,
+        75,
+        9,
+        205
+      ],
+      "accounts": [
+        {
+          "name": "escrow_generation",
+          "writable": true
+        },
+        {
+          "name": "dest_generation",
+          "writable": true
+        },
+        {
+          "name": "escrow_ata",
+          "writable": true
+        },
+        {
+          "name": "dest_ata",
+          "writable": true
+        },
+        {
+          "name": "escrow_authority",
+          "signer": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "clear_redemption_pending",
+      "discriminator": [
+        217,
+        78,
+        39,
+        81,
+        7,
+        119,
+        4,
+        149
+      ],
+      "accounts": [
+        {
+          "name": "redeemer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "redeemer_generation",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_expired_referral",
+      "discriminator": [
+        126,
+        147,
+        151,
+        214,
+        90,
+        27,
+        47,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "referral_record",
+          "writable": true
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_growth_bounty",
+      "discriminator": [
+        103,
+        229,
+        160,
+        198,
+        69,
+        61,
+        169,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "growth_campaign",
+          "writable": true
+        },
+        {
+          "name": "reward_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign"
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign.reward_mint",
+                "account": "GrowthCampaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reward_vault",
+          "writable": true
+        },
+        {
+          "name": "merchant_reward_account",
+          "writable": true
+        },
+        {
+          "name": "reward_mint"
+        },
+        {
+          "name": "merchant_authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "growth_campaign"
+          ]
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "compute_merchant_reputation",
+      "discriminator": [
+        171,
+        92,
+        181,
+        30,
+        13,
+        71,
+        144,
+        86
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "reputation",
+          "writable": true
+        },
+        {
+          "name": "oracle_authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "pct_redeemers_aged_over_30_days",
+          "type": "u16"
+        },
+        {
+          "name": "unique_attestation_servers_used",
+          "type": "u8"
+        },
+        {
+          "name": "commission_concentration_bps",
+          "type": "u16"
+        },
+        {
+          "name": "pct_redemptions_in_business_hours",
+          "type": "u16"
+        },
+        {
+          "name": "avg_poi_score_top_referrers",
+          "type": "u32"
+        },
+        {
+          "name": "suspicion_score",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "compute_viral_oracle",
+      "discriminator": [
+        49,
+        244,
+        195,
+        56,
+        63,
+        166,
+        196,
+        80
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "viral_oracle",
+          "writable": true
+        },
+        {
+          "name": "oracle_authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "k_factor",
+          "type": "u64"
+        },
+        {
+          "name": "median_referrals_per_user",
+          "type": "u32"
+        },
+        {
+          "name": "p90_referrals_per_user",
+          "type": "u32"
+        },
+        {
+          "name": "p10_referrals_per_user",
+          "type": "u32"
+        },
+        {
+          "name": "referral_concentration_index",
+          "type": "u32"
+        },
+        {
+          "name": "share_rate",
+          "type": "u32"
+        },
+        {
+          "name": "claim_rate",
+          "type": "u32"
+        },
+        {
+          "name": "first_redeem_rate",
+          "type": "u32"
+        },
+        {
+          "name": "avg_time_share_to_claim_secs",
+          "type": "u32"
+        },
+        {
+          "name": "avg_time_claim_to_redeem_secs",
+          "type": "u32"
+        },
+        {
+          "name": "p50_time_share_to_claim_secs",
+          "type": "u32"
+        },
+        {
+          "name": "commission_per_new_customer_tokens",
+          "type": "u64"
+        },
+        {
+          "name": "vs_google_ads_efficiency_bps",
+          "type": "u32"
+        },
+        {
+          "name": "data_points",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "create_escrow_share",
+      "discriminator": [
+        100,
+        46,
+        54,
+        198,
+        186,
+        54,
+        136,
+        145
+      ],
+      "accounts": [
+        {
+          "name": "source_generation",
+          "writable": true
+        },
+        {
+          "name": "escrow_generation",
+          "writable": true
+        },
+        {
+          "name": "source_ata",
+          "writable": true
+        },
+        {
+          "name": "escrow_ata",
+          "writable": true
+        },
+        {
+          "name": "source",
+          "signer": true
+        },
+        {
+          "name": "escrow_authority",
+          "signer": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_growth_campaign",
+      "discriminator": [
+        50,
+        116,
+        67,
+        247,
+        180,
+        204,
+        240,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "growth_campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  114,
+                  111,
+                  119,
+                  116,
+                  104,
+                  95,
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merchant_config"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merchant_authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "merchant_config"
+          ]
+        },
+        {
+          "name": "reward_mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "campaign_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "reward_per_verified_visit",
+          "type": "u64"
+        },
+        {
+          "name": "max_redemptions",
+          "type": "u32"
+        },
+        {
+          "name": "max_depth",
+          "type": "u8"
+        },
+        {
+          "name": "referrer_split_bps",
+          "type": "u16"
+        },
+        {
+          "name": "split_rules_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "fraud_policy_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "starts_at",
+          "type": "i64"
+        },
+        {
+          "name": "expires_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "create_mint_and_config",
+      "discriminator": [
+        13,
+        58,
+        149,
+        219,
+        236,
+        150,
+        143,
+        20
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  114,
+                  99,
+                  104,
+                  97,
+                  110,
+                  116,
+                  95,
+                  118,
+                  52
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merchant",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "commission_rate_bps",
+          "type": "u16"
+        },
+        {
+          "name": "transfer_fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "min_hold_before_share_secs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "create_session_key",
+      "discriminator": [
+        137,
+        204,
+        246,
+        242,
+        200,
+        143,
+        215,
+        56
+      ],
+      "accounts": [
+        {
+          "name": "session_key",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_generation"
+              },
+              {
+                "kind": "account",
+                "path": "delegate"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_generation"
+        },
+        {
+          "name": "delegate"
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "expires_at",
+          "type": "i64"
+        },
+        {
+          "name": "max_tokens_per_session",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "enroll_terminal_device",
+      "discriminator": [
+        139,
+        25,
+        194,
+        112,
+        245,
+        48,
+        24,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config",
+          "writable": true
+        },
+        {
+          "name": "merchant_authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "merchant_config"
+          ]
+        },
+        {
+          "name": "terminal_authority",
+          "signer": true
+        },
+        {
+          "name": "terminal_device",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  114,
+                  109,
+                  105,
+                  110,
+                  97,
+                  108,
+                  95,
+                  100,
+                  101,
+                  118,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merchant_config"
+              },
+              {
+                "kind": "account",
+                "path": "terminal_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "label_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "execute_transfer_hook",
+      "discriminator": [
+        120,
+        157,
+        67,
+        141,
+        88,
+        144,
+        143,
+        220
+      ],
+      "accounts": [
+        {
+          "name": "source_token_account",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "dest_token_account",
+          "writable": true
+        },
+        {
+          "name": "source_authority"
+        },
+        {
+          "name": "extra_account_meta_list"
+        },
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "vault_entry"
+        },
+        {
+          "name": "source_generation",
+          "writable": true
+        },
+        {
+          "name": "dest_generation",
+          "writable": true
+        },
+        {
+          "name": "session_key",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "finalize_close_merchant",
+      "discriminator": [
+        192,
+        199,
+        81,
+        118,
+        209,
+        185,
+        255,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config",
+          "writable": true
+        },
+        {
+          "name": "merchant_bond"
+        },
+        {
+          "name": "merchant",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "merchant_config",
+            "merchant_bond"
+          ]
+        },
+        {
+          "name": "bond_account",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "finalize_inbound",
+      "discriminator": [
+        123,
+        236,
+        229,
+        83,
+        122,
+        84,
+        126,
+        130
+      ],
+      "accounts": [
+        {
+          "name": "dest_generation",
+          "writable": true
+        },
+        {
+          "name": "dest",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fund_growth_bounty",
+      "discriminator": [
+        225,
+        15,
+        132,
+        98,
+        190,
+        158,
+        250,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "growth_campaign",
+          "writable": true
+        },
+        {
+          "name": "reward_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign"
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign.reward_mint",
+                "account": "GrowthCampaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merchant_reward_account",
+          "writable": true
+        },
+        {
+          "name": "reward_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "reward_escrow"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "reward_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "reward_mint"
+        },
+        {
+          "name": "merchant_authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "growth_campaign"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "harvest_expired_escrows",
+      "discriminator": [
+        69,
+        133,
+        184,
+        104,
+        167,
+        10,
+        61,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_token_generation",
+      "discriminator": [
+        24,
+        148,
+        100,
+        169,
+        144,
+        27,
+        124,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "token_generation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  101,
+                  110,
+                  95,
+                  118,
+                  52
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_treasury_token_generation",
+      "discriminator": [
+        245,
+        19,
+        167,
+        155,
+        25,
+        254,
+        251,
+        57
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "treasury_generation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  101,
+                  110,
+                  95,
+                  118,
+                  52
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              },
+              {
+                "kind": "account",
+                "path": "treasury_owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merchant",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "merchant_config"
+          ]
+        },
+        {
+          "name": "treasury_owner"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_extra_account_meta_list",
+      "discriminator": [
+        92,
+        197,
+        174,
+        197,
+        41,
+        124,
+        19,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "extra_account_meta_list",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  116,
+                  114,
+                  97,
+                  45,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initiate_close_merchant",
+      "discriminator": [
+        146,
+        246,
+        127,
+        50,
+        166,
+        237,
+        60,
+        112
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config",
+          "writable": true
+        },
+        {
+          "name": "merchant",
+          "signer": true,
+          "relations": [
+            "merchant_config"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "issue_claim_pass",
+      "discriminator": [
+        169,
+        26,
+        211,
+        38,
+        140,
+        9,
+        62,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "growth_campaign",
+          "writable": true
+        },
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "merchant_authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "growth_campaign"
+          ]
+        },
+        {
+          "name": "visitor_authority"
+        },
+        {
+          "name": "claim_pass",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  97,
+                  105,
+                  109,
+                  95,
+                  112,
+                  97,
+                  115,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign"
+              },
+              {
+                "kind": "account",
+                "path": "visitor_authority"
+              },
+              {
+                "kind": "arg",
+                "path": "claim_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "claim_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "depth",
+          "type": "u8"
+        },
+        {
+          "name": "lineage_proof_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "referrer_receipt",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "issue_first_tokens_and_lock",
+      "discriminator": [
+        119,
+        155,
+        43,
+        161,
+        173,
+        22,
+        210,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config",
+          "writable": true
+        },
+        {
+          "name": "merchant",
+          "signer": true,
+          "relations": [
+            "merchant_config"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "merchant_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "process_redemption_slot",
+      "discriminator": [
+        86,
+        209,
+        230,
+        110,
+        237,
+        46,
+        142,
+        28
+      ],
+      "accounts": [
+        {
+          "name": "redeemer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "redeemer_generation",
+          "writable": true
+        },
+        {
+          "name": "referral_record",
+          "writable": true
+        },
+        {
+          "name": "commission_ledger",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "slot_idx",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "raise_dispute",
+      "discriminator": [
+        41,
+        243,
+        1,
+        51,
+        150,
+        95,
+        246,
+        73
+      ],
+      "accounts": [
+        {
+          "name": "dispute_record",
+          "writable": true
+        },
+        {
+          "name": "commission_ledger",
+          "writable": true
+        },
+        {
+          "name": "watchdog",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "record_causal_receipt",
+      "discriminator": [
+        135,
+        224,
+        13,
+        97,
+        184,
+        233,
+        110,
+        0
+      ],
+      "accounts": [
+        {
+          "name": "growth_campaign",
+          "writable": true
+        },
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "reward_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign"
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign.reward_mint",
+                "account": "GrowthCampaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reward_vault"
+        },
+        {
+          "name": "causal_receipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  117,
+                  115,
+                  97,
+                  108,
+                  95,
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "receipt_id_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nullifier_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110,
+                  95,
+                  110,
+                  117,
+                  108,
+                  108,
+                  105,
+                  102,
+                  105,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "claimer_nullifier_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "claim_pass",
+          "writable": true
+        },
+        {
+          "name": "terminal_device",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  114,
+                  109,
+                  105,
+                  110,
+                  97,
+                  108,
+                  95,
+                  100,
+                  101,
+                  118,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merchant_config"
+              },
+              {
+                "kind": "account",
+                "path": "terminal_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "terminal_authority",
+          "signer": true
+        },
+        {
+          "name": "visitor_authority",
+          "signer": true
+        },
+        {
+          "name": "merchant_authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "growth_campaign"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "receipt_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "parent_receipt_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "referrer_commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "claimer_nullifier_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "invite_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "visit_attestation_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "intent_manifest_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "risk_score_commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "referrer_beneficiary",
+          "type": "pubkey"
+        },
+        {
+          "name": "visitor_beneficiary",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "redeem_bond_share",
+      "discriminator": [
+        115,
+        235,
+        225,
+        197,
+        74,
+        79,
+        240,
+        183
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "holder_generation"
+        },
+        {
+          "name": "merchant_bond",
+          "writable": true
+        },
+        {
+          "name": "holder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "bond_account",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "redeem_with_geo",
+      "discriminator": [
+        106,
+        41,
+        53,
+        192,
+        168,
+        214,
+        26,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "fence"
+        },
+        {
+          "name": "redeemer",
+          "signer": true
+        },
+        {
+          "name": "attestation_server",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "lat_micro",
+          "type": "i32"
+        },
+        {
+          "name": "lng_micro",
+          "type": "i32"
+        },
+        {
+          "name": "signature",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "register_merchant",
+      "discriminator": [
+        238,
+        245,
+        77,
+        132,
+        161,
+        88,
+        216,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  117,
+                  115,
+                  97,
+                  108,
+                  95,
+                  109,
+                  101,
+                  114,
+                  99,
+                  104,
+                  97,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merchant_authority"
+              },
+              {
+                "kind": "arg",
+                "path": "org_id_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merchant_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "org_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "resolve_expired_dispute",
+      "discriminator": [
+        13,
+        171,
+        44,
+        28,
+        226,
+        154,
+        122,
+        74
+      ],
+      "accounts": [
+        {
+          "name": "dispute_record",
+          "writable": true
+        },
+        {
+          "name": "commission_ledger",
+          "writable": true
+        },
+        {
+          "name": "merchant_reputation",
+          "writable": true
+        },
+        {
+          "name": "dispute_escrow",
+          "writable": true
+        },
+        {
+          "name": "watchdog",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "revoke_session_key",
+      "discriminator": [
+        81,
+        192,
+        32,
+        110,
+        104,
+        116,
+        144,
+        151
+      ],
+      "accounts": [
+        {
+          "name": "session_key",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "session_key"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_causal_merchant_status",
+      "discriminator": [
+        63,
+        121,
+        209,
+        89,
+        129,
+        135,
+        228,
+        142
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config",
+          "writable": true
+        },
+        {
+          "name": "merchant_authority",
+          "signer": true,
+          "relations": [
+            "merchant_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": {
+              "name": "CausalMerchantStatus"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_growth_campaign_status",
+      "discriminator": [
+        94,
+        184,
+        32,
+        147,
+        213,
+        222,
+        137,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "growth_campaign",
+          "writable": true
+        },
+        {
+          "name": "merchant_authority",
+          "signer": true,
+          "relations": [
+            "growth_campaign"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": {
+              "name": "GrowthCampaignStatus"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "settle_receipt_reward",
+      "discriminator": [
+        245,
+        188,
+        124,
+        150,
+        44,
+        125,
+        68,
+        113
+      ],
+      "accounts": [
+        {
+          "name": "growth_campaign",
+          "writable": true
+        },
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "reward_escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign"
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign.reward_mint",
+                "account": "GrowthCampaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reward_vault",
+          "writable": true
+        },
+        {
+          "name": "causal_receipt",
+          "writable": true
+        },
+        {
+          "name": "settlement_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  116,
+                  116,
+                  108,
+                  101,
+                  109,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "causal_receipt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "referrer_reward_account",
+          "writable": true
+        },
+        {
+          "name": "visitor_reward_account",
+          "writable": true
+        },
+        {
+          "name": "protocol_treasury",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign.reward_mint",
+                "account": "GrowthCampaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_reward_account",
+          "writable": true
+        },
+        {
+          "name": "reward_mint"
+        },
+        {
+          "name": "merchant_authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "growth_campaign"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw_bond",
+      "discriminator": [
+        222,
+        199,
+        141,
+        31,
+        188,
+        93,
+        155,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "merchant_bond",
+          "writable": true
+        },
+        {
+          "name": "merchant",
+          "signer": true,
+          "relations": [
+            "merchant_bond"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "CausalMerchantConfig",
+      "discriminator": [
+        169,
+        107,
+        211,
+        244,
+        211,
+        125,
+        118,
+        7
+      ]
+    },
+    {
+      "name": "CausalReceipt",
+      "discriminator": [
+        138,
+        173,
+        5,
+        7,
+        146,
+        36,
+        47,
+        214
+      ]
+    },
+    {
+      "name": "ClaimPass",
+      "discriminator": [
+        230,
+        228,
+        133,
+        171,
+        247,
+        224,
+        69,
+        181
+      ]
+    },
+    {
+      "name": "CommissionLedger",
+      "discriminator": [
+        251,
+        90,
+        202,
+        135,
+        168,
+        255,
+        85,
+        146
+      ]
+    },
+    {
+      "name": "DisputeRecord",
+      "discriminator": [
+        198,
+        199,
+        79,
+        209,
+        12,
+        215,
+        34,
+        47
+      ]
+    },
+    {
+      "name": "GeoFence",
+      "discriminator": [
+        206,
+        245,
+        173,
+        62,
+        1,
+        117,
+        63,
+        247
+      ]
+    },
+    {
+      "name": "GrowthCampaign",
+      "discriminator": [
+        26,
+        48,
+        34,
+        14,
+        15,
+        249,
+        145,
+        241
+      ]
+    },
+    {
+      "name": "MerchantBond",
+      "discriminator": [
+        9,
+        89,
+        5,
+        121,
+        153,
+        205,
+        65,
+        181
+      ]
+    },
+    {
+      "name": "MerchantConfig",
+      "discriminator": [
+        184,
+        154,
+        125,
+        252,
+        112,
+        73,
+        0,
+        144
+      ]
+    },
+    {
+      "name": "MerchantReputation",
+      "discriminator": [
+        160,
+        4,
+        167,
+        12,
+        210,
+        84,
+        54,
+        94
+      ]
+    },
+    {
+      "name": "NullifierRecord",
+      "discriminator": [
+        56,
+        18,
+        57,
+        175,
+        69,
+        202,
+        189,
+        70
+      ]
+    },
+    {
+      "name": "ReferralRecord",
+      "discriminator": [
+        225,
+        215,
+        211,
+        93,
+        50,
+        168,
+        252,
+        185
+      ]
+    },
+    {
+      "name": "RewardEscrow",
+      "discriminator": [
+        233,
+        153,
+        10,
+        144,
+        81,
+        195,
+        113,
+        5
+      ]
+    },
+    {
+      "name": "SessionKey",
+      "discriminator": [
+        93,
+        186,
+        163,
+        139,
+        160,
+        255,
+        81,
+        112
+      ]
+    },
+    {
+      "name": "SettlementRecord",
+      "discriminator": [
+        172,
+        159,
+        67,
+        74,
+        96,
+        85,
+        37,
+        205
+      ]
+    },
+    {
+      "name": "TerminalDevice",
+      "discriminator": [
+        225,
+        203,
+        144,
+        90,
+        50,
+        26,
+        175,
+        93
+      ]
+    },
+    {
+      "name": "TokenGeneration",
+      "discriminator": [
+        104,
+        255,
+        210,
+        103,
+        17,
+        103,
+        164,
+        93
+      ]
+    },
+    {
+      "name": "ViralOracle",
+      "discriminator": [
+        151,
+        28,
+        68,
+        163,
+        128,
+        46,
+        251,
+        91
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BondShareRedeemed",
+      "discriminator": [
+        228,
+        248,
+        167,
+        148,
+        239,
+        47,
+        56,
+        225
+      ]
+    },
+    {
+      "name": "CausalMerchantStatusUpdated",
+      "discriminator": [
+        42,
+        171,
+        30,
+        43,
+        51,
+        151,
+        20,
+        218
+      ]
+    },
+    {
+      "name": "CausalReceiptRecorded",
+      "discriminator": [
+        11,
+        170,
+        37,
+        11,
+        67,
+        176,
+        23,
+        172
+      ]
+    },
+    {
+      "name": "ClaimPassIssued",
+      "discriminator": [
+        192,
+        110,
+        101,
+        155,
+        213,
+        46,
+        32,
+        134
+      ]
+    },
+    {
+      "name": "CommissionPaid",
+      "discriminator": [
+        114,
+        253,
+        151,
+        65,
+        215,
+        46,
+        30,
+        247
+      ]
+    },
+    {
+      "name": "DexTransferDetected",
+      "discriminator": [
+        16,
+        208,
+        239,
+        47,
+        82,
+        52,
+        178,
+        227
+      ]
+    },
+    {
+      "name": "DisputeAutoUpheld",
+      "discriminator": [
+        19,
+        150,
+        9,
+        114,
+        231,
+        207,
+        248,
+        120
+      ]
+    },
+    {
+      "name": "ExpiredReferralClosed",
+      "discriminator": [
+        132,
+        199,
+        112,
+        238,
+        19,
+        81,
+        232,
+        109
+      ]
+    },
+    {
+      "name": "GrowthBountyClosed",
+      "discriminator": [
+        39,
+        10,
+        27,
+        85,
+        205,
+        80,
+        0,
+        233
+      ]
+    },
+    {
+      "name": "GrowthBountyFunded",
+      "discriminator": [
+        217,
+        95,
+        229,
+        98,
+        248,
+        251,
+        12,
+        70
+      ]
+    },
+    {
+      "name": "GrowthCampaignCreated",
+      "discriminator": [
+        210,
+        236,
+        176,
+        18,
+        130,
+        195,
+        255,
+        48
+      ]
+    },
+    {
+      "name": "GrowthCampaignStatusUpdated",
+      "discriminator": [
+        128,
+        95,
+        236,
+        247,
+        130,
+        168,
+        172,
+        154
+      ]
+    },
+    {
+      "name": "InboundBufferOverflow",
+      "discriminator": [
+        194,
+        38,
+        124,
+        134,
+        211,
+        29,
+        239,
+        116
+      ]
+    },
+    {
+      "name": "MerchantCloseInitiated",
+      "discriminator": [
+        123,
+        195,
+        186,
+        172,
+        82,
+        228,
+        160,
+        6
+      ]
+    },
+    {
+      "name": "MerchantClosed",
+      "discriminator": [
+        78,
+        240,
+        184,
+        6,
+        54,
+        79,
+        53,
+        89
+      ]
+    },
+    {
+      "name": "MerchantRegistered",
+      "discriminator": [
+        202,
+        61,
+        140,
+        95,
+        139,
+        239,
+        17,
+        83
+      ]
+    },
+    {
+      "name": "ReceiptRewardSettled",
+      "discriminator": [
+        152,
+        183,
+        129,
+        206,
+        82,
+        174,
+        182,
+        45
+      ]
+    },
+    {
+      "name": "RedemptionDetected",
+      "discriminator": [
+        41,
+        59,
+        29,
+        63,
+        230,
+        199,
+        125,
+        81
+      ]
+    },
+    {
+      "name": "TerminalDeviceEnrolled",
+      "discriminator": [
+        88,
+        179,
+        190,
+        79,
+        198,
+        135,
+        87,
+        227
+      ]
+    },
+    {
+      "name": "TransferExecuted",
+      "discriminator": [
+        8,
+        128,
+        224,
+        132,
+        112,
+        216,
+        192,
+        35
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidSourceGeneration",
+      "msg": "Transfer hook source owner does not match TokenAccount data"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidDestGeneration",
+      "msg": "Transfer hook destination owner does not match TokenAccount data"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidTokenAccount",
+      "msg": "Token account data length is invalid"
+    },
+    {
+      "code": 6003,
+      "name": "TokensExpired",
+      "msg": "Tokens have expired based on merchant config rules"
+    },
+    {
+      "code": 6004,
+      "name": "MustFinalizeBeforeRedeem",
+      "msg": "Must finalize inbound entries (clear buffer) before redeeming"
+    },
+    {
+      "code": 6005,
+      "name": "PreviousRedemptionUnprocessed",
+      "msg": "Previous redemption is unprocessed (concurrent lock)"
+    },
+    {
+      "code": 6006,
+      "name": "HoldPeriodNotMet",
+      "msg": "Tokens hold period not met before sharing"
+    },
+    {
+      "code": 6007,
+      "name": "BelowMinimum",
+      "msg": "Transfer amount is below merchant minimum for referral"
+    },
+    {
+      "code": 6008,
+      "name": "ExceedsMaximum",
+      "msg": "Transfer amount exceeds merchant maximum for referral"
+    },
+    {
+      "code": 6009,
+      "name": "DailyShareLimitExceeded",
+      "msg": "Daily share limit exceeded for this wallet"
+    },
+    {
+      "code": 6010,
+      "name": "MaxDepthReached",
+      "msg": "Maximum referral depth reached (Gen2 transfer not allowed by merchant)"
+    },
+    {
+      "code": 6011,
+      "name": "InboundBufferOverflow",
+      "msg": "Inbound buffer overflow (graceful degradation triggered)"
+    },
+    {
+      "code": 6012,
+      "name": "MathOverflow",
+      "msg": "Math Overflow"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidConfig",
+      "msg": "Invalid configuration"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidState",
+      "msg": "Invalid account state"
+    },
+    {
+      "code": 6015,
+      "name": "UnsupportedInstruction",
+      "msg": "Instruction is intentionally disabled until its account model is implemented"
+    },
+    {
+      "code": 6016,
+      "name": "UnauthorizedOracle",
+      "msg": "Oracle authority is not authorized for this merchant"
+    },
+    {
+      "code": 6017,
+      "name": "CloseWindowNotExpired",
+      "msg": "Merchant close window has not expired"
+    },
+    {
+      "code": 6018,
+      "name": "OutstandingCommissionUnsettled",
+      "msg": "Referral still has unsettled commission"
+    },
+    {
+      "code": 6019,
+      "name": "NoRedemptionPending",
+      "msg": "No redemption pending"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidReferrerSlot",
+      "msg": "Invalid referrer slot"
+    },
+    {
+      "code": 6021,
+      "name": "SlotAlreadySettled",
+      "msg": "Slot already settled"
+    },
+    {
+      "code": 6022,
+      "name": "UnsettledSlotsRemain",
+      "msg": "Unsettled slots remain"
+    },
+    {
+      "code": 6023,
+      "name": "CommissionFrozenDictated",
+      "msg": "Commission frozen by dictated status"
+    },
+    {
+      "code": 6024,
+      "name": "NothingToClaim",
+      "msg": "Nothing to claim"
+    },
+    {
+      "code": 6025,
+      "name": "InsufficientBalance",
+      "msg": "Insufficient balance"
+    },
+    {
+      "code": 6026,
+      "name": "AccessDenied",
+      "msg": "Access Denied or Invalid Authority"
+    },
+    {
+      "code": 6027,
+      "name": "TerminalDeviceInactive",
+      "msg": "Terminal device is not active."
+    },
+    {
+      "code": 6028,
+      "name": "InvalidTerminalDevice",
+      "msg": "Terminal device does not belong to this merchant."
+    },
+    {
+      "code": 6029,
+      "name": "InvalidTerminalAuthority",
+      "msg": "Terminal authority does not match enrolled terminal device."
+    },
+    {
+      "code": 6030,
+      "name": "InvalidVisitorAuthority",
+      "msg": "Visitor authority must match visitor beneficiary."
+    },
+    {
+      "code": 6031,
+      "name": "InvalidClaimPass",
+      "msg": "Claim pass is not active or does not match this receipt path."
+    },
+    {
+      "code": 6032,
+      "name": "MaxDepthExceeded",
+      "msg": "Claim pass depth exceeds campaign max depth."
+    },
+    {
+      "code": 6033,
+      "name": "IntentMismatch",
+      "msg": "Receipt intent does not match campaign settlement terms"
+    }
+  ],
+  "types": [
+    {
+      "name": "BondShareRedeemed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "holder",
+            "type": "pubkey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CausalMerchantConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "org_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "allowed_staff_delegate_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "terminal_authority_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "CausalMerchantStatus"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CausalMerchantStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Paused"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CausalMerchantStatusUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merchant_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "CausalMerchantStatus"
+              }
+            }
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CausalReceipt",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer_beneficiary",
+            "type": "pubkey"
+          },
+          {
+            "name": "visitor_beneficiary",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer_split_bps",
+            "type": "u16"
+          },
+          {
+            "name": "terminal_device",
+            "type": "pubkey"
+          },
+          {
+            "name": "terminal_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "visitor_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "attestation_model",
+            "type": {
+              "defined": {
+                "name": "ReceiptAttestationModel"
+              }
+            }
+          },
+          {
+            "name": "claim_pass",
+            "type": "pubkey"
+          },
+          {
+            "name": "claim_pass_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "claim_pass_token_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "lineage_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "lineage_generation",
+            "type": "u8"
+          },
+          {
+            "name": "lineage_proof_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "receipt_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "parent_receipt_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "referrer_commitment",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "claimer_nullifier_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "invite_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "visit_attestation_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "intent_manifest_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "risk_score_commitment",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reward_amount",
+            "type": "u64"
+          },
+          {
+            "name": "settled_amount",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "CausalReceiptStatus"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "settled_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CausalReceiptRecorded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "causal_receipt",
+            "type": "pubkey"
+          },
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "receipt_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "claimer_nullifier_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "intent_manifest_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reward_amount",
+            "type": "u64"
+          },
+          {
+            "name": "terminal_device",
+            "type": "pubkey"
+          },
+          {
+            "name": "terminal_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "visitor_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "claim_pass",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CausalReceiptStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Recorded"
+          },
+          {
+            "name": "Settled"
+          },
+          {
+            "name": "Voided"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimPass",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "visitor_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer_receipt",
+            "type": "pubkey"
+          },
+          {
+            "name": "claim_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lineage_proof_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "depth",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ClaimPassStatus"
+              }
+            }
+          },
+          {
+            "name": "first_receipt",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimPassIssued",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "claim_pass",
+            "type": "pubkey"
+          },
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "visitor_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "claim_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "depth",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClaimPassStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Recorded"
+          },
+          {
+            "name": "Revoked"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CommissionLedger",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "claimable",
+            "type": "u64"
+          },
+          {
+            "name": "dust_tenths_accumulated",
+            "type": "u32"
+          },
+          {
+            "name": "frozen",
+            "type": "bool"
+          },
+          {
+            "name": "frozen_amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_earned",
+            "type": "u64"
+          },
+          {
+            "name": "total_claimed",
+            "type": "u64"
+          },
+          {
+            "name": "total_redemptions_driven",
+            "type": "u64"
+          },
+          {
+            "name": "highest_single_commission",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CommissionPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DexTransferDetected",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "from",
+            "type": "pubkey"
+          },
+          {
+            "name": "to",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DisputeAutoUpheld",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "referral",
+            "type": "pubkey"
+          },
+          {
+            "name": "disputed_amount",
+            "type": "u64"
+          },
+          {
+            "name": "watchdog_reward",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DisputeRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "referral",
+            "type": "pubkey"
+          },
+          {
+            "name": "watchdog",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "DisputeStatus"
+              }
+            }
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "raised_at",
+            "type": "i64"
+          },
+          {
+            "name": "resolved_at",
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DisputeStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Dismissed"
+          },
+          {
+            "name": "UpheldByTimeout"
+          },
+          {
+            "name": "UpheldByVote"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExpiredReferralClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "referred",
+            "type": "pubkey"
+          },
+          {
+            "name": "rent_recovered",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GenSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "DeadPass"
+          },
+          {
+            "name": "ViralShare"
+          },
+          {
+            "name": "Issuance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GeoFence",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "lat_micro",
+            "type": "i32"
+          },
+          {
+            "name": "lng_micro",
+            "type": "i32"
+          },
+          {
+            "name": "radius_meters",
+            "type": "u32"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "attestation_server_count",
+            "type": "u8"
+          },
+          {
+            "name": "attestation_servers",
+            "type": {
+              "array": [
+                "pubkey",
+                4
+              ]
+            }
+          },
+          {
+            "name": "allow_non_geo_redemption",
+            "type": "bool"
+          },
+          {
+            "name": "non_geo_commission_penalty_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GrowthBountyClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_escrow",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_reward_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "reclaimed_amount",
+            "type": "u64"
+          },
+          {
+            "name": "closed_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GrowthBountyFunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_escrow",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_funded",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GrowthCampaign",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "campaign_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reward_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "claim_pass_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "lineage_required",
+            "type": "bool"
+          },
+          {
+            "name": "reward_per_verified_visit",
+            "type": "u64"
+          },
+          {
+            "name": "max_redemptions",
+            "type": "u32"
+          },
+          {
+            "name": "max_depth",
+            "type": "u8"
+          },
+          {
+            "name": "referrer_split_bps",
+            "type": "u16"
+          },
+          {
+            "name": "split_rules_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "fraud_policy_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "starts_at",
+            "type": "i64"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "total_funded",
+            "type": "u64"
+          },
+          {
+            "name": "total_settled",
+            "type": "u64"
+          },
+          {
+            "name": "total_recorded",
+            "type": "u32"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "GrowthCampaignStatus"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GrowthCampaignCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "campaign_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reward_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_per_verified_visit",
+            "type": "u64"
+          },
+          {
+            "name": "max_redemptions",
+            "type": "u32"
+          },
+          {
+            "name": "starts_at",
+            "type": "i64"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GrowthCampaignStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Draft"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Paused"
+          },
+          {
+            "name": "Closed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GrowthCampaignStatusUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "GrowthCampaignStatus"
+              }
+            }
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InboundBufferOverflow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "sender",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InboundEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "generation_source",
+            "type": {
+              "defined": {
+                "name": "GenSource"
+              }
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "processed",
+            "type": "bool"
+          },
+          {
+            "name": "_padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MerchantBond",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "bonded_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "min_required_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "is_locked",
+            "type": "bool"
+          },
+          {
+            "name": "unlock_requested_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MerchantCloseInitiated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "outstanding_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "close_window_ends_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MerchantClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MerchantConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "min_hold_before_share_secs",
+            "type": "i64"
+          },
+          {
+            "name": "min_tokens_per_referral",
+            "type": "u64"
+          },
+          {
+            "name": "max_tokens_per_referral",
+            "type": "u64"
+          },
+          {
+            "name": "max_referrals_per_wallet_per_day",
+            "type": "u16"
+          },
+          {
+            "name": "allow_second_gen_transfer",
+            "type": "bool"
+          },
+          {
+            "name": "slots_per_day",
+            "type": "u64"
+          },
+          {
+            "name": "token_expiry_days",
+            "type": "u16"
+          },
+          {
+            "name": "commission_rate_bps",
+            "type": "u16"
+          },
+          {
+            "name": "transfer_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "first_issuance_done",
+            "type": "bool"
+          },
+          {
+            "name": "current_supply",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_issued",
+            "type": "u64"
+          },
+          {
+            "name": "close_initiated_at",
+            "type": "i64"
+          },
+          {
+            "name": "close_window_ends_at",
+            "type": "i64"
+          },
+          {
+            "name": "oracle_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MerchantRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merchant_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "org_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MerchantReputation",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "reputation_score",
+            "type": "u32"
+          },
+          {
+            "name": "timeout_disputes",
+            "type": "u32"
+          },
+          {
+            "name": "pct_redeemers_aged_over_30_days",
+            "type": "u16"
+          },
+          {
+            "name": "unique_attestation_servers_used",
+            "type": "u8"
+          },
+          {
+            "name": "commission_concentration_bps",
+            "type": "u16"
+          },
+          {
+            "name": "pct_redemptions_in_business_hours",
+            "type": "u16"
+          },
+          {
+            "name": "avg_poi_score_top_referrers",
+            "type": "u32"
+          },
+          {
+            "name": "suspicion_score",
+            "type": "u32"
+          },
+          {
+            "name": "suspicion_computed_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NullifierRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "nullifier_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "first_receipt",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReceiptAttestationModel",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "MerchantOnlyLegacy"
+          },
+          {
+            "name": "MerchantTerminalVisitorSigned"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReceiptRewardSettled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "causal_receipt",
+            "type": "pubkey"
+          },
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "settlement_record",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer_amount",
+            "type": "u64"
+          },
+          {
+            "name": "visitor_amount",
+            "type": "u64"
+          },
+          {
+            "name": "settled_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RedemptionDetected",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "redeemer",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "gen2_consumed",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferralRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "referred",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "committed_commission_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_commission_cap",
+            "type": "u64"
+          },
+          {
+            "name": "commission_earned",
+            "type": "u64"
+          },
+          {
+            "name": "commission_settled",
+            "type": "u64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferrerSlot",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "referral_record",
+            "type": "pubkey"
+          },
+          {
+            "name": "tokens_attributed",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_redeemed_so_far",
+            "type": "u64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardEscrow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_funded",
+            "type": "u64"
+          },
+          {
+            "name": "total_reserved",
+            "type": "u64"
+          },
+          {
+            "name": "total_settled",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionKey",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "target_generation",
+            "type": "pubkey"
+          },
+          {
+            "name": "delegate",
+            "type": "pubkey"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "max_tokens_per_session",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_spent",
+            "type": "u64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettlementRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "receipt",
+            "type": "pubkey"
+          },
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer_amount",
+            "type": "u64"
+          },
+          {
+            "name": "visitor_amount",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee",
+            "type": "u64"
+          },
+          {
+            "name": "settled_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TerminalDevice",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "terminal_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "label_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "TerminalDeviceStatus"
+              }
+            }
+          },
+          {
+            "name": "enrolled_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TerminalDeviceEnrolled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merchant_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "terminal_device",
+            "type": "pubkey"
+          },
+          {
+            "name": "terminal_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "label_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TerminalDeviceStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Paused"
+          },
+          {
+            "name": "Revoked"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenGeneration",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "gen1_balance",
+            "type": "u64"
+          },
+          {
+            "name": "gen2_balance",
+            "type": "u64"
+          },
+          {
+            "name": "dead_balance",
+            "type": "u64"
+          },
+          {
+            "name": "total_lifetime",
+            "type": "u64"
+          },
+          {
+            "name": "is_intermediary",
+            "type": "bool"
+          },
+          {
+            "name": "original_sender",
+            "type": "pubkey"
+          },
+          {
+            "name": "inbound_buffer",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "InboundEntry"
+                  }
+                },
+                16
+              ]
+            }
+          },
+          {
+            "name": "buffer_head",
+            "type": "u8"
+          },
+          {
+            "name": "buffer_pending",
+            "type": "u8"
+          },
+          {
+            "name": "referrer_slots",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "ReferrerSlot"
+                  }
+                },
+                4
+              ]
+            }
+          },
+          {
+            "name": "active_referrer_slots",
+            "type": "u8"
+          },
+          {
+            "name": "first_received_at",
+            "type": "i64"
+          },
+          {
+            "name": "last_received_at",
+            "type": "i64"
+          },
+          {
+            "name": "share_limit_day",
+            "type": "u64"
+          },
+          {
+            "name": "shares_today",
+            "type": "u16"
+          },
+          {
+            "name": "processing_nonce",
+            "type": "u64"
+          },
+          {
+            "name": "redemption_pending",
+            "type": "bool"
+          },
+          {
+            "name": "redemption_slot",
+            "type": "u64"
+          },
+          {
+            "name": "redemption_gen2_consumed",
+            "type": "u64"
+          },
+          {
+            "name": "redemption_slot_consumed",
+            "type": {
+              "array": [
+                "u64",
+                4
+              ]
+            }
+          },
+          {
+            "name": "redemption_slots_settled",
+            "type": "u8"
+          },
+          {
+            "name": "is_treasury",
+            "type": "bool"
+          },
+          {
+            "name": "is_dex_pool",
+            "type": "bool"
+          },
+          {
+            "name": "poi_score",
+            "type": "u32"
+          },
+          {
+            "name": "poi_updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "identity_commitment",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          },
+          {
+            "name": "identity_provider",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TransferExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "from",
+            "type": "pubkey"
+          },
+          {
+            "name": "to",
+            "type": "pubkey"
+          },
+          {
+            "name": "effective_referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "entry_type",
+            "type": {
+              "defined": {
+                "name": "GenSource"
+              }
+            }
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ViralOracle",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "merchant",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "k_factor",
+            "type": "u64"
+          },
+          {
+            "name": "median_referrals_per_user",
+            "type": "u32"
+          },
+          {
+            "name": "p90_referrals_per_user",
+            "type": "u32"
+          },
+          {
+            "name": "p10_referrals_per_user",
+            "type": "u32"
+          },
+          {
+            "name": "referral_concentration_index",
+            "type": "u32"
+          },
+          {
+            "name": "share_rate",
+            "type": "u32"
+          },
+          {
+            "name": "claim_rate",
+            "type": "u32"
+          },
+          {
+            "name": "first_redeem_rate",
+            "type": "u32"
+          },
+          {
+            "name": "avg_time_share_to_claim_secs",
+            "type": "u32"
+          },
+          {
+            "name": "avg_time_claim_to_redeem_secs",
+            "type": "u32"
+          },
+          {
+            "name": "p50_time_share_to_claim_secs",
+            "type": "u32"
+          },
+          {
+            "name": "commission_per_new_customer_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "vs_google_ads_efficiency_bps",
+            "type": "u32"
+          },
+          {
+            "name": "computed_at",
+            "type": "i64"
+          },
+          {
+            "name": "data_points",
+            "type": "u32"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -30,3 +30,7 @@ jobs:
             --exclude-dir=target \
             --exclude-dir=dist \
             .
+          if [ -e dist/final-command-transcript.txt ] || [ -e dist/auditor-packet ]; then
+            ! grep -RInE '(C:\\Users|D:\\|\.config/solana/id\.json|PRIVATE_KEY|SECRET_KEY)' \
+              dist/final-command-transcript.txt dist/auditor-packet 2>/dev/null
+          fi

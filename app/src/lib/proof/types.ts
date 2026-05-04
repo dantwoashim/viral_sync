@@ -14,6 +14,7 @@ export type ProofManifest = {
     campaignId?: string;
     receiptId?: string;
     rewardPerVisit?: string;
+    merchantAlias?: string;
   };
   hashes?: Record<string, string | undefined>;
   intentManifest?: {
@@ -25,6 +26,7 @@ export type ProofManifest = {
     terminalAuthority?: string;
     visitorAuthority?: string;
     lineageProofHash?: string;
+    merchantAlias?: string;
   };
   pdas?: Record<string, string | number | undefined>;
   signatures?: Record<string, ProofSignature>;
@@ -60,6 +62,7 @@ export type VerifierArtifact = {
   lineageChecks?: Record<string, boolean>;
   settlementChecks?: Record<string, boolean>;
   nullifierChecks?: Record<string, boolean>;
+  tokenAccountChecks?: Record<string, boolean>;
 };
 
 export type FraudCase = {
@@ -81,7 +84,7 @@ export type FraudCase = {
 
 export type FraudGauntlet = {
   proofStatus?: string;
-  summary?: { blocked?: number; totalCases?: number };
+  summary?: { blocked?: number; totalCases?: number; missing?: number; failed?: number };
   cases?: FraudCase[];
 };
 
@@ -104,6 +107,7 @@ export type NormalizedReceiptProof = {
   cluster: string;
   programId: string;
   proofLevel: string;
+  attestationModel: string;
   rewardAmountLabel: string;
   manifest: ProofManifest;
   verifier: VerifierArtifact;

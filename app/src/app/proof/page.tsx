@@ -5,7 +5,7 @@ import { FraudCaseRow } from '@/components/product/FraudCaseRow';
 import { VerificationGrid } from '@/components/product/VerificationGrid';
 import { ProofTimeline } from '@/components/product/ProofTimeline';
 import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
-import { getProofState } from '@/lib/proof/getProofState';
+import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 import { explorerAddress, explorerTx, shortHash, signatureValue } from '@/lib/proof/links';
 
 export default function ProofCenterPage() {
@@ -40,7 +40,7 @@ export default function ProofCenterPage() {
             <span><small>Receipt</small><b>{shortHash(manifest.pdas?.causalReceipt)}</b></span>
             <span><small>Program</small><b>{shortHash(proof.programId)}</b></span>
             <span><small>Cluster</small><b>{proof.cluster}</b></span>
-            <span><small>Fraud gauntlet</small><b>{proof.gauntlet.summary?.blocked ?? 16}/{proof.gauntlet.summary?.totalCases ?? 16}</b></span>
+            <span><small>Fraud gauntlet</small><b>{gauntletLabel(proof.gauntlet)}</b></span>
             <span><small>Source hash</small><b>{programMatches ? 'Matched' : 'Review'}</b></span>
           </section>
 
@@ -49,7 +49,7 @@ export default function ProofCenterPage() {
               <span className="section-kicker">Receipt</span>
               <h2>Verified visit receipt</h2>
               <p>The customer view stays simple. Click the receipt to flip into the technical back side.</p>
-              <ProofTimeline />
+              <ProofTimeline proof={proof} />
             </div>
             <SignatureReceipt proof={proof} compact />
           </section>
@@ -58,7 +58,7 @@ export default function ProofCenterPage() {
             <div className="proof-panel-header">
               <div>
                 <span className="section-kicker">Fraud Gauntlet</span>
-                <h2>{proof.gauntlet.summary?.blocked ?? 16}/{proof.gauntlet.summary?.totalCases ?? 16} attacks blocked</h2>
+                <h2>{gauntletLabel(proof.gauntlet)} attacks blocked</h2>
               </div>
               <Link href="/proofs/fraud-gauntlet.json" className="proof-download">Open JSON</Link>
             </div>

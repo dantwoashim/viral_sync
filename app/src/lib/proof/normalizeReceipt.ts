@@ -24,7 +24,7 @@ export function receiptBackRows(proof: NormalizedReceiptProof) {
 }
 
 export function receiptMatches(proof: NormalizedReceiptProof, id: string) {
-  if (id === 'latest' || id === 'demo') return true;
+  if (id === 'latest') return true;
   const normalized = decodeURIComponent(id).toLowerCase();
   return [
     proof.receiptId,

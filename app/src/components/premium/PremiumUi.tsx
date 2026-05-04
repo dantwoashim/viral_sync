@@ -33,7 +33,7 @@ export function PremiumNav() {
         <Link href="/claim/demo-token">Claim</Link>
         <Link href="/merchant/scan">Merchant scan</Link>
         <Link href="/receipt/latest">Receipt proof</Link>
-        <Link href="/proof#builders">For builders</Link>
+        <Link href="/proof#artifacts">For builders</Link>
       </div>
     </nav>
   );

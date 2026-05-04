@@ -603,6 +603,19 @@
   background: rgba(255, 255, 255, 0.62);
 }
 
+.demo-banner {
+  display: inline-flex;
+  max-width: 100%;
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border: 1px solid rgba(217, 119, 6, .24);
+  border-radius: 999px;
+  color: #92400e;
+  background: rgba(217, 119, 6, .08);
+  font-size: .82rem;
+  line-height: 1.35;
+}
+
 .merchant-today-page {
   min-height: 100vh;
   background: var(--bg);

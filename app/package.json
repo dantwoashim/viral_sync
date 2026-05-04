@@ -10,19 +10,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@capacitor/android": "^8.1.0",
-    "@capacitor/cli": "^8.1.0",
-    "@capacitor/core": "^8.1.0",
     "@phosphor-icons/react": "^2.1.10",
     "@solana/web3.js": "^1.98.4",
-    "framer-motion": "^12.34.3",
-    "lucide-react": "^0.575.0",
     "next": "^16.2.4",
-    "pg": "^8.13.1",
     "qrcode": "^1.5.4",
     "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "recharts": "^3.7.0"
+    "react-dom": "19.2.3"
   },
   "overrides": {
     "axios": "1.15.2",

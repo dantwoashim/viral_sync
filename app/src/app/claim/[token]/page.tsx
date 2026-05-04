@@ -14,6 +14,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ token: s
       <section className="claim-hero">
         <div className="claim-copy">
           <span className="eyebrow-pill">Visit reward</span>
+          <div className="demo-banner">Demo claim flow. The public receipt page shows the generated devnet proof.</div>
           <h1>You were invited to Thamel Brew.</h1>
           <p>Visit today and earn Rs. 15. Your friend earns Rs. 75 after your visit is verified at the counter.</p>
           <div className="product-actions">

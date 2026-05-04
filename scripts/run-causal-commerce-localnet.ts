@@ -14,6 +14,7 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
+import { expectedErrorMatched, expectedPatternsFor } from './fraud-error-matching';
 
 type CliOptions = {
   rpcUrl: string;
@@ -913,49 +914,6 @@ type AttackEvidence = {
   proofSource: string;
   reason: string;
 };
-
-function normalizeErrorText(value: unknown): string {
-  return String(value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9: _-]/g, ' ');
-}
-
-function expectedErrorMatched(actualError: string, expectedPatterns: string[]): boolean {
-  const text = normalizeErrorText(actualError);
-  return expectedPatterns.some((pattern) => {
-    const raw = normalizeErrorText(pattern);
-    const short = normalizeErrorText(pattern.split('::').pop() ?? pattern);
-    return raw.length > 0 && (text.includes(raw) || text.includes(short));
-  });
-}
-
-function expectedPatternsFor(errorCode: string): string[] {
-  const short = errorCode.split('::').pop() ?? errorCode;
-  const aliases: Record<string, string[]> = {
-    AccountAlreadyInitialized: ['account already initialized', 'already initialized', 'already in use'],
-    MissingRequiredSignature: ['missing required signature', 'signature verification failed'],
-    ConstraintTokenOwner: ['constraint token owner', 'token owner', 'owner constraint'],
-    InvalidRewardMint: ['invalid reward mint', 'reward mint'],
-    InvalidTerminalAuthority: ['invalid terminal authority', 'terminal authority'],
-    InvalidTerminalDevice: ['invalid terminal device', 'terminal device'],
-    InvalidVisitorAuthority: ['invalid visitor authority', 'visitor authority'],
-    InvalidClaimPass: ['invalid claim pass', 'claim pass'],
-    ClaimPassAlreadyRecorded: ['claim pass already recorded', 'already recorded'],
-    MaxDepthExceeded: ['max depth exceeded', 'depth exceeds'],
-    CampaignInactive: ['campaign inactive', 'paused', 'expired campaign'],
-    RewardAmountExceedsManifest: ['reward amount exceeds manifest', 'exceeds manifest'],
-    IntentValidatorRejected: ['intent validator rejected', 'not allowed by manifest', 'does not match manifest', 'exceeds manifest'],
-  };
-  return [
-    errorCode,
-    short,
-    short.replace(/([a-z0-9])([A-Z])/g, '$1 $2'),
-    `error code: ${short}`,
-    `error number: ${short}`,
-    'custom program error',
-    ...(aliases[short] ?? []),
-  ];
-}
 
 function replayEvidence(id: string, title: string, instruction: string, check: any, errorCode = 'ProgramRejected'): AttackEvidence {
   const rejected = check?.rejected === true;
@@ -2008,21 +1966,21 @@ async function main() {
   const effectByLabel = (needle: string) => effectChecks.find((item: any) => String(item?.label ?? '').toLowerCase().includes(needle.toLowerCase())) as any;
   const attackEvidence: AttackEvidence[] = [
     replayEvidence('merchant-only-receipt', 'Merchant tries to fake receipt alone', 'record_causal_receipt', replayByLabel('merchant-only'), 'MissingRequiredSignature'),
-    replayEvidence('wrong-terminal-signer', 'Wrong terminal signer', 'record_causal_receipt', replayByLabel('wrong terminal signer'), 'InvalidTerminalAuthority'),
-    replayEvidence('different-merchant-terminal', 'Enrolled terminal from different merchant', 'record_causal_receipt', replayByLabel('different merchant terminal'), 'InvalidTerminalDevice'),
-    replayEvidence('terminal-account-signer-mismatch', 'Correct terminal account with wrong signer', 'record_causal_receipt', replayByLabel('enrolled terminal account'), 'InvalidTerminalAuthority'),
-    replayEvidence('visitor-signer-mismatch', 'Visitor signer mismatch', 'record_causal_receipt', replayByLabel('visitor signer does not match'), 'InvalidVisitorAuthority'),
+    replayEvidence('wrong-terminal-signer', 'Wrong terminal signer', 'record_causal_receipt', replayByLabel('wrong terminal signer'), 'AccountNotInitialized'),
+    replayEvidence('different-merchant-terminal', 'Enrolled terminal from different merchant', 'record_causal_receipt', replayByLabel('different merchant terminal'), 'ConstraintSeeds'),
+    replayEvidence('terminal-account-signer-mismatch', 'Correct terminal account with wrong signer', 'record_causal_receipt', replayByLabel('enrolled terminal account'), 'ConstraintSeeds'),
+    replayEvidence('visitor-signer-mismatch', 'Visitor signer mismatch', 'record_causal_receipt', replayByLabel('visitor signer does not match'), 'InvalidClaimPass'),
     replayEvidence('visitor-beneficiary-mismatch', 'Visitor beneficiary mismatch', 'record_causal_receipt', replayByLabel('visitor beneficiary'), 'InvalidVisitorAuthority'),
-    replayEvidence('claim-pass-reused', 'Claim pass already recorded', 'record_causal_receipt', replayByLabel('claim pass already'), 'ClaimPassAlreadyRecorded'),
+    replayEvidence('claim-pass-reused', 'Claim pass already recorded', 'record_causal_receipt', replayByLabel('claim pass already'), 'InvalidClaimPass'),
     replayEvidence('claim-pass-campaign-mismatch', 'Claim pass campaign mismatch', 'record_causal_receipt', replayByLabel('claim pass campaign'), 'InvalidClaimPass'),
     replayEvidence('claim-pass-depth-exceeds-max-depth', 'Claim pass depth exceeds campaign max depth', 'issue_claim_pass', replayByLabel('depth exceeds'), 'MaxDepthExceeded'),
     replayEvidence('duplicate-nullifier', 'Duplicate receipt nullifier', 'record_causal_receipt', replayByLabel('duplicate campaign nullifier'), 'AccountAlreadyInitialized'),
     intentEvidence('inflated-reward-amount', 'Inflated reward amount', effectByLabel('Inflated reward'), 'RewardAmountExceedsManifest'),
     intentEvidence('inflated-split-bps', 'Inflated referrer split bps', effectByLabel('Inflated split bps'), 'IntentMismatch'),
-    replayEvidence('wrong-reward-mint', 'Wrong reward mint', 'fund_growth_bounty', replayByLabel('wrong reward mint'), 'InvalidRewardMint'),
-    replayEvidence('wrong-reward-vault', 'Wrong reward vault', 'settle_receipt_reward', replayByLabel('wrong reward vault'), 'ConstraintTokenOwner'),
+    replayEvidence('wrong-reward-mint', 'Wrong reward mint', 'fund_growth_bounty', replayByLabel('wrong reward mint'), '0x7de'),
+    replayEvidence('wrong-reward-vault', 'Wrong reward vault', 'settle_receipt_reward', replayByLabel('wrong reward vault'), 'InvalidState'),
     replayEvidence('settlement-replay', 'Settlement replay', 'settle_receipt_reward', replayByLabel('duplicate receipt settlement'), 'AccountAlreadyInitialized'),
-    replayEvidence('paused-or-expired-campaign', 'Paused or expired campaign receipt attempt', 'record_causal_receipt', replayByLabel('paused') ?? replayByLabel('expired campaign'), 'CampaignInactive'),
+    replayEvidence('paused-or-expired-campaign', 'Paused or expired campaign receipt attempt', 'record_causal_receipt', replayByLabel('paused') ?? replayByLabel('expired campaign'), 'InvalidState'),
   ];
 
   if (options.attackCheck) {
