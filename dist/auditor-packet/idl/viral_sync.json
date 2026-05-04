@@ -2063,6 +2063,78 @@
       ]
     },
     {
+      "name": "set_terminal_device_status",
+      "discriminator": [
+        18,
+        160,
+        190,
+        136,
+        169,
+        44,
+        33,
+        5
+      ],
+      "accounts": [
+        {
+          "name": "merchant_config"
+        },
+        {
+          "name": "terminal_device",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  101,
+                  114,
+                  109,
+                  105,
+                  110,
+                  97,
+                  108,
+                  95,
+                  100,
+                  101,
+                  118,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merchant_config"
+              },
+              {
+                "kind": "account",
+                "path": "terminal_device.terminal_authority",
+                "account": "TerminalDevice"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merchant_authority",
+          "signer": true,
+          "relations": [
+            "merchant_config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": {
+              "name": "TerminalDeviceStatus"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "settle_receipt_reward",
       "discriminator": [
         245,
@@ -2737,6 +2809,19 @@
       ]
     },
     {
+      "name": "TerminalDeviceStatusUpdated",
+      "discriminator": [
+        203,
+        133,
+        167,
+        117,
+        206,
+        74,
+        61,
+        156
+      ]
+    },
+    {
       "name": "TransferExecuted",
       "discriminator": [
         8,
@@ -2920,6 +3005,11 @@
       "code": 6033,
       "name": "IntentMismatch",
       "msg": "Receipt intent does not match campaign settlement terms"
+    },
+    {
+      "code": 6034,
+      "name": "InvalidLineageProof",
+      "msg": "Claim-pass lineage proof does not match receipt parent data"
     }
   ],
   "types": [
@@ -4657,6 +4747,42 @@
           },
           {
             "name": "Revoked"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TerminalDeviceStatusUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "terminal_device",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "merchant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "terminal_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "TerminalDeviceStatus"
+              }
+            }
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
           }
         ]
       }

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::state::causal_commerce::{CausalMerchantStatus, GrowthCampaignStatus};
+use crate::state::causal_commerce::{CausalMerchantStatus, GrowthCampaignStatus, TerminalDeviceStatus};
 use crate::state::token_generation::GenSource;
 
 #[event]
@@ -134,5 +134,15 @@ pub struct GrowthCampaignStatusUpdated {
     pub growth_campaign: Pubkey,
     pub merchant_authority: Pubkey,
     pub status: GrowthCampaignStatus,
+    pub updated_at: i64,
+}
+
+#[event]
+pub struct TerminalDeviceStatusUpdated {
+    pub terminal_device: Pubkey,
+    pub merchant_config: Pubkey,
+    pub merchant_authority: Pubkey,
+    pub terminal_authority: Pubkey,
+    pub status: TerminalDeviceStatus,
     pub updated_at: i64,
 }

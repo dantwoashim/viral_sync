@@ -86,4 +86,18 @@ describe('proof hardening regressions', () => {
     expect(rejected.ok).to.equal(false);
     expect(rejected.status).to.equal('rejected');
   });
+
+  it('keeps phase 2 protocol hardening wired into the on-chain surface', () => {
+    const program = fs.readFileSync('programs/viral_sync/src/instructions/causal_commerce.rs', 'utf8');
+    const lib = fs.readFileSync('programs/viral_sync/src/lib.rs', 'utf8');
+    const errors = fs.readFileSync('programs/viral_sync/src/errors.rs', 'utf8');
+
+    expect(program).to.include('set_terminal_device_status');
+    expect(lib).to.include('pub fn set_terminal_device_status');
+    expect(program).to.include('InvalidLineageProof');
+    expect(program).to.include('claim_pass.depth == 1');
+    expect(program).to.include('parent_receipt_id_hash == [0; 32]');
+    expect(program).to.include('claim_pass.referrer_receipt != Pubkey::default()');
+    expect(errors).to.include('InvalidLineageProof');
+  });
 });

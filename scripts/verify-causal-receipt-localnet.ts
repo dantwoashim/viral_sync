@@ -267,6 +267,7 @@ async function main() {
     visitAttestationHash?: number[];
     inviteHash?: number[];
     lineageProofHash?: number[];
+    parentReceiptIdHash?: number[];
     status: unknown;
     settledAt: anchor.BN;
     terminalDevice?: PublicKey;
@@ -311,6 +312,7 @@ async function main() {
     firstReceipt: PublicKey;
     depth: number;
     lineageProofHash: number[];
+    referrerReceipt?: PublicKey;
   };
   type TerminalDevice = {
     merchantConfig: PublicKey;
@@ -413,6 +415,24 @@ async function main() {
     }
     if (typeof campaign.maxDepth === 'number' && claimPass.depth > campaign.maxDepth) {
       failures.push(`claim pass depth ${claimPass.depth} exceeds campaign maxDepth ${campaign.maxDepth}`);
+    }
+    const receiptParentHash = receipt.parentReceiptIdHash ? hashArrayToHex(receipt.parentReceiptIdHash) : undefined;
+    const zeroHash = '0'.repeat(64);
+    const referrerReceipt = claimPass.referrerReceipt?.toBase58();
+    if (claimPass.depth === 1) {
+      if (referrerReceipt && referrerReceipt !== PublicKey.default.toBase58()) {
+        failures.push(`root claim pass referrer receipt is ${referrerReceipt}, expected default pubkey`);
+      }
+      if (receiptParentHash && receiptParentHash !== zeroHash) {
+        failures.push(`root receipt parent hash is ${receiptParentHash}, expected zero hash`);
+      }
+    } else {
+      if (!referrerReceipt || referrerReceipt === PublicKey.default.toBase58()) {
+        failures.push('child claim pass must reference a non-default parent receipt');
+      }
+      if (!receiptParentHash || receiptParentHash === zeroHash) {
+        failures.push('child receipt must include a non-zero parent receipt hash');
+      }
     }
   } else {
     failures.push('claim pass account is missing');
@@ -542,6 +562,19 @@ async function main() {
       receipt.lineageProofHash &&
       claimPass.lineageProofHash &&
       hashArrayToHex(claimPass.lineageProofHash) === hashArrayToHex(receipt.lineageProofHash),
+    ),
+    rootParentConsistency: Boolean(
+      claimPass &&
+      (
+        (claimPass.depth === 1 &&
+          claimPass.referrerReceipt?.equals(PublicKey.default) &&
+          (!receipt.parentReceiptIdHash || hashArrayToHex(receipt.parentReceiptIdHash) === '0'.repeat(64))) ||
+        (claimPass.depth > 1 &&
+          claimPass.referrerReceipt &&
+          !claimPass.referrerReceipt.equals(PublicKey.default) &&
+          receipt.parentReceiptIdHash &&
+          hashArrayToHex(receipt.parentReceiptIdHash) !== '0'.repeat(64))
+      ),
     ),
   };
   const nullifierAccountVerified = Boolean(nullifier.campaign.equals(receipt.campaign) && nullifier.firstReceipt.equals(causalReceiptPda));

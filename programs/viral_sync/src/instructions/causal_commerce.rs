@@ -11,7 +11,7 @@ use crate::errors::ViralSyncError;
 use crate::events::{
     CausalMerchantStatusUpdated, CausalReceiptRecorded, ClaimPassIssued, GrowthBountyClosed,
     GrowthBountyFunded, GrowthCampaignCreated, GrowthCampaignStatusUpdated, MerchantRegistered,
-    ReceiptRewardSettled, TerminalDeviceEnrolled,
+    ReceiptRewardSettled, TerminalDeviceEnrolled, TerminalDeviceStatusUpdated,
 };
 use crate::state::{
     CausalMerchantConfig, CausalMerchantStatus, CausalReceipt, CausalReceiptStatus,
@@ -99,6 +99,52 @@ pub fn enroll_terminal_device(
         terminal_authority: device.terminal_authority,
         label_hash,
     });
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct SetTerminalDeviceStatus<'info> {
+    #[account(
+        has_one = merchant_authority @ ViralSyncError::AccessDenied,
+        constraint = merchant_config.status == CausalMerchantStatus::Active @ ViralSyncError::InvalidState,
+    )]
+    pub merchant_config: Account<'info, CausalMerchantConfig>,
+
+    #[account(
+        mut,
+        seeds = [
+            TerminalDevice::SEED_PREFIX,
+            merchant_config.key().as_ref(),
+            terminal_device.terminal_authority.as_ref(),
+        ],
+        bump = terminal_device.bump,
+        constraint = terminal_device.merchant_config == merchant_config.key() @ ViralSyncError::InvalidTerminalDevice,
+        constraint = terminal_device.merchant_authority == merchant_authority.key() @ ViralSyncError::InvalidTerminalDevice,
+    )]
+    pub terminal_device: Account<'info, TerminalDevice>,
+
+    pub merchant_authority: Signer<'info>,
+}
+
+pub fn set_terminal_device_status(
+    ctx: Context<SetTerminalDeviceStatus>,
+    status: TerminalDeviceStatus,
+) -> Result<()> {
+    let now = Clock::get()?.unix_timestamp;
+    let device = &mut ctx.accounts.terminal_device;
+
+    device.status = status;
+    device.updated_at = now;
+
+    emit!(TerminalDeviceStatusUpdated {
+        terminal_device: device.key(),
+        merchant_config: device.merchant_config,
+        merchant_authority: ctx.accounts.merchant_authority.key(),
+        terminal_authority: device.terminal_authority,
+        status,
+        updated_at: now,
+    });
+
     Ok(())
 }
 
@@ -548,6 +594,13 @@ pub fn record_causal_receipt(
     let receipt = &mut ctx.accounts.causal_receipt;
     let nullifier = &mut ctx.accounts.nullifier_record;
     let claim_pass = &mut ctx.accounts.claim_pass;
+    if claim_pass.depth == 1 {
+        require_keys_eq!(claim_pass.referrer_receipt, Pubkey::default(), ViralSyncError::InvalidLineageProof);
+        require!(parent_receipt_id_hash == [0; 32], ViralSyncError::InvalidLineageProof);
+    } else {
+        require!(claim_pass.referrer_receipt != Pubkey::default(), ViralSyncError::InvalidLineageProof);
+        require!(parent_receipt_id_hash != [0; 32], ViralSyncError::InvalidLineageProof);
+    }
 
     receipt.bump = ctx.bumps.causal_receipt;
     receipt.campaign = campaign.key();

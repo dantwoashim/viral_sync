@@ -84,6 +84,13 @@ type ProgramMethods = {
       merchantAuthority: PublicKey;
     }) => RpcBuilder;
   };
+  setTerminalDeviceStatus: (status: Record<string, unknown>) => {
+    accounts: (accounts: {
+      merchantConfig: PublicKey;
+      terminalDevice: PublicKey;
+      merchantAuthority: PublicKey;
+    }) => RpcBuilder;
+  };
   createGrowthCampaign: (
     campaignIdHash: number[],
     rewardPerVerifiedVisit: anchor.BN,
@@ -1624,6 +1631,113 @@ async function main() {
   console.error('recordCausalReceipt complete');
 
   if (options.attackCheck) {
+    const rootParentMismatchClaimHash = hashBytes('claim-pass', `${options.campaignId}:root-parent-mismatch`);
+    const [rootParentMismatchClaimPass] = findPda('claim_pass', [growthCampaign.toBuffer(), visitorAuthority.publicKey.toBuffer(), rootParentMismatchClaimHash]);
+    await sendProgramInstruction(connection, walletInfo.keypair, methods.issueClaimPass(
+      Array.from(rootParentMismatchClaimHash),
+      1,
+      Array.from(hashBytes('lineage-proof', `${options.campaignId}:root-parent-mismatch`)),
+      PublicKey.default,
+    )
+      .accounts({
+        growthCampaign,
+        merchantConfig,
+        merchantAuthority: wallet.publicKey,
+        visitorAuthority: visitorAuthority.publicKey,
+        claimPass: rootParentMismatchClaimPass,
+        systemProgram: SystemProgram.programId,
+      }));
+    const rootParentMismatchReceiptIdHash = hashBytes('receipt', `${options.receiptId}:root-parent-mismatch`);
+    const rootParentMismatchNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:root-parent-mismatch`);
+    const [rootParentMismatchReceipt] = findPda('causal_receipt', [growthCampaign.toBuffer(), rootParentMismatchReceiptIdHash]);
+    const [rootParentMismatchNullifier] = findPda('campaign_nullifier', [growthCampaign.toBuffer(), rootParentMismatchNullifierHash]);
+    replayChecks.push(await expectRejected('root claim pass with parent receipt hash rejected', () => sendProgramInstruction(connection, walletInfo.keypair, methods.recordCausalReceipt(
+      Array.from(rootParentMismatchReceiptIdHash),
+      Array.from(hashBytes('receipt', `${options.receiptId}:fake-parent`)),
+      Array.from(referrerCommitment),
+      Array.from(rootParentMismatchNullifierHash),
+      Array.from(inviteHash),
+      Array.from(visitAttestationHash),
+      Array.from(intentManifestHash),
+      Array.from(riskScoreCommitment),
+      referrerAuthority.publicKey,
+      visitorAuthority.publicKey,
+    )
+      .accounts({
+        growthCampaign,
+        merchantConfig,
+        rewardEscrow,
+        rewardVault: rewardVault.address,
+        causalReceipt: rootParentMismatchReceipt,
+        nullifierRecord: rootParentMismatchNullifier,
+        claimPass: rootParentMismatchClaimPass,
+        terminalDevice,
+        terminalAuthority: terminalAuthority.publicKey,
+        visitorAuthority: visitorAuthority.publicKey,
+        merchantAuthority: wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      }), [terminalAuthority, visitorAuthority])));
+
+    const pausedTerminalClaimHash = hashBytes('claim-pass', `${options.campaignId}:paused-terminal`);
+    const [pausedTerminalClaimPass] = findPda('claim_pass', [growthCampaign.toBuffer(), visitorAuthority.publicKey.toBuffer(), pausedTerminalClaimHash]);
+    await sendProgramInstruction(connection, walletInfo.keypair, methods.issueClaimPass(
+      Array.from(pausedTerminalClaimHash),
+      1,
+      Array.from(hashBytes('lineage-proof', `${options.campaignId}:paused-terminal`)),
+      PublicKey.default,
+    )
+      .accounts({
+        growthCampaign,
+        merchantConfig,
+        merchantAuthority: wallet.publicKey,
+        visitorAuthority: visitorAuthority.publicKey,
+        claimPass: pausedTerminalClaimPass,
+        systemProgram: SystemProgram.programId,
+      }));
+
+    await sendProgramInstruction(connection, walletInfo.keypair, methods.setTerminalDeviceStatus({ paused: {} })
+      .accounts({
+        merchantConfig,
+        terminalDevice,
+        merchantAuthority: wallet.publicKey,
+      }));
+    const pausedTerminalReceiptIdHash = hashBytes('receipt', `${options.receiptId}:paused-terminal`);
+    const pausedTerminalNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:paused-terminal`);
+    const [pausedTerminalReceipt] = findPda('causal_receipt', [growthCampaign.toBuffer(), pausedTerminalReceiptIdHash]);
+    const [pausedTerminalNullifier] = findPda('campaign_nullifier', [growthCampaign.toBuffer(), pausedTerminalNullifierHash]);
+    replayChecks.push(await expectRejected('paused terminal device rejected', () => sendProgramInstruction(connection, walletInfo.keypair, methods.recordCausalReceipt(
+      Array.from(pausedTerminalReceiptIdHash),
+      Array.from(parentReceiptIdHash),
+      Array.from(referrerCommitment),
+      Array.from(pausedTerminalNullifierHash),
+      Array.from(inviteHash),
+      Array.from(visitAttestationHash),
+      Array.from(intentManifestHash),
+      Array.from(riskScoreCommitment),
+      referrerAuthority.publicKey,
+      visitorAuthority.publicKey,
+    )
+      .accounts({
+        growthCampaign,
+        merchantConfig,
+        rewardEscrow,
+        rewardVault: rewardVault.address,
+        causalReceipt: pausedTerminalReceipt,
+        nullifierRecord: pausedTerminalNullifier,
+        claimPass: pausedTerminalClaimPass,
+        terminalDevice,
+        terminalAuthority: terminalAuthority.publicKey,
+        visitorAuthority: visitorAuthority.publicKey,
+        merchantAuthority: wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      }), [terminalAuthority, visitorAuthority])));
+    await sendProgramInstruction(connection, walletInfo.keypair, methods.setTerminalDeviceStatus({ active: {} })
+      .accounts({
+        merchantConfig,
+        terminalDevice,
+        merchantAuthority: wallet.publicKey,
+      }));
+
     const recordedClaimReceiptIdHash = hashBytes('receipt', `${options.receiptId}:recorded-claim-pass`);
     const recordedClaimNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:recorded-claim-pass`);
     const [recordedClaimReceipt] = findPda('causal_receipt', [growthCampaign.toBuffer(), recordedClaimReceiptIdHash]);
@@ -1945,6 +2059,8 @@ async function main() {
     replayEvidence('claim-pass-reused', 'Claim pass already recorded', 'record_causal_receipt', replayByLabel('claim pass already'), 'InvalidClaimPass'),
     replayEvidence('claim-pass-campaign-mismatch', 'Claim pass campaign mismatch', 'record_causal_receipt', replayByLabel('claim pass campaign'), 'InvalidClaimPass'),
     replayEvidence('claim-pass-depth-exceeds-max-depth', 'Claim pass depth exceeds campaign max depth', 'issue_claim_pass', replayByLabel('depth exceeds'), 'MaxDepthExceeded'),
+    replayEvidence('root-parent-lineage-mismatch', 'Root claim pass supplies parent receipt hash', 'record_causal_receipt', replayByLabel('root claim pass with parent'), 'InvalidLineageProof'),
+    replayEvidence('paused-terminal-device', 'Paused terminal device cannot record receipt', 'record_causal_receipt', replayByLabel('paused terminal device'), 'TerminalDeviceInactive'),
     replayEvidence('duplicate-nullifier', 'Duplicate receipt nullifier', 'record_causal_receipt', replayByLabel('duplicate campaign nullifier'), 'AccountAlreadyInitialized'),
     intentEvidence('inflated-reward-amount', 'Inflated reward amount', effectByLabel('Inflated reward'), 'RewardAmountExceedsManifest'),
     intentEvidence('inflated-split-bps', 'Inflated referrer split bps', effectByLabel('Inflated split bps'), 'IntentMismatch'),
@@ -1962,9 +2078,10 @@ async function main() {
       entry.accountsMutationVerified !== true ||
       !['program_rejection', 'intent_validator_rejection'].includes(entry.failureKind)
     ));
-    if (attackEvidence.length !== 16 || incompleteAttackEvidence.length > 0) {
+    const expectedAttackCases = 18;
+    if (attackEvidence.length !== expectedAttackCases || incompleteAttackEvidence.length > 0) {
       throw new Error(
-        `Fraud gauntlet incomplete: ${attackEvidence.length}/16 cases emitted; ${incompleteAttackEvidence.length} cases not rejected: ${incompleteAttackEvidence
+        `Fraud gauntlet incomplete: ${attackEvidence.length}/${expectedAttackCases} cases emitted; ${incompleteAttackEvidence.length} cases not rejected: ${incompleteAttackEvidence
           .map((entry) => `${entry.id}:${entry.observed}:${entry.failureKind}:${String(entry.actualError).slice(0, 160)}`)
           .join(', ')}`,
       );

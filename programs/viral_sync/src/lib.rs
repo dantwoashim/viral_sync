@@ -8,7 +8,7 @@ pub mod instructions;
 pub mod state;
 
 use instructions::*;
-use state::{CausalMerchantStatus, GrowthCampaignStatus};
+use state::{CausalMerchantStatus, GrowthCampaignStatus, TerminalDeviceStatus};
 
 declare_id!("AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46");
 
@@ -199,6 +199,13 @@ pub mod viral_sync {
         status: GrowthCampaignStatus,
     ) -> Result<()> {
         instructions::causal_commerce::set_growth_campaign_status(ctx, status)
+    }
+
+    pub fn set_terminal_device_status(
+        ctx: Context<SetTerminalDeviceStatus>,
+        status: TerminalDeviceStatus,
+    ) -> Result<()> {
+        instructions::causal_commerce::set_terminal_device_status(ctx, status)
     }
 
     #[allow(clippy::too_many_arguments)]

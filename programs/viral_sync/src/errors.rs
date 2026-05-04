@@ -103,4 +103,7 @@ pub enum ViralSyncError {
 
     #[msg("Receipt intent does not match campaign settlement terms")]
     IntentMismatch,
+
+    #[msg("Claim-pass lineage proof does not match receipt parent data")]
+    InvalidLineageProof,
 }

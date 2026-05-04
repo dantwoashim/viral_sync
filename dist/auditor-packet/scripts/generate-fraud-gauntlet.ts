@@ -83,11 +83,13 @@ const CASE_DEFS: Array<Omit<GauntletCase, 'observed' | 'status' | 'errorCode' | 
   { id: 'claim-pass-campaign-mismatch', title: 'Claim pass campaign mismatch', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'A coupon from one campaign is accepted by another.', viralSyncDefense: 'Claim pass is bound to campaign PDA.', fallbackError: 'InvalidClaimPass' },
   { id: 'claim-pass-depth-exceeds-max-depth', title: 'Claim pass depth exceeds max depth', expected: 'rejected', instruction: 'issue_claim_pass', normalReferralFailure: 'Referral trees can grow beyond merchant risk limits.', viralSyncDefense: 'Claim depth is capped by campaign.max_depth.', fallbackError: 'MaxDepthExceeded' },
   { id: 'duplicate-nullifier', title: 'Duplicate receipt nullifier', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'The same redemption can be replayed.', viralSyncDefense: 'Nullifier PDA initialization is exact-once.', fallbackError: 'AccountAlreadyInitialized' },
+  { id: 'root-parent-lineage-mismatch', title: 'Root claim pass with parent lineage', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'A backend can attach fake parent attribution to a root visit.', viralSyncDefense: 'Root claim passes must have no parent receipt and a zero parent hash.', fallbackError: 'InvalidLineageProof' },
   { id: 'inflated-reward-amount', title: 'Inflated reward amount', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'Backend bugs can overpay a reward.', viralSyncDefense: 'Receipt intent validates reward against manifest cap.', fallbackError: 'RewardAmountExceedsManifest' },
   { id: 'inflated-split-bps', title: 'Inflated referrer split bps', expected: 'rejected', instruction: 'settle_receipt_reward', normalReferralFailure: 'A backend can silently change payout split before settlement.', viralSyncDefense: 'Settlement terms are locked to the intent/campaign split.', fallbackError: 'IntentMismatch' },
   { id: 'wrong-reward-mint', title: 'Wrong reward mint', expected: 'rejected', instruction: 'fund_growth_bounty', normalReferralFailure: 'A fake token can be presented as campaign reward.', viralSyncDefense: 'Reward mint must match growth_campaign.reward_mint.', fallbackError: 'InvalidRewardMint' },
   { id: 'wrong-reward-vault', title: 'Wrong reward vault', expected: 'rejected', instruction: 'settle_receipt_reward', normalReferralFailure: 'Funds can be routed through a different vault.', viralSyncDefense: 'Reward vault is bound to reward escrow PDA.', fallbackError: 'ConstraintTokenOwner' },
   { id: 'settlement-replay', title: 'Settlement replay', expected: 'rejected', instruction: 'settle_receipt_reward', normalReferralFailure: 'A settled receipt can be paid again.', viralSyncDefense: 'Settlement PDA is initialized once per receipt.', fallbackError: 'AccountAlreadyInitialized' },
+  { id: 'paused-terminal-device', title: 'Paused terminal device', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'A disabled counter device can keep accepting customer passes.', viralSyncDefense: 'Merchant authority can pause terminal devices and receipt recording rejects inactive terminals.', fallbackError: 'TerminalDeviceInactive' },
   { id: 'paused-or-expired-campaign', title: 'Paused or expired campaign receipt attempt', expected: 'rejected', instruction: 'record_causal_receipt', normalReferralFailure: 'Old campaigns keep accepting redemptions.', viralSyncDefense: 'Campaign status and expiry are checked before receipt recording.', fallbackError: 'CampaignInactive' },
 ];
 
@@ -152,7 +154,7 @@ function main() {
     programId: manifest.programId,
     proofStatus,
     proofStatusNote: proofStatus === 'verified'
-      ? 'All 16 structured attackEvidence cases were rejected with expected errors, account mutation checks passed, and counter-attested verifier flags are true.'
+      ? `All ${cases.length} structured attackEvidence cases were rejected with expected errors, account mutation checks passed, and counter-attested verifier flags are true.`
       : 'Run frontier:final to regenerate verified fraud evidence.',
     proofLevel: manifest.proofLevel ?? manifest.targetProofLevel ?? 'counter_attested',
     attestationModel: manifest.attestationModel ?? manifest.targetAttestationModel ?? 'merchant_terminal_visitor_signed',

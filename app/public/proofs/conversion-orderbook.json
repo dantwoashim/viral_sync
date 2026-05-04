@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "title": "Proof-of-Conversion Orderbook",
   "network": "solana-devnet",
-  "generatedAt": "2026-05-04T10:13:55.159Z",
+  "generatedAt": "2026-05-04T17:29:46.923Z",
   "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
   "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
@@ -37,14 +37,14 @@
       },
       "proofObjects": {
         "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
-        "campaignPda": "4Jfn2Lf1qtDMJ5uxgAzCEcNwsAU3JXqHLHpTeSE9mMFA",
-        "rewardEscrow": "AbYRUoyUq154QrVCBWZMuF9f7we8LdDmSF9yPhbTQQ7w",
-        "receiptPda": "BCMjUfviPJtFWgGD35mMnrtUgm1yMCQeUMB3Yhc3nMrd",
-        "nullifierPda": "D5mhiJZBxzUpcxGPfJzffZ5azTNHNMf2B11DsRgWJdWF",
-        "terminalDevice": "HukNAiAyyJ7Dm2ErfJWm2mc4xZ63r9ZyBqAFDuGNwVHA",
-        "claimPass": "79134UWK244U1AyipLmPbEoam8nJc1QUfv7nckYK2Zgr",
-        "intentManifestHash": "d090b6d9c32d6917d2d93ffdfc2a014d1fb51e7f1bf07a7a31394bb1a77c4274",
-        "passportHash": "c388eed3dd782e7dbdc1a6694c5ed90c198d8c6d7874972dc3f15b241a57c9df"
+        "campaignPda": "GRA7eJaZWh8YKu8315FYZErPpJdvuwUmi36dRbuvruug",
+        "rewardEscrow": "5QPL44BvQPkaJ2i3SUoWfwXywia8wQ1nZJo82a4q1PN6",
+        "receiptPda": "62gaHWd2pGzgjzC6tYZgQF45MGtDsGJnCkJstSGXr7vB",
+        "nullifierPda": "2fZxKevZzvYPaUtqxqin4xu2dGkWKfJ8go7rX4WVKuxy",
+        "terminalDevice": "5xrCbQrSLJ44Nju9UoKb3cVwqVReUxiekpQ4JsvmoceT",
+        "claimPass": "4mLYwZ58dMCiZt5wqQ5AY1B2fogks2eVTJ1c5hh8fA63",
+        "intentManifestHash": "f383c4b9b4615080a08b2fd0a4ebe6259e9c97d94a589e7ab312abf0f665cd7a",
+        "passportHash": "a7f7ad898db1ad3fae80145cc10b06d5a944670154c82b06bf6be9d784c17249"
       },
       "verification": {
         "verifierOk": true,
@@ -60,8 +60,8 @@
         "gauntlet": "/proof",
         "receipt": "/receipt/latest",
         "passport": "/merchant-passport",
-        "recordTx": "https://explorer.solana.com/tx/4ksSZhzyjTkwbW2F2X821oodZHkN8FHJVq3TbpZv2wWdvzssbXr6G7CNptMNxuz3nvg3dbPMngw79ezaGsWBBbJJ?cluster=devnet",
-        "settleTx": "https://explorer.solana.com/tx/2gqirka4Hrn28iiQVb59HiJyYvaFNu12jSYmTkaz94bz4JbfVCNUtgEEd58xmEnQT84VCNoazKajDqSfETfQoWRd?cluster=devnet"
+        "recordTx": "https://explorer.solana.com/tx/4WzYp1qvhLwEPe6MkJwkbWcqq9gTnAwbrDyUyVw5FVH4hU7Ki2cqm9ULWhfYb4G25oRwZLyMTcTQswcZr3d4q37z?cluster=devnet",
+        "settleTx": "https://explorer.solana.com/tx/4ofsZWohe6KQkkexBDKuTg8eRWFpHk1tCNUzPeeaHCpRTWWeY8Uh8RFijGuunKrur8PMexarzUzy4zt29nV7baz8?cluster=devnet"
       }
     },
     {
@@ -91,13 +91,13 @@
       }
     }
   ],
-  "orderbookHash": "acdc8e9654bf428535760161911e573f95e0d8c60920281ebd1da792d724ae45",
-  "programSourceHash": "46902a5346b917738d66901adaf5d2b26c96c7c03206131b230b870a86ed9674",
-  "idlHash": "e6571b802b6519eb70287a9d62c6de77a57c9a5993a3ee338d57b4a7a7e4a23e",
-  "proofGeneratorHash": "b639a16cc4512bb37495ae29f82ca72cdf5994e58cdc58f14cad243d7e1490e6",
-  "verifierHash": "ed44afae220e15f9a4e00dc036c7b0f7dc09735723a3fbe2e1a8f353e8292e26",
-  "rawVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
-  "publishedVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
+  "orderbookHash": "84662b9dcb264bc507cfcb97b8cd1dff4dedeef9d2b708d08a2552c774a0c175",
+  "programSourceHash": "f457c7ecd8faf2ac5619ffc7cb49515e4195acb944970e29c3425c153e51b131",
+  "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
+  "proofGeneratorHash": "469d10f8e8a712de1db40fdc97e10835be0feabbe7f7dd736e1099fc1d383478",
+  "verifierHash": "19c0a5b046079e7f25828c2d615fed2863b19504d4ce6ec5d44508d80987db8a",
+  "rawVerifierHash": "b9ff7bfb149dd213a8428f3cd272f33574dd048197e67c5cac156570794990f7",
+  "publishedVerifierHash": "b9ff7bfb149dd213a8428f3cd272f33574dd048197e67c5cac156570794990f7",
   "stampMode": "final-candidate",
-  "artifactHash": "4d7aefc62710e7bb3e32c4dbf0abb9496cf27619fdda327f8cae06e9d4e0757e"
+  "artifactHash": "57d66a8b3b4c25681c273cfc12d704bdbd068427d297743edf6ab7ac73ab6237"
 }
