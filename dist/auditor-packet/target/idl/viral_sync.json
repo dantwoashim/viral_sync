@@ -2161,6 +2161,44 @@
           "writable": true
         },
         {
+          "name": "protocol_treasury",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign.reward_mint",
+                "account": "GrowthCampaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_reward_account",
+          "writable": true
+        },
+        {
           "name": "reward_mint"
         },
         {
@@ -4511,6 +4549,10 @@
           },
           {
             "name": "visitor_amount",
+            "type": "u64"
+          },
+          {
+            "name": "protocol_fee",
             "type": "u64"
           },
           {

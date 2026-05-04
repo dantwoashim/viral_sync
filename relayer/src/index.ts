@@ -7,8 +7,11 @@ import {
   Transaction,
   VersionedTransaction,
 } from '@solana/web3.js';
+import { paymentMiddleware, type SolanaAddress } from 'x402-express';
 import bs58 from 'bs58';
 import { createHash, timingSafeEqual } from 'crypto';
+import { existsSync, readFileSync } from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -46,6 +49,7 @@ const MAX_COMPUTE_UNITS = Number(process.env.MAX_COMPUTE_UNITS || 200_000);
 const allowAddressLookupTables = process.env.RELAYER_ALLOW_ADDRESS_LOOKUP_TABLES === 'true';
 const allowUnauthenticated = process.env.RELAYER_ALLOW_UNAUTHENTICATED === 'true';
 const COMPUTE_BUDGET_PROGRAM_ID = 'ComputeBudget111111111111111111111111111111';
+const TREASURY_WALLET = process.env.TREASURY_WALLET || '';
 
 if (MAX_TRANSACTION_BYTES > 2_048) {
   throw new Error('MAX_TRANSACTION_BYTES must not exceed 2048 for the production relayer.');
@@ -83,6 +87,10 @@ if (isProduction && (!REPLAY_CACHE_REST_URL || !REPLAY_CACHE_REST_TOKEN)) {
   throw new Error('RELAYER_REPLAY_CACHE_REST_URL and RELAYER_REPLAY_CACHE_REST_TOKEN are required in production.');
 }
 
+if (isProduction && !TREASURY_WALLET) {
+  throw new Error('TREASURY_WALLET is required for x402 paid API routes in production.');
+}
+
 function assertPositiveInteger(value: number, name: string) {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer.`);
@@ -116,6 +124,48 @@ function parseSecretKey(secret: string) {
 const relayerKeypair = parseSecretKey(RELAYER_SECRET);
 const connection = new Connection(RPC_URL, 'confirmed');
 const app = express();
+const x402TreasuryWallet = TREASURY_WALLET || relayerKeypair.publicKey.toBase58();
+
+function readJsonIfExists(filePath: string): unknown | null {
+  const resolved = path.resolve(filePath);
+  if (!existsSync(resolved)) {
+    return null;
+  }
+
+  return JSON.parse(readFileSync(resolved, 'utf8'));
+}
+
+function loadPublishedReceiptProof(receiptPda: string) {
+  const manifest = readJsonIfExists('app/public/proofs/devnet-causal-commerce.json') as
+    | { pdas?: { causalReceipt?: string }; proofStatus?: string; cluster?: string; programId?: string; signatures?: Record<string, string>; explorerLinks?: unknown }
+    | null;
+  const verifier = readJsonIfExists('app/public/proofs/devnet-causal-commerce-verifier.json') as
+    | { ok?: boolean; terminalVerified?: boolean; visitorVerified?: boolean; lineageVerified?: boolean; settlementVerified?: boolean; nullifierVerified?: boolean; settlementChecks?: unknown; tokenAccountChecks?: unknown }
+    | null;
+
+  if (!manifest || manifest.pdas?.causalReceipt !== receiptPda) {
+    return null;
+  }
+
+  return {
+    proofStatus: manifest.proofStatus ?? 'unknown',
+    cluster: manifest.cluster,
+    programId: manifest.programId,
+    receiptPda,
+    signatures: manifest.signatures,
+    explorerLinks: manifest.explorerLinks,
+    verifier: {
+      ok: verifier?.ok === true,
+      terminalVerified: verifier?.terminalVerified === true,
+      visitorVerified: verifier?.visitorVerified === true,
+      lineageVerified: verifier?.lineageVerified === true,
+      settlementVerified: verifier?.settlementVerified === true,
+      nullifierVerified: verifier?.nullifierVerified === true,
+      settlementChecks: verifier?.settlementChecks,
+      tokenAccountChecks: verifier?.tokenAccountChecks,
+    },
+  };
+}
 
 app.set('trust proxy', 1);
 app.use(cors({
@@ -128,9 +178,32 @@ app.use(cors({
     callback(new Error('Origin is not allowed by relayer CORS policy.'));
   },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Relayer-Key'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Relayer-Key', 'X-PAYMENT', 'X-PAYMENT-RESPONSE'],
 }));
 app.use(express.json({ limit: '16kb', type: 'application/json' }));
+
+app.use(paymentMiddleware(
+  x402TreasuryWallet as SolanaAddress,
+  {
+    '/campaigns/create': {
+      price: '$0.10',
+      network: 'solana-devnet',
+      config: {
+        description: 'POC-1 campaign creation',
+        mimeType: 'application/json',
+      },
+    },
+    '/receipts/:receiptPda/verify': {
+      price: '$0.001',
+      network: 'solana-devnet',
+      config: {
+        description: 'POC-1 receipt verification',
+        mimeType: 'application/json',
+      },
+    },
+  },
+  { url: 'https://api.cdp.coinbase.com/platform/x402/solana/facilitation' },
+));
 
 const rateLimitMap = new Map<string, number[]>();
 const replayCache = new Map<string, number>();
@@ -425,6 +498,75 @@ setInterval(() => {
     }
   }
 }, 30_000).unref();
+
+app.post('/campaigns/create', requireRateLimit, async (req, res) => {
+  const { orgIdHash, campaignBudget, rewardPerVisit } = req.body ?? {};
+  if (typeof orgIdHash !== 'string' || !orgIdHash) {
+    res.status(400).json({ error: 'orgIdHash is required.' });
+    return;
+  }
+  if (typeof campaignBudget !== 'string' && typeof campaignBudget !== 'number') {
+    res.status(400).json({ error: 'campaignBudget is required.' });
+    return;
+  }
+  if (typeof rewardPerVisit !== 'string' && typeof rewardPerVisit !== 'number') {
+    res.status(400).json({ error: 'rewardPerVisit is required.' });
+    return;
+  }
+
+  const campaignIntent = createHash('sha256')
+    .update(JSON.stringify({ orgIdHash, campaignBudget: String(campaignBudget), rewardPerVisit: String(rewardPerVisit) }))
+    .digest('hex');
+
+  res.json({
+    ok: true,
+    artifactType: 'x402_paid_campaign_creation_intent',
+    campaignIntent,
+    orgIdHash,
+    campaignBudget: String(campaignBudget),
+    rewardPerVisit: String(rewardPerVisit),
+    payment: {
+      protocol: 'x402',
+      amount: '0.10',
+      asset: 'USDC',
+      network: 'solana-devnet',
+      payTo: x402TreasuryWallet,
+    },
+  });
+});
+
+app.get('/receipts/:receiptPda/verify', requireRateLimit, async (req, res) => {
+  const { receiptPda } = req.params;
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(receiptPda)) {
+    res.status(400).json({ error: 'receiptPda must be a valid Solana public key string.' });
+    return;
+  }
+
+  const publishedProof = loadPublishedReceiptProof(receiptPda);
+  if (!publishedProof) {
+    res.status(404).json({
+      ok: false,
+      artifactType: 'x402_paid_poc1_receipt_verification',
+      receiptPda,
+      error: 'No published POC-1 proof artifact found for this receipt PDA.',
+    });
+    return;
+  }
+
+  res.json({
+    ok: publishedProof.verifier.ok,
+    artifactType: 'x402_paid_poc1_receipt_verification',
+    receiptPda,
+    payment: {
+      protocol: 'x402',
+      amount: '0.001',
+      asset: 'USDC',
+      network: 'solana-devnet',
+      payTo: x402TreasuryWallet,
+    },
+    proof: publishedProof,
+  });
+});
 
 app.get('/health', async (_req, res) => {
   try {

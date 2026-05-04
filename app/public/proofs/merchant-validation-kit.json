@@ -1,13 +1,13 @@
 {
   "type": "viral-sync-merchant-validation-kit",
   "version": "1.0.0",
-  "generatedAt": "2026-05-04T02:20:36.662Z",
+  "generatedAt": "2026-05-04T03:03:23.042Z",
   "validationStatus": "not_claimed_until_real_merchant_evidence_is_added",
   "merchantAlias": "Thamel Brew House",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "passportHash": "6b7de9f39641049bc8168634a02c675bf076958bb560e58bd1fc86c64bc3d375",
-  "orderbookHash": "2768e6a95d02dbdefb020fbab3e776a8e149d6845ca127d065aefcb66e160a71",
+  "passportHash": "30c0105be21b96ad7e9c813265e358a231b97842eaf06eeaf1945b0c748b060e",
+  "orderbookHash": "81dc19a1bb28cdf4decaf3b5ddc65a097c370331449cf741b2fbd684bcb57738",
   "rules": [
     "Do not claim live merchant traction unless evidenceSlots are filled with real permissioned evidence.",
     "Screenshots, quotes, and videos must be from a real merchant or must be labeled demo-only.",
@@ -46,13 +46,13 @@
     }
   ],
   "safeSubmissionWording": "The Frontier submission includes a complete devnet proof and verifier. Real-world merchant validation is not claimed unless this kit is filled with permissioned evidence.",
-  "validationKitHash": "5e25738b14fab0c363ef1a0848d6b118df5e81ddd9e50f2cdb748f5516c06814",
-  "programSourceHash": "92cd14949d4e3bc0c099b54cedb2730a1e09a550679fd3615d86d809d38f32c7",
-  "idlHash": "1a5a37491319e4ae75dbc97d62466ac86e6301a850b6570fac4e82cf6c30bc5e",
-  "proofGeneratorHash": "5d677ab030e673b8383eb1b74b01b9de553519d872ef784912ebbeef7021c5e2",
-  "verifierHash": "e45d6f8095bf3141b322912e2ad304456e224bdc033b99649e5c7265943e8ada",
-  "rawVerifierHash": "6be2ba2bb2fea091d98131c65245af79e4801c5d4d30b21c0ad4127eec57552f",
-  "publishedVerifierHash": "4552babec16a4a42e765f80e06dcef8bc384bb61b26817b4342fc98ee614945b",
-  "artifactHash": "41c0e583c252d30ed7e51651eed9c6228979321f45d29895c52ddc1eca54ec2e",
+  "validationKitHash": "a2a45d35dab6938b740e0dacfd963bc19c49ce9af07e43bd3780effba87c03a0",
+  "programSourceHash": "12e5d5a507929b5b023a59f685506267fa726fd6b9f400a8b7eb72f67c76cf06",
+  "idlHash": "760db6abe397edc48c97a7bdf7f619564e820f1fbaa92b304b53c3096e0fdbe7",
+  "proofGeneratorHash": "6cde53e2cb2f4e71378cca351bbecb462ef33c9127974e96e4c8aa9e2e762901",
+  "verifierHash": "2aff19ef672a74090e8d21a8ca546569b50686edab070af0b8c88d7055ac9e3e",
+  "rawVerifierHash": "1c2a65efb124be7daaf08934ef32f5f67ca7f72447e064008411a2641090b249",
+  "publishedVerifierHash": "9e8a7998d3636efd4cecd5a79bfd094fdd10a4a4eda9c3f1dcc5da02addd5263",
+  "artifactHash": "d09ef6bf2d971113aba8b230821f6e9030c5032f9f9ef66c7d5b30a0162475c0",
   "stampMode": "final-candidate"
 }

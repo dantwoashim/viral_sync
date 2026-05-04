@@ -36,15 +36,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     icon: `${baseUrl}/icon.png`,
     title: campaign.title ?? 'Claim visit pass: Thamel Brew House',
     description: 'POC-1 proof-of-outcome campaign. Settlement requires terminal + visitor counter-attestation.',
-    links: { actions: [{ label: 'View proof', href: `${baseUrl}${campaignPath}` }] },
+    links: {
+      actions: [
+        { label: 'Claim visit pass', href: `${baseUrl}/claim/${encodeURIComponent(slug)}` },
+        { label: 'View proof', href: `${baseUrl}${campaignPath}` },
+      ],
+    },
     viralSync: {
-      type: 'get_only_blink_campaign_metadata',
+      type: 'blink_campaign_metadata',
       proofBacked: campaign.proofBacked === true,
       proofLevel: campaign.proofLevel,
       attestationModel: campaign.attestationModel,
       verification: campaign.verification,
       status: campaign.status,
-      limitation: 'GET-only metadata. Transactional claim-pass creation stays out of this route until the devnet terminal flow is stable.',
     },
   });
 }

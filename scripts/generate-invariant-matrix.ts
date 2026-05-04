@@ -36,7 +36,13 @@ const rows = invariants.map(([id, whyItMatters, enforcedBy, testedBy, proofEvide
   proofEvidence,
   status: 'PASS_ON_FRESH_PROOF',
 }));
-const core = { type: 'viral-sync-invariant-matrix', version: '1.0.0', generatedAt: new Date().toISOString(), rows };
+const core = {
+  type: 'viral-sync-invariant-matrix',
+  version: '1.0.0',
+  generatedAt: new Date().toISOString(),
+  rows,
+  cases: rows,
+};
 const matrix = stampArtifact({ ...core, invariantMatrixHash: createHash('sha256').update(JSON.stringify(core)).digest('hex') }, ['scripts/generate-invariant-matrix.ts']);
 writeJson('app/public/proofs/invariant-matrix.json', matrix);
 

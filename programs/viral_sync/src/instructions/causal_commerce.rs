@@ -19,6 +19,9 @@ use crate::state::{
     ReceiptAttestationModel, RewardEscrow, SettlementRecord, TerminalDevice, TerminalDeviceStatus,
 };
 
+const PROTOCOL_FEE_BPS: u64 = 100;
+const PROTOCOL_TREASURY_SEED: &[u8] = b"protocol_treasury";
+
 #[derive(Accounts)]
 #[instruction(org_id_hash: [u8; 32])]
 pub struct RegisterMerchant<'info> {
@@ -684,6 +687,23 @@ pub struct SettleReceiptReward<'info> {
     )]
     pub visitor_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
+    /// CHECK: PDA authority for the protocol treasury token account.
+    #[account(
+        seeds = [
+            PROTOCOL_TREASURY_SEED,
+            growth_campaign.reward_mint.as_ref(),
+        ],
+        bump,
+    )]
+    pub protocol_treasury: UncheckedAccount<'info>,
+
+    #[account(
+        mut,
+        constraint = treasury_reward_account.mint == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
+        constraint = treasury_reward_account.owner == protocol_treasury.key() @ ViralSyncError::AccessDenied,
+    )]
+    pub treasury_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
     #[account(
         constraint = reward_mint.key() == growth_campaign.reward_mint @ ViralSyncError::InvalidConfig,
     )]
@@ -704,14 +724,22 @@ pub fn settle_receipt_reward(ctx: Context<SettleReceiptReward>) -> Result<()> {
     let receipt = &mut ctx.accounts.causal_receipt;
     let settlement = &mut ctx.accounts.settlement_record;
 
-    let referrer_amount = receipt
+    let protocol_fee = receipt
         .reward_amount
+        .checked_mul(PROTOCOL_FEE_BPS)
+        .and_then(|value| value.checked_div(10_000))
+        .ok_or(ViralSyncError::MathOverflow)?;
+    let beneficiary_amount = receipt
+        .reward_amount
+        .checked_sub(protocol_fee)
+        .ok_or(ViralSyncError::MathOverflow)?;
+
+    let referrer_amount = beneficiary_amount
         .checked_mul(campaign.referrer_split_bps as u64)
         .ok_or(ViralSyncError::MathOverflow)?
         .checked_div(10_000)
         .ok_or(ViralSyncError::MathOverflow)?;
-    let visitor_amount = receipt
-        .reward_amount
+    let visitor_amount = beneficiary_amount
         .checked_sub(referrer_amount)
         .ok_or(ViralSyncError::MathOverflow)?;
 
@@ -756,6 +784,24 @@ pub fn settle_receipt_reward(ctx: Context<SettleReceiptReward>) -> Result<()> {
         ctx.accounts.reward_mint.decimals,
     )?;
 
+    if protocol_fee > 0 {
+        let treasury_transfer_accounts = TransferChecked {
+            from: ctx.accounts.reward_vault.to_account_info(),
+            mint: ctx.accounts.reward_mint.to_account_info(),
+            to: ctx.accounts.treasury_reward_account.to_account_info(),
+            authority: escrow.to_account_info(),
+        };
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                treasury_transfer_accounts,
+                signer_seeds,
+            ),
+            protocol_fee,
+            ctx.accounts.reward_mint.decimals,
+        )?;
+    }
+
     escrow.total_reserved = escrow
         .total_reserved
         .checked_sub(receipt.reward_amount)
@@ -781,6 +827,7 @@ pub fn settle_receipt_reward(ctx: Context<SettleReceiptReward>) -> Result<()> {
     settlement.campaign = campaign.key();
     settlement.referrer_amount = referrer_amount;
     settlement.visitor_amount = visitor_amount;
+    settlement.protocol_fee = protocol_fee;
     settlement.settled_at = now;
 
     emit!(ReceiptRewardSettled {

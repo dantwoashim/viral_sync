@@ -230,10 +230,11 @@ pub struct SettlementRecord {
     pub campaign: Pubkey,
     pub referrer_amount: u64,
     pub visitor_amount: u64,
+    pub protocol_fee: u64,
     pub settled_at: i64,
 }
 
 impl SettlementRecord {
     pub const SEED_PREFIX: &'static [u8] = b"settlement";
-    pub const SIZE: usize = 8 + 1 + 32 + 32 + 8 + 8 + 8;
+    pub const SIZE: usize = 8 + 1 + 32 + 32 + 8 + 8 + 8 + 8;
 }

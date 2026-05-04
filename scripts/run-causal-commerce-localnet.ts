@@ -162,6 +162,8 @@ type ProgramMethods = {
       settlementRecord: PublicKey;
       referrerRewardAccount: PublicKey;
       visitorRewardAccount: PublicKey;
+      protocolTreasury: PublicKey;
+      treasuryRewardAccount: PublicKey;
       rewardMint: PublicKey;
       merchantAuthority: PublicKey;
       systemProgram: PublicKey;
@@ -528,6 +530,13 @@ function findAssociatedTokenAddress(owner: PublicKey, mint: PublicKey) {
     [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
     ASSOCIATED_TOKEN_PROGRAM_ID,
   )[0];
+}
+
+function findProtocolTreasuryPda(rewardMint: PublicKey) {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('protocol_treasury'), rewardMint.toBuffer()],
+    PROGRAM_ID,
+  );
 }
 
 function createAssociatedTokenAccountInstruction(payer: PublicKey, owner: PublicKey, mint: PublicKey, ata: PublicKey) {
@@ -1130,6 +1139,8 @@ async function main() {
   const rewardVault = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, rewardEscrow, rewardMint);
   const referrerRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, referrerAuthority.publicKey, rewardMint);
   const visitorRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, visitorAuthority.publicKey, rewardMint);
+  const [protocolTreasury] = findProtocolTreasuryPda(rewardMint);
+  const treasuryRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, protocolTreasury, rewardMint);
   const attackerRewardAccount = await ensureAssociatedTokenAccount(connection, walletInfo.keypair, attackerAuthority.publicKey, rewardMint);
   const maxCapacity = options.rewardPerVisit.mul(new anchor.BN(options.maxRedemptions));
   const alreadyFunded = existingGrowthCampaign
@@ -1158,6 +1169,7 @@ async function main() {
     rewardVault: await tokenAmount(connection, rewardVault.address),
     referrerRewardAccount: await tokenAmount(connection, referrerRewardAccount.address),
     visitorRewardAccount: await tokenAmount(connection, visitorRewardAccount.address),
+    treasuryRewardAccount: await tokenAmount(connection, treasuryRewardAccount.address),
   };
 
   const registerMerchant = await maybeRegisterMerchant(
@@ -1776,6 +1788,8 @@ async function main() {
         settlementRecord,
         referrerRewardAccount: referrerRewardAccount.address,
         visitorRewardAccount: visitorRewardAccount.address,
+        protocolTreasury,
+        treasuryRewardAccount: treasuryRewardAccount.address,
         rewardMint,
         merchantAuthority: attackerAuthority.publicKey,
         systemProgram: SystemProgram.programId,
@@ -1791,6 +1805,8 @@ async function main() {
         settlementRecord,
         referrerRewardAccount: attackerRewardAccount.address,
         visitorRewardAccount: visitorRewardAccount.address,
+        protocolTreasury,
+        treasuryRewardAccount: treasuryRewardAccount.address,
         rewardMint,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
@@ -1809,6 +1825,8 @@ async function main() {
         settlementRecord,
         referrerRewardAccount: referrerRewardAccount.address,
         visitorRewardAccount: visitorRewardAccount.address,
+        protocolTreasury,
+        treasuryRewardAccount: treasuryRewardAccount.address,
         rewardMint,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
@@ -1821,6 +1839,7 @@ async function main() {
     rewardVault: await tokenAmount(connection, rewardVault.address),
     referrerRewardAccount: await tokenAmount(connection, referrerRewardAccount.address),
     visitorRewardAccount: await tokenAmount(connection, visitorRewardAccount.address),
+    treasuryRewardAccount: await tokenAmount(connection, treasuryRewardAccount.address),
   };
 
   const settleReceiptReward = await sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
@@ -1833,6 +1852,8 @@ async function main() {
       settlementRecord,
       referrerRewardAccount: referrerRewardAccount.address,
       visitorRewardAccount: visitorRewardAccount.address,
+      protocolTreasury,
+      treasuryRewardAccount: treasuryRewardAccount.address,
       rewardMint,
       merchantAuthority: wallet.publicKey,
       systemProgram: SystemProgram.programId,
@@ -1850,6 +1871,8 @@ async function main() {
         settlementRecord,
         referrerRewardAccount: referrerRewardAccount.address,
         visitorRewardAccount: visitorRewardAccount.address,
+        protocolTreasury,
+        treasuryRewardAccount: treasuryRewardAccount.address,
         rewardMint,
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
@@ -1862,6 +1885,7 @@ async function main() {
     rewardVault: await tokenAmount(connection, rewardVault.address),
     referrerRewardAccount: await tokenAmount(connection, referrerRewardAccount.address),
     visitorRewardAccount: await tokenAmount(connection, visitorRewardAccount.address),
+    treasuryRewardAccount: await tokenAmount(connection, treasuryRewardAccount.address),
   };
   const tokenBalancesAfterSettlement = tokenBalancesAfter;
 
@@ -1891,6 +1915,7 @@ async function main() {
       rewardVault: await tokenAmountOrClosed(connection, rewardVault.address),
       referrerRewardAccount: await tokenAmount(connection, referrerRewardAccount.address),
       visitorRewardAccount: await tokenAmount(connection, visitorRewardAccount.address),
+      treasuryRewardAccount: await tokenAmount(connection, treasuryRewardAccount.address),
     };
   }
 
@@ -2091,6 +2116,8 @@ async function main() {
       referrerRewardAccount: referrerRewardAccount.address.toBase58(),
       visitorAuthority: visitorAuthority.publicKey.toBase58(),
       visitorRewardAccount: visitorRewardAccount.address.toBase58(),
+      protocolTreasury: protocolTreasury.toBase58(),
+      treasuryRewardAccount: treasuryRewardAccount.address.toBase58(),
       attackerAuthority: attackerAuthority.publicKey.toBase58(),
       attackerRewardAccount: attackerRewardAccount.address.toBase58(),
     },
@@ -2100,6 +2127,7 @@ async function main() {
       createRewardVault: rewardVault.signature,
       createReferrerRewardAccount: referrerRewardAccount.signature,
       createVisitorRewardAccount: visitorRewardAccount.signature,
+      createTreasuryRewardAccount: treasuryRewardAccount.signature,
       fundAttackerAuthority,
       mintRewardTokens: mintRewardTokensSignature,
       registerMerchant,
@@ -2124,6 +2152,7 @@ async function main() {
         createRewardVault: explorerTx(rewardVault.signature, cluster),
         createReferrerRewardAccount: explorerTx(referrerRewardAccount.signature, cluster),
         createVisitorRewardAccount: explorerTx(visitorRewardAccount.signature, cluster),
+        createTreasuryRewardAccount: explorerTx(treasuryRewardAccount.signature, cluster),
         mintRewardTokens: explorerTx(mintRewardTokensSignature, cluster),
         registerMerchant: explorerTx(registerMerchant.signature, cluster),
         enrollTerminalDevice: explorerTx(enrollTerminalDevice, cluster),
@@ -2142,6 +2171,8 @@ async function main() {
         claimPass: explorerAddress(claimPass, cluster),
         rewardEscrow: explorerAddress(rewardEscrow, cluster),
         rewardVault: explorerAddress(rewardVault.address, cluster),
+        protocolTreasury: explorerAddress(protocolTreasury, cluster),
+        treasuryRewardAccount: explorerAddress(treasuryRewardAccount.address, cluster),
         causalReceipt: explorerAddress(causalReceipt, cluster),
         nullifierRecord: explorerAddress(nullifierRecord, cluster),
         settlementRecord: explorerAddress(settlementRecord, cluster),

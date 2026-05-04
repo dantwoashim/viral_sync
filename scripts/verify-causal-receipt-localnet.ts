@@ -39,12 +39,14 @@ type ManifestShape = {
       merchantRewardAccount?: string;
       referrerRewardAccount?: string;
       visitorRewardAccount?: string;
+      treasuryRewardAccount?: string;
       rewardVault?: string;
     };
     afterSettlement?: {
       merchantRewardAccount?: string;
       referrerRewardAccount?: string;
       visitorRewardAccount?: string;
+      treasuryRewardAccount?: string;
       rewardVault?: string;
     };
     afterClose?: {
@@ -296,6 +298,7 @@ async function main() {
     campaign: PublicKey;
     referrerAmount: anchor.BN;
     visitorAmount: anchor.BN;
+    protocolFee?: anchor.BN;
   };
   type Nullifier = {
     campaign: PublicKey;
@@ -417,8 +420,9 @@ async function main() {
 
   expectBn('settled amount', receipt.settledAmount, receipt.rewardAmount, failures);
   expectBn('campaign reward per visit', campaign.rewardPerVerifiedVisit, receipt.rewardAmount, failures);
-  if (!settlement.referrerAmount.add(settlement.visitorAmount).eq(receipt.rewardAmount)) {
-    failures.push('settlement split does not add up to receipt reward amount');
+  const protocolFee = settlement.protocolFee ?? new anchor.BN(0);
+  if (!settlement.referrerAmount.add(settlement.visitorAmount).add(protocolFee).eq(receipt.rewardAmount)) {
+    failures.push('settlement split plus protocol fee does not add up to receipt reward amount');
   }
   if (enumName(receipt.status) !== 'settled') {
     failures.push(`receipt status is ${enumName(receipt.status)}, expected settled`);
@@ -496,17 +500,20 @@ async function main() {
     new anchor.BN(afterSettlement.referrerRewardAccount).sub(new anchor.BN(beforeSettlement.referrerRewardAccount)).eq(settlement.referrerAmount));
   const visitorPayoutDeltaMatches = Boolean(beforeSettlement?.visitorRewardAccount && afterSettlement?.visitorRewardAccount &&
     new anchor.BN(afterSettlement.visitorRewardAccount).sub(new anchor.BN(beforeSettlement.visitorRewardAccount)).eq(settlement.visitorAmount));
+  const protocolFeeDeltaMatches = Boolean(beforeSettlement?.treasuryRewardAccount && afterSettlement?.treasuryRewardAccount &&
+    new anchor.BN(afterSettlement.treasuryRewardAccount).sub(new anchor.BN(beforeSettlement.treasuryRewardAccount)).eq(protocolFee));
   const vaultPayoutDeltaMatches = Boolean(beforeSettlement?.rewardVault && afterSettlement?.rewardVault &&
-    new anchor.BN(beforeSettlement.rewardVault).sub(new anchor.BN(afterSettlement.rewardVault)).eq(settlement.referrerAmount.add(settlement.visitorAmount)));
+    new anchor.BN(beforeSettlement.rewardVault).sub(new anchor.BN(afterSettlement.rewardVault)).eq(settlement.referrerAmount.add(settlement.visitorAmount).add(protocolFee)));
   if (beforeSettlement && afterSettlement) {
     if (!referrerPayoutDeltaMatches) failures.push('referrer payout delta does not match settlement amount');
     if (!visitorPayoutDeltaMatches) failures.push('visitor payout delta does not match settlement amount');
+    if (!protocolFeeDeltaMatches) failures.push('protocol fee delta does not match settlement amount');
     if (!vaultPayoutDeltaMatches) failures.push('reward vault payout delta does not match settlement amount');
   }
 
   const expectedReferrer = settlement.referrerAmount;
   const expectedVisitor = settlement.visitorAmount;
-  const splitVerified = expectedReferrer.add(expectedVisitor).eq(receipt.rewardAmount);
+  const splitVerified = expectedReferrer.add(expectedVisitor).add(protocolFee).eq(receipt.rewardAmount);
   const escrowAccountingVerified = escrow.totalSettled.gte(receipt.rewardAmount) && escrow.totalFunded.gte(escrow.totalSettled.add(escrow.totalReserved));
   if (!splitVerified) failures.push('settlement split does not equal receipt reward amount');
   if (!escrowAccountingVerified) failures.push('reward escrow accounting is inconsistent');
@@ -557,6 +564,7 @@ async function main() {
     payoutSumMatches: splitVerified,
     referrerPayoutDeltaMatches,
     visitorPayoutDeltaMatches,
+    protocolFeeDeltaMatches,
     vaultPayoutDeltaMatches,
     escrowAccountingMatches: escrowAccountingVerified,
   };

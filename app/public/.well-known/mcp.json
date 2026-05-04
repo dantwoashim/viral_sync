@@ -1,0 +1,17 @@
+{
+  "name": "viral-sync-poc1",
+  "version": "1.0.0",
+  "description": "Proof-of-physical-action receipts for Solana. Create campaigns and verify offline conversions over HTTP.",
+  "tools": [
+    {
+      "name": "create_campaign",
+      "endpoint": "POST /campaigns/create",
+      "payment": "0.10 USDC via x402"
+    },
+    {
+      "name": "verify_receipt",
+      "endpoint": "GET /receipts/{pda}/verify",
+      "payment": "0.001 USDC via x402"
+    }
+  ]
+}
