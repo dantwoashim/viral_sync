@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { expect } from 'chai';
 import { canonicalArtifactHash, readJson, computeProofHashes } from '../scripts/proof-artifact-utils';
 import { expectedErrorMatched, expectedPatternsFor } from '../scripts/fraud-error-matching';
@@ -55,5 +56,14 @@ describe('proof hardening regressions', () => {
 
     expect(manifest.publishedVerifierHash).to.equal(current.publishedVerifierHash);
     expect(published.publishedVerifierHash).to.equal(current.publishedVerifierHash);
+  });
+
+  it('keeps simulated customer and terminal flows visibly marked as demos', () => {
+    const claim = fs.readFileSync('app/src/app/claim/[token]/page.tsx', 'utf8');
+    const terminal = fs.readFileSync('app/src/app/merchant/scan/page.tsx', 'utf8');
+
+    expect(claim).to.include('Demo claim flow');
+    expect(terminal).to.include('Demo terminal UI');
+    expect(terminal).to.include('NEXT_PUBLIC_TERMINAL_DEMO');
   });
 });

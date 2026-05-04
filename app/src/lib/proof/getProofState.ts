@@ -53,7 +53,7 @@ function statusLabel(health: ProofHealth) {
   return 'Pending verification';
 }
 
-function formatReward(raw: string | number | undefined, symbol = 'USDC', decimals = 3) {
+function formatReward(raw: string | number | undefined, symbol = 'tokens', decimals = 0) {
   if (raw == null) return 'Pending';
   const value = Number(raw);
   if (!Number.isFinite(value)) return 'Pending';
@@ -84,7 +84,11 @@ export function getProofState(): NormalizedReceiptProof {
     programId: manifest.programId ?? 'missing',
     proofLevel: manifest.proofLevel ?? manifest.targetProofLevel ?? 'missing',
     attestationModel: manifest.attestationModel ?? manifest.targetAttestationModel ?? 'missing',
-    rewardAmountLabel: formatReward(manifest.inputs?.rewardPerVisit ?? manifest.intentManifest?.rewardAmount, 'USDC', 3),
+    rewardAmountLabel: formatReward(
+      manifest.inputs?.rewardPerVisit ?? manifest.intentManifest?.rewardAmount,
+      manifest.rewardMintSymbol ?? 'devnet reward units',
+      manifest.rewardMintDecimals ?? 0
+    ),
     manifest,
     verifier,
     gauntlet,

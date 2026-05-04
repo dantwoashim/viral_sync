@@ -30,10 +30,28 @@ const proofBackedLink = (campaignLinks?.links ?? []).find((link: any) => link.pr
 const campaignLinksReady = Boolean(proofBackedLink && proofBackedLink.status === 'verified' && (proofBackedLink.proofLevel === 'counter_attested' || proofBackedLink.campaignProofLevel === 'counter_attested') && proofBackedLink.terminalVerified === true && proofBackedLink.visitorVerified === true && proofBackedLink.lineageVerified === true && proofBackedLink.settlementVerified === true);
 const feedReady = allFeedVerified(proofFeed);
 const hashKeys = ['programSourceHash', 'idlHash', 'proofGeneratorHash', 'verifierHash', 'rawVerifierHash', 'publishedVerifierHash'];
-const hashFailures = hashKeys.filter((key) => {
-  if (!(key in (manifest ?? {}))) return false;
-  return manifest?.[key] !== (currentHashes as Record<string, string | null>)[key];
-});
+const hashArtifacts = [
+  'app/public/proofs/devnet-causal-commerce.json',
+  'app/public/proofs/devnet-causal-commerce-verifier.json',
+  'app/public/proofs/fraud-gauntlet.json',
+  'app/public/proofs/merchant-passport.json',
+  'app/public/proofs/conversion-orderbook.json',
+  'app/public/proofs/campaign-links.json',
+  'app/public/proofs/proof-feed.json',
+  'app/public/proofs/frontier-readiness.json',
+  'app/public/proofs/program-id-consistency.json',
+];
+const hashFailures: string[] = [];
+for (const file of hashArtifacts) {
+  const artifact = json(file);
+  if (!artifact) continue;
+  for (const key of hashKeys) {
+    if (!(key in artifact)) continue;
+    if (artifact[key] !== (currentHashes as Record<string, string | null>)[key]) {
+      hashFailures.push(`${file}:${key}`);
+    }
+  }
+}
 const hashesVerified = hashFailures.length === 0 && Boolean(currentHashes.programSourceHash && currentHashes.idlHash && currentHashes.proofGeneratorHash && currentHashes.verifierHash);
 
 const gates: Gate[] = [

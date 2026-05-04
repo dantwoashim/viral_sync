@@ -9,6 +9,8 @@ export type ProofManifest = {
   effectCheckedAt?: string;
   programId?: string;
   wallet?: string;
+  rewardMintSymbol?: string;
+  rewardMintDecimals?: number;
   inputs?: {
     orgId?: string;
     campaignId?: string;

@@ -82,6 +82,11 @@ jobs:
           done
           solana config set --url http://127.0.0.1:8899
           solana airdrop 10 "$(solana address)" >/dev/null
+          npm run lint --workspace app
+          npm run build --workspace app
+          npm run build --workspace viral-sync-sdk
+          cargo check --manifest-path programs/viral_sync/Cargo.toml
           anchor build
           anchor deploy --provider.cluster localnet
-          RUN_ANCHOR_ATTACK_TESTS=1 npm run verify
+          npm run test:protocol
+          RUN_ANCHOR_ATTACK_TESTS=1 npm run test:protocol:attack

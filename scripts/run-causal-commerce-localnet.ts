@@ -15,6 +15,7 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import { expectedErrorMatched, expectedPatternsFor } from './fraud-error-matching';
+import { computeProofHashes } from './proof-artifact-utils';
 
 type CliOptions = {
   rpcUrl: string;
@@ -863,36 +864,6 @@ async function sendProgramInstruction(
   });
 }
 
-
-function hashExistingFiles(pathsToHash: string[]): string | null {
-  const hash = createHash('sha256');
-  let count = 0;
-  const visit = (item: string) => {
-    const resolved = path.resolve(item);
-    if (!existsSync(resolved)) return;
-    const stat = require('fs').statSync(resolved) as import('fs').Stats;
-    if (stat.isDirectory()) {
-      for (const child of require('fs').readdirSync(resolved).sort()) visit(path.join(resolved, child));
-      return;
-    }
-    hash.update(resolved.replace(process.cwd(), '').replace(/\\/g, '/'));
-    hash.update('\0');
-    hash.update(readFileSync(resolved));
-    hash.update('\0');
-    count += 1;
-  };
-  pathsToHash.forEach(visit);
-  return count > 0 ? hash.digest('hex') : null;
-}
-
-function proofHashes() {
-  return {
-    programSourceHash: hashExistingFiles(['programs/viral_sync/src']),
-    idlHash: hashExistingFiles(['target/idl/viral_sync.json']),
-    proofGeneratorHash: hashExistingFiles(['scripts/run-causal-commerce-localnet.ts']),
-    verifierHash: hashExistingFiles(['scripts/verify-causal-receipt-localnet.ts', 'sdk/src/index.ts']),
-  };
-}
 
 type AttackEvidence = {
   id: string;
@@ -2143,7 +2114,7 @@ async function main() {
     lineageVerified: true,
     settlementVerified: true,
     nullifierVerified: true,
-    ...proofHashes(),
+    ...computeProofHashes(),
     attackEvidence,
     replayChecks,
     effectChecks,

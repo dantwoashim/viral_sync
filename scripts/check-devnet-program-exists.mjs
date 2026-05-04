@@ -21,8 +21,8 @@ try {
         ok: true,
         programId,
         cluster: 'devnet',
-        deployFallback:
-          'anchor deploy failed, but solana program show confirmed the configured program is deployed',
+        limitation:
+          'This confirms only that a program exists at the configured ID. It does not prove the current source was deployed.',
       },
       null,
       2,

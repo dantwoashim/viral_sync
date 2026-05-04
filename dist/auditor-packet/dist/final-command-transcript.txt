@@ -29,16 +29,8 @@ Upgrade authority: [REDACTED_USER_HOME]
 Deploying program "viral_sync"...
 Program path: [REDACTED_LOCAL_PATH]
 ===================================================================================
-Recover the intermediate account's ephemeral keypair file with
-`solana-keygen recover` and the following 12-word seed phrase:
-===================================================================================
-[REDACTED_SEED_PHRASE]
-===================================================================================
-To resume a deploy, pass the recovered keypair as the
-[BUFFER_SIGNER] to `solana program deploy` or `solana program write-buffer'.
-Or to recover the account's lamports, pass it as the
-[BUFFER_ACCOUNT_ADDRESS] argument to `solana program close`.
-===================================================================================
+[REDACTED_SOLANA_DEPLOY_RECOVERY_BLOCK]
+
 Error: Account EETUeH3fzpCAEDiGpvWWXa9zZQXadmuX79FzNsGdsCJ9 has insufficient funds for spend (6.01664856 SOL) + fee (0.00429 SOL)
 There was a problem deploying: Output { status: ExitStatus(ExitStatus(1)), stdout: "", stderr: "" }.
 
