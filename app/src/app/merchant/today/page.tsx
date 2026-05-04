@@ -1,16 +1,15 @@
 import Link from 'next/link';
 import { CheckCircle, Receipt, ShieldCheck, Wallet } from '@phosphor-icons/react/dist/ssr';
 import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
+import { defaultProductLoopCampaign } from '@/lib/product-loop/productLoop';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 
 export default async function MerchantTodayPage() {
   const proof = getProofState();
-  const manifest = proof.manifest;
-  const balances = (manifest as { tokenBalances?: { afterSettlement?: { rewardVault?: string } } }).tokenBalances?.afterSettlement;
-  const remaining = balances?.rewardVault ? `${(Number(balances.rewardVault) / 1000).toFixed(2)} USDC` : '9.00 USDC';
-  const settled = manifest?.pdas?.causalReceipt ? 1 : 0;
-  const rewardUnits = manifest?.inputs?.rewardPerVisit;
-  const reward = rewardUnits ? `${Number(rewardUnits) / 1000} USDC` : '1 USDC';
+  const campaign = defaultProductLoopCampaign();
+  const remaining = campaign?.rewardPoolRemainingLabel ?? 'Pending';
+  const settled = campaign?.settledCount ?? 0;
+  const reward = campaign?.rewardLabel ?? proof.rewardAmountLabel;
 
   return (
     <PremiumShell className="merchant-today-page">
@@ -69,7 +68,7 @@ export default async function MerchantTodayPage() {
             where judges and builders can inspect it without slowing down the counter.
           </p>
         </div>
-        <Link className="product-button primary" href="/merchant/scan">Scan visit pass</Link>
+        <Link className="product-button primary" href={campaign ? `/claim/${encodeURIComponent(campaign.slug)}` : '/merchant/scan'}>Issue next pass</Link>
       </section>
     </PremiumShell>
   );

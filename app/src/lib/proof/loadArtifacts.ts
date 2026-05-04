@@ -48,3 +48,7 @@ export function loadProgramIdConsistency() {
 export function loadFrontierReadiness() {
   return loadJsonArtifact<FrontierReadiness>(proofCandidates('frontier-readiness.json'), {});
 }
+
+export function loadProofSidecar<T>(file: string, fallback: T) {
+  return loadJsonArtifact<T>(proofCandidates(file), fallback);
+}

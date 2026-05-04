@@ -9,6 +9,16 @@
       "payment": "none"
     },
     {
+      "name": "create_visit_pass",
+      "endpoint": "POST /api/product-loop/claim-pass",
+      "payment": "none"
+    },
+    {
+      "name": "confirm_visit_pass",
+      "endpoint": "POST /api/product-loop/terminal/confirm",
+      "payment": "none"
+    },
+    {
       "name": "verify_receipt_action",
       "endpoint": "GET /api/actions/causal-receipt/{id}",
       "payment": "none"

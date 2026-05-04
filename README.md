@@ -89,6 +89,16 @@ Viral Sync needs cheap settlement, account-level proof objects, escrow custody, 
 Campaign link -> Claim pass -> Merchant scan -> Co-signed receipt -> Escrow settlement -> Public proof
 ```
 
+The phase 1 product loop now has server-backed pass and terminal endpoints, so the public claim and counter screens call the same proof packet instead of rendering a timer-only walkthrough:
+
+```text
+POST /api/product-loop/claim-pass
+POST /api/product-loop/terminal/confirm
+POST /api/actions/campaign/[slug]
+```
+
+Those endpoints are still POC-1 devnet proof operations, not an unrestricted production terminal. The important change is that the judge-facing user journey now creates a deterministic pass packet, carries its code into the merchant terminal, checks that code against the proof-backed campaign, and opens the verified receipt only after server confirmation.
+
 Useful routes:
 
 ```text
@@ -169,7 +179,7 @@ npm run verify
 ```bash
 npm run typecheck
 npm run verify
-npm run production:readiness
+npm run frontier:verify-submitted-artifacts
 npm run localnet:causal-commerce -- --replay-check --attack-check
 npm run devnet:causal-commerce:frontier-final
 npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json

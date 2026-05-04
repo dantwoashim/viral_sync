@@ -4,6 +4,14 @@
     {
       "pathPattern": "/api/actions/campaign/*",
       "apiPath": "/api/actions/campaign/*"
+    },
+    {
+      "pathPattern": "/api/product-loop/claim-pass",
+      "apiPath": "/api/product-loop/claim-pass"
+    },
+    {
+      "pathPattern": "/api/product-loop/terminal/confirm",
+      "apiPath": "/api/product-loop/terminal/confirm"
     }
   ]
 }

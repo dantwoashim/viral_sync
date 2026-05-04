@@ -4,6 +4,7 @@ import { canonicalArtifactHash, readJson, computeProofHashes } from '../scripts/
 import { expectedErrorMatched, expectedPatternsFor } from '../scripts/fraud-error-matching';
 import { isPublicDemoRoute } from '../app/src/lib/demo-mode';
 import { gauntletLabel } from '../app/src/lib/proof/getProofState';
+import { confirmVisitPass, createVisitPassPacket } from '../app/src/lib/product-loop/productLoop';
 
 describe('proof hardening regressions', () => {
   it('binds the published manifest to current source, IDL, generator, and verifier', () => {
@@ -58,12 +59,31 @@ describe('proof hardening regressions', () => {
     expect(published.publishedVerifierHash).to.equal(current.publishedVerifierHash);
   });
 
-  it('keeps simulated customer and terminal flows visibly marked as demos', () => {
+  it('wires the customer and terminal surfaces to product-loop APIs instead of static timers', () => {
     const claim = fs.readFileSync('app/src/app/claim/[token]/page.tsx', 'utf8');
-    const terminal = fs.readFileSync('app/src/app/merchant/scan/page.tsx', 'utf8');
+    const claimClient = fs.readFileSync('app/src/components/product/ProductClaimFlow.tsx', 'utf8');
+    const terminal = fs.readFileSync('app/src/components/product/MerchantTerminalFlow.tsx', 'utf8');
 
-    expect(claim).to.include('Demo claim flow');
-    expect(terminal).to.include('Demo terminal UI');
-    expect(terminal).to.include('NEXT_PUBLIC_TERMINAL_DEMO');
+    expect(claim).to.include('ProductClaimFlow');
+    expect(claimClient).to.include('/api/product-loop/claim-pass');
+    expect(terminal).to.include('/api/product-loop/terminal/confirm');
+    expect(terminal).not.to.include('setTimeout');
+    expect(terminal).not.to.include('NEXT_PUBLIC_TERMINAL_DEMO');
+  });
+
+  it('creates a proof-backed pass packet and rejects mismatched terminal codes', () => {
+    const slug = 'thamel-brew-counter-attested-visits';
+    const pass = createVisitPassPacket(slug, slug);
+    expect(pass?.ok).to.equal(true);
+    expect(pass?.passCode).to.match(/^VS-[0-9A-F]{4}-[0-9A-F]{4}$/);
+
+    const accepted = confirmVisitPass({ slug, token: slug, passCode: pass?.passCode });
+    expect(accepted.ok).to.equal(true);
+    expect(accepted.status).to.equal('verified');
+    expect(accepted.checks.every((check) => check.ok)).to.equal(true);
+
+    const rejected = confirmVisitPass({ slug, token: slug, passCode: 'VS-USED-PASS' });
+    expect(rejected.ok).to.equal(false);
+    expect(rejected.status).to.equal('rejected');
   });
 });

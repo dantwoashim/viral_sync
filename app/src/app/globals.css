@@ -494,6 +494,16 @@
   animation: passPulse 4s ease-in-out infinite;
 }
 
+.pass-code strong {
+  margin-top: -22px;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(16, 16, 16, 0.08);
+  color: #101010;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.82rem;
+}
+
 .pass-meta,
 .terminal-top,
 .terminal-action,
@@ -584,6 +594,54 @@
   border-radius: 16px;
   padding: 14px;
   background: rgba(220, 38, 38, 0.06);
+}
+
+.terminal-success-card,
+.loop-error,
+.proof-check-list {
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.terminal-success-card {
+  display: grid;
+  gap: 10px;
+}
+
+.terminal-success-card p,
+.loop-error {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.loop-error {
+  border-color: rgba(220, 38, 38, 0.22);
+  background: rgba(220, 38, 38, 0.06);
+  color: #991b1b;
+}
+
+.proof-check-list {
+  display: grid;
+  gap: 8px;
+}
+
+.proof-check-list span {
+  color: #92400e;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.proof-check-list span[data-ok="true"] {
+  color: #166534;
+}
+
+.product-button.is-disabled,
+.product-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+  transform: none;
 }
 
 .terminal-error-details code,

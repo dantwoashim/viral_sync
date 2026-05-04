@@ -16,6 +16,7 @@ export type ProofManifest = {
     campaignId?: string;
     receiptId?: string;
     rewardPerVisit?: string;
+    maxRedemptions?: number;
     merchantAlias?: string;
   };
   hashes?: Record<string, string | undefined>;
@@ -33,6 +34,7 @@ export type ProofManifest = {
   pdas?: Record<string, string | number | undefined>;
   signatures?: Record<string, ProofSignature>;
   transactions?: Record<string, string | null | undefined>;
+  accounts?: Record<string, unknown>;
   explorerLinks?: {
     transactions?: Record<string, string | null | undefined>;
     accounts?: Record<string, string | null | undefined>;
@@ -58,7 +60,7 @@ export type VerifierArtifact = {
   settlementVerified?: boolean;
   nullifierVerified?: boolean;
   receipt?: { status?: unknown; settledAmount?: string };
-  settlementRecord?: { referrerAmount?: string; visitorAmount?: string };
+  settlementRecord?: { referrerAmount?: string; visitorAmount?: string; protocolFee?: string };
   tokenBalances?: Record<string, string>;
   terminalChecks?: Record<string, boolean>;
   lineageChecks?: Record<string, boolean>;

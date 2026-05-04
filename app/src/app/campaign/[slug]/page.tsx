@@ -1,26 +1,74 @@
-import { existsSync, readFileSync } from 'fs';
-import path from 'path';
 import { notFound } from 'next/navigation';
 import { PremiumButton, PremiumMetric, PremiumNav, PremiumProofRow, PremiumShell, PremiumSurface } from '@/components/premium/PremiumUi';
+import { findProductLoopCampaign } from '@/lib/product-loop/productLoop';
+import { shortHash } from '@/lib/proof/links';
 
-type Campaign = { slug?: string; title?: string; merchantAlias?: string; category?: string; publicPath?: string; status?: string; proofBacked?: boolean; proofLevel?: string; attestationModel?: string; bounty?: Record<string, unknown>; verification?: Record<string, boolean>; proofObjects?: Record<string, unknown>; links?: Record<string, string | undefined> };
-type Orderbook = { campaigns?: Campaign[]; proofStatus?: string; orderbookHash?: string };
-type Links = { links?: Array<{ slug?: string; shareCopy?: string; actionApi?: string; qrPayload?: string; status?: string; proofLevel?: string; campaignProofLevel?: string }> };
-function loadJson<T>(candidates:string[], fallback:T):T{ for(const file of candidates){ if(!existsSync(file)) continue; try{return JSON.parse(readFileSync(file,'utf8')) as T;}catch{} } return fallback; }
-function short(value?:unknown){ const text=String(value??'missing'); return text.length>26?`${text.slice(0,10)}…${text.slice(-8)}`:text; }
-function proofTone(campaign?:Campaign):'success'|'warning'|'muted'{ if(campaign?.proofBacked && campaign.verification?.terminalVerified && campaign.verification?.visitorVerified && campaign.verification?.lineageVerified && campaign.verification?.settlementVerified) return 'success'; if(campaign?.proofBacked) return 'warning'; return 'muted'; }
+export default async function CampaignPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const campaign = findProductLoopCampaign(decodeURIComponent(slug));
+  if (!campaign) notFound();
+  const proofTone = campaign.proofBacked ? 'success' : 'muted';
 
-export default async function CampaignPage({ params }: { params: Promise<{ slug: string }> }){
- const { slug } = await params;
- const orderbook=loadJson<Orderbook>([path.join(/* turbopackIgnore: true */ process.cwd(),'public','proofs','conversion-orderbook.json'),path.join(/* turbopackIgnore: true */ process.cwd(),'app','public','proofs','conversion-orderbook.json')],{campaigns:[]});
- const links=loadJson<Links>([path.join(/* turbopackIgnore: true */ process.cwd(),'public','proofs','campaign-links.json'),path.join(/* turbopackIgnore: true */ process.cwd(),'app','public','proofs','campaign-links.json')],{links:[]});
- const campaign=orderbook.campaigns?.find((item)=>item.slug===slug);
- if(!campaign) notFound();
- const link=links.links?.find((item)=>item.slug===campaign.slug);
- return <PremiumShell><PremiumNav />
-  <section className="premium-proof-console"><div className="premium-proof-header"><div><span className="premium-eyebrow">Campaign link</span><h1 className="premium-proof-title">{campaign.title}</h1><p className="premium-lede">A public conversion bounty link. Referrers, creators, or agents can route demand to the merchant; settlement only happens after the POC-1 receipt path verifies.</p><div className="premium-actions"><PremiumButton href={`/claim/${encodeURIComponent(slug)}`}>Claim visit pass</PremiumButton><PremiumButton href="/proof" variant="secondary">View proof</PremiumButton><PremiumButton href={`/api/actions/campaign/${encodeURIComponent(slug)}`} variant="quiet">View action JSON</PremiumButton></div></div>
-  <PremiumSurface tone={campaign.proofBacked?'proof':'raised'} className="premium-compact-proof-card"><div className="premium-card-title"><span>{campaign.merchantAlias??'Demo merchant'}</span><h2>{campaign.proofBacked?'Proof-backed demo':'Vision-only lane'}</h2><p>Proof level: {campaign.proofLevel ?? 'vision-only'} · {campaign.status??'unknown'}</p></div></PremiumSurface></div>
-  <section className="premium-metrics compact"><PremiumMetric label="Reward" value={String(campaign.bounty?.rewardUnits??'future')} detail="Units after verified conversion"/><PremiumMetric label="Capacity" value={String(campaign.bounty?.maxRedemptions??'future')} detail="Campaign cap"/><PremiumMetric label="Orderbook" value={short(orderbook.orderbookHash)} detail="Public campaign packet"/></section>
-  <section className="premium-system-grid"><PremiumSurface tone="light" className="premium-system-section"><div className="premium-card-title"><span>Claim pass preview</span><h2>Send a customer to the counter.</h2><p>{link?.shareCopy??'Share this campaign when the orderbook artifact is generated.'}</p></div><div className="premium-proof-stack"><PremiumProofRow label="Campaign URL" value={campaign.publicPath??`/campaign/${slug}`} meta="Shareable link" status={proofTone(campaign)}/><PremiumProofRow label="Action API" value={link?.actionApi??`/api/actions/campaign/${slug}`} meta="Blink-style metadata preview" status="muted"/><PremiumProofRow label="Payout condition" value={String(campaign.bounty?.payoutCondition??'POC-1 receipt')} meta="No reward without counter attestation" status={campaign.proofBacked?'success':'muted'}/></div></PremiumSurface>
-  <PremiumSurface tone="raised" className="premium-system-section"><div className="premium-card-title"><span>Verification gates</span><h2>What must be true before payout.</h2></div><div className="premium-proof-stack">{Object.entries(campaign.verification??{}).map(([key,value])=><PremiumProofRow key={key} label={key} value={String(value)} meta="Orderbook verification field" status={value?'success':'warning'}/>)}</div></PremiumSurface></section></section></PremiumShell>;
+  return (
+    <PremiumShell>
+      <PremiumNav />
+      <section className="premium-proof-console">
+        <div className="premium-proof-header">
+          <div>
+            <span className="premium-eyebrow">Campaign link</span>
+            <h1 className="premium-proof-title">{campaign.title}</h1>
+            <p className="premium-lede">
+              A public conversion bounty link. Referrers, creators, or agents route demand to the merchant;
+              settlement only happens after the POC-1 receipt path verifies.
+            </p>
+            <div className="premium-actions">
+              <PremiumButton href={campaign.claimPath}>Claim visit pass</PremiumButton>
+              <PremiumButton href="/proof" variant="secondary">View proof</PremiumButton>
+              <a className="premium-button premium-button-quiet" href={campaign.actionApiPath} target="_blank" rel="noreferrer">View action JSON</a>
+            </div>
+          </div>
+          <PremiumSurface tone={campaign.proofBacked ? 'proof' : 'raised'} className="premium-compact-proof-card">
+            <div className="premium-card-title">
+              <span>{campaign.merchantAlias}</span>
+              <h2>{campaign.proofBacked ? 'Proof-backed live artifact' : 'Vision-only lane'}</h2>
+              <p>Proof level: {campaign.proofLevel} / {campaign.status}</p>
+            </div>
+          </PremiumSurface>
+        </div>
+
+        <section className="premium-metrics compact">
+          <PremiumMetric label="Reward" value={campaign.rewardLabel} detail="Total payout after verified conversion" />
+          <PremiumMetric label="Customer" value={campaign.visitorRewardLabel} detail="Visitor payout" />
+          <PremiumMetric label="Router" value={campaign.routerRewardLabel} detail="Creator or agent payout" />
+        </section>
+
+        <section className="premium-system-grid">
+          <PremiumSurface tone="light" className="premium-system-section">
+            <div className="premium-card-title">
+              <span>Claim pass preview</span>
+              <h2>Send a customer to the counter.</h2>
+              <p>phase 1 product loop: the claim page creates a server-issued pass code; the terminal verifies that same code against the proof-backed campaign.</p>
+            </div>
+            <div className="premium-proof-stack">
+              <PremiumProofRow label="Campaign URL" value={campaign.publicPath} meta="Shareable link" status={proofTone} />
+              <PremiumProofRow label="Action API" value={campaign.actionApiPath} meta="Agent-readable metadata and pass creation" status={proofTone} />
+              <PremiumProofRow label="Receipt PDA" value={shortHash(campaign.receiptPda)} meta="Public proof object" status={proofTone} />
+            </div>
+          </PremiumSurface>
+
+          <PremiumSurface tone="raised" className="premium-system-section">
+            <div className="premium-card-title">
+              <span>Verification gates</span>
+              <h2>What must be true before payout.</h2>
+            </div>
+            <div className="premium-proof-stack">
+              <PremiumProofRow label="Terminal device" value={shortHash(campaign.terminalDevicePda)} meta="Enrolled counter signer" status={proofTone} />
+              <PremiumProofRow label="Claim pass" value={shortHash(campaign.claimPassPda)} meta="Issued visit pass PDA" status={proofTone} />
+              <PremiumProofRow label="Protocol fee" value={campaign.protocolFeeLabel} meta="Treasury take from settlement" status={proofTone} />
+            </div>
+          </PremiumSurface>
+        </section>
+      </section>
+    </PremiumShell>
+  );
 }

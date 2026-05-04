@@ -4,10 +4,13 @@ import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import SignatureReceipt from '@/components/product/SignatureReceipt';
 import { TerminalPanel } from '@/components/product/TerminalPanel';
 import { VisitPass } from '@/components/product/VisitPass';
+import { defaultProductLoopCampaign, expectedPassCodeForCampaign } from '@/lib/product-loop/productLoop';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 
 export default function HomePage() {
   const proof = getProofState();
+  const campaign = defaultProductLoopCampaign();
+  const passCode = campaign ? expectedPassCodeForCampaign(campaign.slug) : undefined;
   const trust = [
     'Terminal signed',
     'Visitor signed',
@@ -28,7 +31,7 @@ export default function HomePage() {
           </p>
           <div className="product-actions">
             <Link className="product-button primary" href={`/receipt/${encodeURIComponent(proof.receiptId)}`}>View verified receipt <ArrowRight size={16} weight="bold" /></Link>
-            <Link className="product-button secondary" href="/merchant/scan">Try merchant terminal</Link>
+            <Link className="product-button secondary" href={campaign ? `/claim/${encodeURIComponent(campaign.slug)}` : '/merchant/scan'}>Try merchant terminal</Link>
           </div>
           <div className="trust-strip" aria-label="Proof summary">
             {trust.map((item) => <span key={item}><CheckCircle size={15} weight="fill" /> {item}</span>)}
@@ -65,9 +68,9 @@ export default function HomePage() {
         <span className="section-kicker">Customer flow</span>
         <h2>Apple Wallet simple. No protocol words.</h2>
         <div className="phone-flow">
-          <VisitPass stage="claim" />
-          <VisitPass stage="show" />
-          <VisitPass stage="verified" />
+          <VisitPass stage="claim" merchant={campaign?.merchantAlias} visitorReward={campaign?.visitorRewardLabel} routerReward={campaign?.routerRewardLabel} />
+          <VisitPass stage="show" merchant={campaign?.merchantAlias} visitorReward={campaign?.visitorRewardLabel} routerReward={campaign?.routerRewardLabel} passCode={passCode} expiresAt={campaign?.expiresAt} />
+          <VisitPass stage="verified" merchant={campaign?.merchantAlias} visitorReward={campaign?.visitorRewardLabel} routerReward={campaign?.routerRewardLabel} passCode={passCode} />
         </div>
       </section>
 
@@ -78,7 +81,14 @@ export default function HomePage() {
           <p>The counter UI says what staff need to know: valid pass, reward split, campaign match, and one clear confirm action. Technical errors stay behind a drawer.</p>
           <Link className="product-button secondary" href="/merchant/scan">Open terminal</Link>
         </div>
-        <TerminalPanel state="detected" />
+        <TerminalPanel
+          state="detected"
+          merchant={campaign?.merchantAlias}
+          campaignTitle={campaign?.title}
+          passCode={passCode}
+          visitorReward={campaign?.visitorRewardLabel}
+          routerReward={campaign?.routerRewardLabel}
+        />
       </section>
 
       <section className="product-section two-col proof-band">

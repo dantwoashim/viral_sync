@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from 'fs';
-import path from 'path';
 import { NextResponse } from 'next/server';
+import { createVisitPassPacket, findProductLoopCampaign } from '@/lib/product-loop/productLoop';
+import { loadProofSidecar } from '@/lib/proof/loadArtifacts';
 
 type Campaign = {
   slug?: string;
@@ -32,15 +32,7 @@ function actionHeaders(response: NextResponse) {
 }
 
 function loadOrderbook(): Orderbook {
-  const candidates = [
-    path.join(process.cwd(), 'public', 'proofs', 'conversion-orderbook.json'),
-    path.join(process.cwd(), 'app', 'public', 'proofs', 'conversion-orderbook.json'),
-  ];
-  for (const file of candidates) {
-    if (!existsSync(file)) continue;
-    return JSON.parse(readFileSync(file, 'utf8')) as Orderbook;
-  }
-  return { campaigns: [] };
+  return loadProofSidecar<Orderbook>('conversion-orderbook.json', { campaigns: [] });
 }
 
 function findCampaign(slug: string) {
@@ -70,6 +62,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     links: {
       actions: [
         { label: 'Claim visit pass', href: `${baseUrl}/claim/${encodeURIComponent(slug)}` },
+        { label: 'Create proof-backed pass packet', href: `${baseUrl}/api/actions/campaign/${encodeURIComponent(slug)}`, type: 'post' },
         { label: 'View proof', href: `${baseUrl}${campaignPath}` },
       ],
     },
@@ -80,6 +73,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       attestationModel: campaign.attestationModel,
       verification: campaign.verification,
       status: campaign.status,
+      productLoop: findProductLoopCampaign(slug),
+    },
+  }));
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const body = await request.json().catch(() => null) as { token?: string } | null;
+  const pass = createVisitPassPacket(slug, body?.token?.trim() || slug);
+  if (!pass) {
+    return actionHeaders(NextResponse.json({ ok: false, error: 'proof_backed_campaign_not_found' }, { status: 404 }));
+  }
+  const baseUrl = appBaseUrl(request);
+  return actionHeaders(NextResponse.json({
+    ...pass,
+    links: {
+      terminal: `${baseUrl}/merchant/scan?slug=${encodeURIComponent(slug)}&pass=${encodeURIComponent(pass.passCode)}&token=${encodeURIComponent(pass.token)}`,
+      receipt: `${baseUrl}${pass.campaign.receiptPath}`,
+      proof: `${baseUrl}/proof`,
     },
   }));
 }
