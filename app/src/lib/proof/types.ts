@@ -39,6 +39,19 @@ export type ProofManifest = {
     transactions?: Record<string, string | null | undefined>;
     accounts?: Record<string, string | null | undefined>;
   };
+  childLineageProof?: {
+    depth?: number;
+    parentReceipt?: string;
+    childReceipt?: string;
+    childClaimPass?: string;
+    parentReceiptIdHash?: string;
+    childReceiptIdHash?: string;
+    childNullifierHash?: string;
+    childLineageProofHash?: string;
+    issueChildClaimPass?: string;
+    recordChildCausalReceipt?: string;
+    onChainParentReceiptVerified?: boolean;
+  };
   attackEvidence?: FraudCase[];
   terminalVerified?: boolean;
   visitorVerified?: boolean;

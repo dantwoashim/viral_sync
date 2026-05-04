@@ -12,6 +12,17 @@
     {
       "pathPattern": "/api/product-loop/terminal/confirm",
       "apiPath": "/api/product-loop/terminal/confirm"
+    },
+    {
+      "pathPattern": "/api/agent/receipt/*",
+      "apiPath": "/api/agent/receipt/*"
     }
-  ]
+  ],
+  "x402": {
+    "relayer": {
+      "mcp": "/.well-known/mcp.json",
+      "createCampaign": "POST /campaigns/create",
+      "verifyReceipt": "GET /receipts/{receiptPda}/verify"
+    }
+  }
 }

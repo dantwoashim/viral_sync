@@ -107,4 +107,37 @@ describe('proof hardening regressions', () => {
     expect(verifier).to.include('childParentReceiptVerified');
     expect(errors).to.include('InvalidLineageProof');
   });
+
+  it('publishes phase 4 agent and x402 discovery surfaces without overstating payment-free access', () => {
+    const mcp = JSON.parse(fs.readFileSync('app/public/.well-known/mcp.json', 'utf8')) as {
+      tools: Array<{ name: string; endpoint?: string; payment?: string | Record<string, unknown> }>;
+      proofContract?: { currentFraudGauntlet?: string };
+    };
+    const blink = JSON.parse(fs.readFileSync('app/public/.well-known/blink.json', 'utf8')) as {
+      rules?: Array<{ pathPattern?: string }>;
+      x402?: { relayer?: Record<string, string> };
+    };
+    const agentRoute = fs.readFileSync('app/src/app/api/agent/receipt/[id]/route.ts', 'utf8');
+    const relayer = fs.readFileSync('relayer/src/index.ts', 'utf8');
+
+    const toolByName = new Map(mcp.tools.map((tool) => [tool.name, tool]));
+    expect(toolByName.get('agent_receipt_context')?.endpoint).to.equal('GET /api/agent/receipt/{id}');
+    expect(toolByName.get('x402_create_campaign')?.payment).to.deep.include({ protocol: 'x402', amount: '0.10', asset: 'USDC' });
+    expect(toolByName.get('x402_verify_receipt')?.payment).to.deep.include({ protocol: 'x402', amount: '0.001', asset: 'USDC' });
+    expect(mcp.proofContract?.currentFraudGauntlet).to.equal('19/19');
+
+    expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/receipt/*')).to.equal(true);
+    expect(blink.x402?.relayer?.verifyReceipt).to.equal('GET /receipts/{receiptPda}/verify');
+
+    expect(agentRoute).to.include('viral_sync_agent_receipt_context');
+    expect(agentRoute).to.include('childLineageProof');
+    expect(agentRoute).to.include('fraudGauntletBlockedAllCases');
+    expect(agentRoute).to.include('sourceHashesMatched');
+    expect(agentRoute).to.include('x402_verify_receipt');
+
+    expect(relayer).to.include("app.get('/.well-known/mcp.json'");
+    expect(relayer).to.include('X402_CREATE_CAMPAIGN_PRICE');
+    expect(relayer).to.include('X402_VERIFY_RECEIPT_PRICE');
+    expect(relayer).to.include('relay_sponsored_transaction');
+  });
 });

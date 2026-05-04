@@ -1,7 +1,7 @@
 {
   "name": "viral-sync-poc1",
   "version": "1.0.0",
-  "description": "Agent-readable POC-1 proof endpoints for receipt-backed Solana payouts.",
+  "description": "Agent-readable POC-1 proof endpoints for receipt-backed Solana payouts and x402-paid outcome settlement tools.",
   "tools": [
     {
       "name": "campaign_action_metadata",
@@ -22,6 +22,47 @@
       "name": "verify_receipt_action",
       "endpoint": "GET /api/actions/causal-receipt/{id}",
       "payment": "none"
+    },
+    {
+      "name": "agent_receipt_context",
+      "endpoint": "GET /api/agent/receipt/{id}",
+      "payment": "none",
+      "description": "Returns the receipt, verifier, fraud gauntlet, lineage, artifact, and x402 routing context an agent needs before trusting a payout."
+    },
+    {
+      "name": "x402_create_campaign",
+      "service": "viral-sync-relayer",
+      "endpoint": "POST /campaigns/create",
+      "payment": {
+        "protocol": "x402",
+        "amount": "0.10",
+        "asset": "USDC",
+        "network": "solana-devnet"
+      }
+    },
+    {
+      "name": "x402_verify_receipt",
+      "service": "viral-sync-relayer",
+      "endpoint": "GET /receipts/{receiptPda}/verify",
+      "payment": {
+        "protocol": "x402",
+        "amount": "0.001",
+        "asset": "USDC",
+        "network": "solana-devnet"
+      }
     }
-  ]
+  ],
+  "proofContract": {
+    "verifiedReceiptRequires": [
+      "terminalVerified",
+      "visitorVerified",
+      "lineageVerified",
+      "settlementVerified",
+      "nullifierVerified",
+      "fraudGauntletBlockedAllCases",
+      "sourceHashesMatched"
+    ],
+    "currentFraudGauntlet": "19/19",
+    "settlementModel": "Merchant escrow releases only after terminal and visitor co-sign the receipt."
+  }
 }

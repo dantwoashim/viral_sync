@@ -125,6 +125,8 @@ const relayerKeypair = parseSecretKey(RELAYER_SECRET);
 const connection = new Connection(RPC_URL, 'confirmed');
 const app = express();
 const x402TreasuryWallet = TREASURY_WALLET || relayerKeypair.publicKey.toBase58();
+const X402_CREATE_CAMPAIGN_PRICE = '$0.10';
+const X402_VERIFY_RECEIPT_PRICE = '$0.001';
 
 function readJsonIfExists(filePath: string): unknown | null {
   const resolved = path.resolve(filePath);
@@ -186,7 +188,7 @@ app.use(paymentMiddleware(
   x402TreasuryWallet as SolanaAddress,
   {
     '/campaigns/create': {
-      price: '$0.10',
+      price: X402_CREATE_CAMPAIGN_PRICE,
       network: 'solana-devnet',
       config: {
         description: 'POC-1 campaign creation',
@@ -194,7 +196,7 @@ app.use(paymentMiddleware(
       },
     },
     '/receipts/:receiptPda/verify': {
-      price: '$0.001',
+      price: X402_VERIFY_RECEIPT_PRICE,
       network: 'solana-devnet',
       config: {
         description: 'POC-1 receipt verification',
@@ -207,6 +209,70 @@ app.use(paymentMiddleware(
 
 const rateLimitMap = new Map<string, number[]>();
 const replayCache = new Map<string, number>();
+
+app.get('/.well-known/mcp.json', (_req, res) => {
+  res.json({
+    name: 'viral-sync-relayer',
+    version: '1.0.0',
+    description: 'x402-paid Viral Sync relayer tools for agent-created campaigns and paid receipt verification.',
+    treasuryWallet: x402TreasuryWallet,
+    facilitatorUrl: 'https://api.cdp.coinbase.com/platform/x402/solana/facilitation',
+    tools: [
+      {
+        name: 'x402_create_campaign',
+        endpoint: 'POST /campaigns/create',
+        payment: {
+          protocol: 'x402',
+          amount: '0.10',
+          asset: 'USDC',
+          network: 'solana-devnet',
+          payTo: x402TreasuryWallet,
+        },
+        inputSchema: {
+          type: 'object',
+          required: ['orgIdHash', 'campaignBudget', 'rewardPerVisit'],
+          properties: {
+            orgIdHash: { type: 'string' },
+            campaignBudget: { type: ['string', 'number'] },
+            rewardPerVisit: { type: ['string', 'number'] },
+          },
+        },
+      },
+      {
+        name: 'x402_verify_receipt',
+        endpoint: 'GET /receipts/{receiptPda}/verify',
+        payment: {
+          protocol: 'x402',
+          amount: '0.001',
+          asset: 'USDC',
+          network: 'solana-devnet',
+          payTo: x402TreasuryWallet,
+        },
+        outputContract: {
+          ok: 'boolean',
+          proof: 'Published receipt proof with verifier flags, settlement checks, token checks, explorer links, and proof status.',
+        },
+      },
+      {
+        name: 'relay_sponsored_transaction',
+        endpoint: 'POST /relay',
+        payment: 'none',
+        authentication: 'X-Relayer-Key or Bearer token unless local development explicitly allows unauthenticated mode.',
+      },
+    ],
+    proofContract: {
+      finalReceiptRequires: [
+        'terminalVerified',
+        'visitorVerified',
+        'lineageVerified',
+        'settlementVerified',
+        'nullifierVerified',
+      ],
+      replayProtection: REPLAY_CACHE_REST_URL ? 'persistent' : 'in-memory-development-only',
+      addressLookupTablesAllowed: allowAddressLookupTables,
+    },
+  });
+});
 
 function clientKey(req: Request) {
   return req.ip || req.socket.remoteAddress || 'unknown';

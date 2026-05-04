@@ -25,6 +25,7 @@ const include = [
   'idl',
   'poc1',
   'programs',
+  'relayer',
   'scripts',
   'sdk',
   'schemas',
