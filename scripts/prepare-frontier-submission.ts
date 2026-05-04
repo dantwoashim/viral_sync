@@ -371,10 +371,9 @@ npm run frontier:final
 ## Hosted App Proof Surface
 
 - Devnet proof page: \`/proof\`
-- Merchant Proof Passport: \`/merchant-passport\`
-- Policy: \`GET /api/launch/relayer/policy\`
-- Causal Commerce intent builder: \`GET|POST /api/launch/relayer/causal-commerce\`
-- Sponsored transaction simulator: \`POST /api/launch/relayer/sponsor\`
+- Receipt proof: \`/receipt/[id]\`
+- Campaign action metadata: \`GET /api/actions/campaign/[slug]\`
+- Receipt action metadata: \`GET|POST /api/actions/causal-receipt/[id]\`
 
 ## Honest Limitations
 
@@ -413,11 +412,8 @@ ${decision}
 | Merchant Proof Passport | ${passportVerdict(passport)} |
 | Fraud Gauntlet artifact | ${existsSync(path.resolve(DEFAULT_GAUNTLET_PATH)) ? 'PASS' : 'FAIL'} |
 | Proof feed artifact | ${existsSync(path.resolve(DEFAULT_FEED_PATH)) ? 'PASS' : 'FAIL'} |
-| Hosted fraud gauntlet page | ${existsSync(path.resolve('app/src/app/frontier-gauntlet/page.tsx')) ? 'PASS' : 'FAIL'} |
-| Hosted proof feed page | ${existsSync(path.resolve('app/src/app/proof-feed/page.tsx')) ? 'PASS' : 'FAIL'} |
 | Hosted receipt proof page | ${existsSync(path.resolve('app/src/app/receipt/[id]/page.tsx')) ? 'PASS' : 'FAIL'} |
 | Hosted proof page | ${existsSync(path.resolve('app/src/app/proof/page.tsx')) ? 'PASS' : 'FAIL'} |
-| Hosted passport page | ${existsSync(path.resolve('app/src/app/merchant-passport/page.tsx')) ? 'PASS' : 'FAIL'} |
 
 ## Blockers
 
@@ -452,8 +448,9 @@ async function main() {
   [
     'README.md',
     'app/src/app/proof/page.tsx',
-    'app/src/app/merchant-passport/page.tsx',
-    'app/src/app/api/launch/relayer/causal-commerce/route.ts',
+    'app/src/app/receipt/[id]/page.tsx',
+    'app/src/app/api/actions/campaign/[slug]/route.ts',
+    'app/src/app/api/actions/causal-receipt/[id]/route.ts',
     'programs/viral_sync/src/lib.rs',
     manifestPath,
     verifierPath,

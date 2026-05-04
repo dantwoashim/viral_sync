@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from '@/lib/auth';
-import MerchantShell from '@/components/MerchantShell';
 
 const sans = Geist({
   subsets: ['latin'],
@@ -18,10 +16,10 @@ const mono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Viral Sync Nepal',
-    template: '%s - Viral Sync Nepal',
+    default: 'Viral Sync',
+    template: '%s - Viral Sync',
   },
-  description: 'Share places you love and unlock rewards with your people.',
+  description: 'Outcome settlement infrastructure for receipt-backed Solana payouts.',
 };
 
 export const viewport: Viewport = {
@@ -38,9 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
-        <AuthProvider>
-          <MerchantShell>{children}</MerchantShell>
-        </AuthProvider>
+        {children}
       </body>
     </html>
   );

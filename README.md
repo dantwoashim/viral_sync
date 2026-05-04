@@ -26,7 +26,7 @@ terminal + visitor counter-attested receipt is recorded
 reward is settled from escrow
 ```
 
-The app still includes product surfaces for merchants, consumers, receipts, and operations, but the proof path is the part that matters most.
+The public app is intentionally small: one landing page, one claim flow, one merchant terminal, one merchant today view, one receipt page, and one proof center.
 
 The current public product is the POC-1 outcome settlement path. Experimental Token-2022 and reputation modules are excluded from the live demo and are not required for receipt settlement; see `docs/program-scope.md`.
 
@@ -86,21 +86,19 @@ Viral Sync needs cheap settlement, account-level proof objects, escrow custody, 
 ## Product Loop
 
 ```text
-Invite -> Claim -> Redeem Code -> Merchant Confirmation -> Receipt Proof -> Causal Graph
+Campaign link -> Claim pass -> Merchant scan -> Co-signed receipt -> Escrow settlement -> Public proof
 ```
 
 Useful routes:
 
 ```text
-/proof              Devnet proof path
-/invite             Referral invite flow
-/offer/[token]      Offer claim flow
-/redeem             Consumer redemption code
-/merchant/scan      Staff counter confirmation
-/receipt/[id]       Canonical receipt proof
-/causal-graph       Attribution graph
-/merchant/today     Merchant operations view
-/security           Trust model
+/                     Outcome settlement landing
+/campaign/[slug]     Campaign offer
+/claim/[token]       Customer claim flow
+/merchant/scan       Terminal confirmation
+/merchant/today      Merchant operations view
+/receipt/[id]        Canonical receipt proof
+/proof               Judge and developer proof center
 ```
 
 ## Repository Structure
@@ -109,9 +107,6 @@ Useful routes:
 app/                  Next.js product app
 programs/viral_sync/  Anchor program
 relayer/              Sponsored transaction relayer
-server/actions/       Solana Actions service path
-clients/              Client and POS adapter experiments
-cranks/               Background cleanup runner
 sdk/                  Verification and PDA helper package
 tests/                Protocol and security regression tests
 ```
@@ -127,9 +122,7 @@ Implemented hardening includes:
 - Campaign time-window and reward-pool accounting checks.
 - Nullifier replay protection.
 - Intent manifest hash committed on receipt accounts.
-- Staff confirmation hardening with enrolled device proof instead of plain bearer headers.
 - Relayer authentication, payload caps, replay controls, and allowlists.
-- Normalized production tables for the launch backend.
 - Security regression tests for the highest-risk paths.
 
 The localnet smoke path exercises the Causal Commerce loop with merchant registration, campaign creation, escrow funding, receipt recording, settlement, replay rejection, and vault close behavior.

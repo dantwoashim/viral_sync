@@ -1,8 +1,8 @@
 {
   "programSourceHash": "12e5d5a507929b5b023a59f685506267fa726fd6b9f400a8b7eb72f67c76cf06",
   "idlHash": "760db6abe397edc48c97a7bdf7f619564e820f1fbaa92b304b53c3096e0fdbe7",
-  "proofGeneratorHash": "615559dd22aa2ad60a43fed18dd1519a1ac0875dec033cbd142aad8e93d5482c",
-  "verifierHash": "2aff19ef672a74090e8d21a8ca546569b50686edab070af0b8c88d7055ac9e3e",
+  "proofGeneratorHash": "4618f1dc15ccedd036c24e74ce317e88566c065d571c709d5b554508a8a7cc7d",
+  "verifierHash": "3d870c43df115b1b2e1fa391bc44b86343b9d780e4cf116781ce4e19e0c8c8e4",
   "rawVerifierHash": "1c2a65efb124be7daaf08934ef32f5f67ca7f72447e064008411a2641090b249",
-  "publishedVerifierHash": "6b56037be64892673796758f8b44ae27712cd5b983b1de03c2967de1ec5cdcf0"
+  "publishedVerifierHash": "5ea51f8e1cdb1afc38c31a4abf43b096f0f904211d60624d2ff77ab95f5b082c"
 }

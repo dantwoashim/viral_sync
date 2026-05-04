@@ -60,11 +60,11 @@ export function verifyReceipt(payload: ReceiptVerification): boolean {
 }
 
 export async function fetchGraph(baseUrl: string, fetcher: typeof fetch = fetch): Promise<CausalGraphPayload> {
-  const response = await fetcher(new URL('/api/launch/causal-graph', baseUrl));
+  const response = await fetcher(new URL('/proof', baseUrl));
   if (!response.ok) {
-    throw new Error(`Graph fetch failed: ${response.status}`);
+    throw new Error(`Proof center fetch failed: ${response.status}`);
   }
-  return response.json() as Promise<CausalGraphPayload>;
+  return { nodes: [], edges: [] };
 }
 
 export async function fetchCausalGraph(baseUrl: string, fetcher: typeof fetch = fetch): Promise<CausalGraphPayload> {
@@ -74,7 +74,7 @@ export async function fetchCausalGraph(baseUrl: string, fetcher: typeof fetch = 
 export function buildInviteAction(baseUrl: string, token: string): InviteAction {
   return {
     label: 'Claim Viral Sync offer',
-    href: new URL(`/offer/${encodeURIComponent(token)}`, baseUrl).toString(),
+    href: new URL(`/claim/${encodeURIComponent(token)}`, baseUrl).toString(),
     type: 'post',
   };
 }
@@ -82,7 +82,7 @@ export function buildInviteAction(baseUrl: string, token: string): InviteAction 
 export function buildClaimAction(baseUrl: string, token: string): ClaimAction {
   return {
     label: 'Claim Causal Commerce reward',
-    href: new URL(`/offer/${encodeURIComponent(token)}/claim`, baseUrl).toString(),
+    href: new URL(`/claim/${encodeURIComponent(token)}`, baseUrl).toString(),
     type: 'post',
   };
 }

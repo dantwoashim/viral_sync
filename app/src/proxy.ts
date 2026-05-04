@@ -1,8 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { isPublicDemoRoute, labsEnabled } from './lib/demo-mode';
 
-const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
 function applySecurityHeaders(response: NextResponse) {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -27,20 +25,6 @@ export function proxy(request: NextRequest) {
     !isPublicDemoRoute(pathname)
   ) {
     return applySecurityHeaders(NextResponse.rewrite(new URL('/_not-found', request.url)));
-  }
-
-  if (
-    process.env.LAUNCH_PAUSED === 'true' &&
-    pathname.startsWith('/api/launch') &&
-    MUTATION_METHODS.has(request.method)
-  ) {
-    return applySecurityHeaders(NextResponse.json({
-      ok: false,
-      error: {
-        code: 'launch_paused',
-        message: 'Viral Sync launch mutations are paused while operators resolve an incident.',
-      },
-    }, { status: 503 }));
   }
 
   return applySecurityHeaders(NextResponse.next());

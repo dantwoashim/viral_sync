@@ -1,6 +1,6 @@
 # Frontier Submission Packet
 
-Generated: 2026-05-04T03:03:30.339Z
+Generated: 2026-05-04T04:25:49.935Z
 
 ## One-Sentence Pitch
 
@@ -118,10 +118,9 @@ npm run frontier:final
 ## Hosted App Proof Surface
 
 - Devnet proof page: `/proof`
-- Merchant Proof Passport: `/merchant-passport`
-- Policy: `GET /api/launch/relayer/policy`
-- Causal Commerce intent builder: `GET|POST /api/launch/relayer/causal-commerce`
-- Sponsored transaction simulator: `POST /api/launch/relayer/sponsor`
+- Receipt proof: `/receipt/[id]`
+- Campaign action metadata: `GET /api/actions/campaign/[slug]`
+- Receipt action metadata: `GET|POST /api/actions/causal-receipt/[id]`
 
 ## Honest Limitations
 

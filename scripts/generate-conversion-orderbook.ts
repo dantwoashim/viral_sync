@@ -127,8 +127,8 @@ function main() {
       intentValidatorPassed: intentValidatorPassed(manifest),
     },
     links: {
-      proof: '/frontier-proof',
-      gauntlet: '/frontier-gauntlet',
+      proof: '/proof',
+      gauntlet: '/proof',
       receipt: '/receipt/latest',
       passport: '/merchant-passport',
       recordTx: manifest.explorerLinks?.transactions?.recordCausalReceipt,

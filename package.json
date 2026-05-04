@@ -4,20 +4,12 @@
   "private": true,
   "workspaces": [
     "app",
-    "clients",
-    "cranks",
-    "launch",
     "relayer",
-    "sdk",
-    "server/actions"
+    "sdk"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "build:program": "anchor build",
-    "backup:neon": "node scripts/backup-neon-ledger.mjs",
-    "monitor:production": "node scripts/check-production.mjs",
-    "production:readiness": "node scripts/validate-production-readiness.mjs",
-    "production:readiness:strict": "node scripts/validate-production-readiness.mjs --strict",
     "localnet:register-merchant": "ts-node scripts/register-merchant-localnet.ts",
     "localnet:causal-commerce": "ts-node scripts/run-causal-commerce-localnet.ts",
     "devnet:causal-commerce": "ts-node scripts/run-causal-commerce-localnet.ts --rpc https://api.devnet.solana.com --replay-check --attack-check --output app/public/proofs/devnet-causal-commerce.json",
@@ -30,7 +22,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "test:protocol": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "verify": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-clients && npm run build --workspace viral-sync-launch && npm run build --workspace viral-sync-sdk && npm run build --workspace relayer && npm run build --workspace cranks && npm run build --workspace viral-sync-actions && cargo check --manifest-path programs/viral_sync/Cargo.toml && npm run build:program && npm run test:protocol",
+    "verify": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-sdk && npm run build --workspace relayer && cargo check --manifest-path programs/viral_sync/Cargo.toml && npm run build:program && npm run test:protocol",
     "devnet:verify-receipt": "ts-node scripts/verify-causal-receipt-localnet.ts --manifest app/public/proofs/devnet-causal-commerce.json",
     "test:protocol:attack": "cross-env RUN_ANCHOR_ATTACK_TESTS=1 ts-mocha -p ./tsconfig.json -t 1000000 tests/anchor-attack-localnet.spec.ts",
     "devnet:causal-commerce:final": "ts-node scripts/run-causal-commerce-localnet.ts --rpc https://api.devnet.solana.com --airdrop-sol 0 --replay-check --attack-check --output app/public/proofs/devnet-causal-commerce.json",

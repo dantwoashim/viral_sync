@@ -13,7 +13,7 @@ async function main() {
     throw new Error('Provide --receipt <id>.');
   }
 
-  const receiptResponse = await fetch(new URL(`/api/launch/receipts/verify/${encodeURIComponent(receiptId)}`, baseUrl));
+  const receiptResponse = await fetch(new URL(`/api/actions/causal-receipt/${encodeURIComponent(receiptId)}`, baseUrl));
   if (!receiptResponse.ok) {
     throw new Error(`Receipt verification request failed: ${receiptResponse.status}`);
   }

@@ -9,8 +9,8 @@ Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by th
 - Anchor program: `programs/viral_sync/src/instructions/causal_commerce.rs`
 - Causal state: `programs/viral_sync/src/state/causal_commerce.rs`
 - Program errors/events: `programs/viral_sync/src/errors.rs`, `programs/viral_sync/src/events.rs`
-- Hosted normalized launch read/write layer and API: `app/src/lib/launch/server.ts`, `app/src/lib/launch/api.ts`, `app/src/lib/launch/security.ts`
-- Relayer policy: `/api/launch/relayer/*` routes and `getRelayerPolicy()`
+- Focused public app routes: `/`, `/campaign/[slug]`, `/claim/[token]`, `/merchant/scan`, `/merchant/today`, `/receipt/[id]`, `/proof`
+- Action APIs: `/api/actions/campaign/[slug]` and `/api/actions/causal-receipt/[id]`
 - Test baseline: `tests/viral_sync.ts`
 - Production gates: `docs/production-readiness.md`, `scripts/validate-production-readiness.mjs`
 - Production schema/read models: `docs/migrations/001_launch_core.sql`, `docs/migrations/002_production_rbac_and_ops.sql`

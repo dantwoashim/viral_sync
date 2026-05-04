@@ -6,7 +6,7 @@ Viral Sync is proof-of-outcome infrastructure for Solana commerce: merchants esc
 2. Show the happy path instruction sequence.
 3. Open `devnet-causal-commerce.json`.
 4. Open `devnet-causal-commerce-verifier.json`.
-5. Open `/frontier-gauntlet` and explain attack cases.
+5. Open `/proof` and explain the fraud-gauntlet tab/checks.
 6. Open `/conversion-orderbook` and explain proof-backed campaign links.
 7. Open `/receipt/latest` and `/merchant-passport`.
 8. Explain what is on-chain and what is off-chain.

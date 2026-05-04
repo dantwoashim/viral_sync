@@ -1,6 +1,6 @@
 # Frontier Final Go/No-Go
 
-Generated: 2026-05-04T03:03:30.339Z
+Generated: 2026-05-04T04:25:49.935Z
 
 ## Decision
 
@@ -21,11 +21,8 @@ GO: submit this build for Frontier judging.
 | Merchant Proof Passport | PASS |
 | Fraud Gauntlet artifact | PASS |
 | Proof feed artifact | PASS |
-| Hosted fraud gauntlet page | PASS |
-| Hosted proof feed page | PASS |
 | Hosted receipt proof page | PASS |
 | Hosted proof page | PASS |
-| Hosted passport page | PASS |
 
 ## Blockers
 

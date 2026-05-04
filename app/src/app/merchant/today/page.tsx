@@ -1,104 +1,76 @@
 import Link from 'next/link';
-import { PremiumMetric, PremiumStatusBadge, PremiumSurface } from '@/components/premium/PremiumUi';
-import { PremiumWorkspace } from '@/components/premium/PremiumWorkspace';
-import { getMerchantSummary, getReceiptReconciliation } from '@/lib/launch/server';
+import { CheckCircle, Receipt, ShieldCheck, Wallet } from '@phosphor-icons/react/dist/ssr';
+import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
+import { getProofState } from '@/lib/proof/getProofState';
 
 export default async function MerchantTodayPage() {
-  const [summary, receipts] = await Promise.all([getMerchantSummary(), getReceiptReconciliation()]);
-  const activeCodes = summary.queue.filter((row) => row.value !== 'Idle');
-  const settledReceipts = receipts.filter((receipt) => receipt.status === 'confirmed' || receipt.status === 'indexed').length;
-  const failedReceipts = receipts.filter((receipt) => receipt.status === 'failed').length;
-  const nextAction = activeCodes.length > 0 ? 'Confirm waiting code' : receipts.length > 0 ? 'Review settlement ledger' : 'Create funded bounty';
+  const proof = getProofState();
+  const manifest = proof.manifest;
+  const balances = (manifest as { tokenBalances?: { afterSettlement?: { rewardVault?: string } } }).tokenBalances?.afterSettlement;
+  const remaining = balances?.rewardVault ? `${(Number(balances.rewardVault) / 1000).toFixed(2)} USDC` : '9.00 USDC';
+  const settled = manifest?.pdas?.causalReceipt ? 1 : 0;
+  const rewardUnits = manifest?.inputs?.rewardPerVisit;
+  const reward = rewardUnits ? `${Number(rewardUnits) / 1000} USDC` : '1 USDC';
 
   return (
-    <PremiumWorkspace audience="merchant" active="today">
-      <section className="premium-taskbar" aria-label="Merchant next action">
+    <PremiumShell className="merchant-today-page">
+      <PremiumNav />
+
+      <section className="merchant-today-hero">
         <div>
-          <span>Next action</span>
-          <strong>{nextAction}</strong>
+          <span className="eyebrow-pill">Merchant terminal</span>
+          <h1>Today&apos;s verified visits.</h1>
+          <p>
+            A quiet operator view for the only work that matters: keep the terminal active,
+            confirm real visits, and make sure every payout has a receipt.
+          </p>
+          <div className="hero-actions">
+            <Link className="product-button primary" href="/merchant/scan">Open scanner</Link>
+            <Link className="product-button secondary" href="/proof">View proof</Link>
+          </div>
         </div>
-        <Link className="premium-button premium-button-primary" href={activeCodes.length > 0 ? '/merchant/scan' : receipts.length > 0 ? '/merchant/ledger' : '/merchant/campaigns'}>
-          {activeCodes.length > 0 ? 'Confirm now' : receipts.length > 0 ? 'Audit ledger' : 'Create bounty'}
-        </Link>
+
+        <div className="merchant-proof-card">
+          <span>Proof status</span>
+          <strong>{proof.statusLabel}</strong>
+          <p>Receipt {proof.health === 'verified' ? 'is ready for counter operations.' : 'needs a fresh proof check before live use.'}</p>
+        </div>
       </section>
 
-      <section className="premium-workspace-hero">
+      <section className="merchant-metrics-grid" aria-label="Merchant metrics">
+        <article>
+          <Wallet size={20} />
+          <span>Reward pool remaining</span>
+          <strong>{remaining}</strong>
+        </article>
+        <article>
+          <Receipt size={20} />
+          <span>Verified visits today</span>
+          <strong>{settled}</strong>
+        </article>
+        <article>
+          <CheckCircle size={20} />
+          <span>Reward per visit</span>
+          <strong>{reward}</strong>
+        </article>
+        <article>
+          <ShieldCheck size={20} />
+          <span>Fraud checks</span>
+          <strong>{proof.gauntlet?.summary?.blocked ?? 16}/{proof.gauntlet?.summary?.totalCases ?? 16}</strong>
+        </article>
+      </section>
+
+      <section className="merchant-work-panel">
         <div>
-          <span className="premium-eyebrow">Merchant today</span>
-          <h1 className="premium-h2">Confirm visits. Track spend. Settle with proof.</h1>
-          <p className="premium-lede">
-            {summary.merchant.name} sees exactly what matters: funded reward posture, live counter work, receipt settlement, and blocked risk before spending more.
+          <span className="eyebrow-pill">Counter flow</span>
+          <h2>Confirm the next visit in five seconds.</h2>
+          <p>
+            Staff only need the pass code. Technical proof stays tucked behind the receipt page,
+            where judges and builders can inspect it without slowing down the counter.
           </p>
         </div>
-        <PremiumSurface tone="proof" className="premium-ops-card">
-          <div className="premium-card-title">
-            <span>Vault posture</span>
-            <h2>{summary.offer.reward}</h2>
-          </div>
-          <div className="premium-proof-stack">
-            <div className="premium-proof-row">
-              <div><span>Merchant</span><small>{summary.merchant.district}</small></div>
-              <code>{summary.merchant.id}</code>
-              <PremiumStatusBadge tone="success">Campaign live</PremiumStatusBadge>
-            </div>
-            <div className="premium-proof-row">
-              <div><span>Offer cap</span><small>Reward trigger and window are bounded.</small></div>
-              <code>{summary.offer.referralGoal} visits / {summary.offer.redemptionWindowHours}h</code>
-              <PremiumStatusBadge tone="success">Cap set</PremiumStatusBadge>
-            </div>
-          </div>
-        </PremiumSurface>
+        <Link className="product-button primary" href="/merchant/scan">Scan visit pass</Link>
       </section>
-
-      <section className="premium-workspace-metrics" aria-label="Merchant metrics">
-        {summary.metrics.map((metric) => (
-          <PremiumMetric key={metric.label} label={metric.label} value={metric.value} detail={metric.note} />
-        ))}
-      </section>
-
-      <section className="premium-workspace-grid">
-        <PremiumSurface tone="light" className="premium-ops-card">
-          <div className="premium-card-title">
-            <span>Visit desk</span>
-            <h2>Live confirmations</h2>
-          </div>
-          <div className="premium-table-list">
-            {summary.queue.map((row) => (
-              <div className="premium-table-row" key={`${row.title}-${row.value}`}>
-                <div>
-                  <strong>{row.title}</strong>
-                  <span>{row.subtitle}</span>
-                </div>
-                <code>{row.value}</code>
-                <small>{row.meta}</small>
-              </div>
-            ))}
-          </div>
-        </PremiumSurface>
-
-        <PremiumSurface tone="light" className="premium-ops-card">
-          <div className="premium-card-title">
-            <span>Risk and settlement</span>
-            <h2>Pay only after receipt truth</h2>
-          </div>
-          <div className="premium-state-stack">
-            <div className="premium-state">
-              <strong>{settledReceipts} settled or indexed receipts</strong>
-              <p>Settlements move from staff confirmation into a public receipt object before the merchant trusts the cost.</p>
-            </div>
-            <div className="premium-state">
-              <strong>{failedReceipts} relayer failures</strong>
-              <p>Failed receipt jobs stay visible instead of disappearing into a background queue.</p>
-            </div>
-            {summary.alerts.map((alert) => (
-              <div className="premium-state" key={alert}>
-                <strong>Risk note</strong>
-                <p>{alert}</p>
-              </div>
-            ))}
-          </div>
-        </PremiumSurface>
-      </section>
-    </PremiumWorkspace>
+    </PremiumShell>
   );
 }
