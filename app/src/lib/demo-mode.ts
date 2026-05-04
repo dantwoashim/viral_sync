@@ -7,8 +7,10 @@ export const PUBLIC_DEMO_ROUTES = new Set([
 ]);
 
 const PUBLIC_DEMO_PREFIXES = [
+  '/campaign/',
   '/invite/',
   '/offer/',
+  '/claim/',
   '/receipt/',
 ];
 

@@ -30,9 +30,9 @@ export function PremiumNav() {
       </Link>
       <div className="premium-nav-links">
         <Link href="/#how-it-works">How it works</Link>
-        <Link href="/invite">Claim</Link>
+        <Link href="/claim/demo-token">Claim</Link>
         <Link href="/merchant/scan">Merchant scan</Link>
-        <Link href="/proof">Receipt proof</Link>
+        <Link href="/receipt/latest">Receipt proof</Link>
         <Link href="/proof#builders">For builders</Link>
       </div>
     </nav>

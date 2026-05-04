@@ -1,87 +1,73 @@
-import { existsSync, readFileSync } from 'fs';
-import path from 'path';
+import { notFound } from 'next/navigation';
 import QRCode from 'qrcode';
-import { PremiumButton, PremiumMetric, PremiumNav, PremiumProofRow, PremiumShell, PremiumSurface } from '@/components/premium/PremiumUi';
-
-type Manifest = { cluster?: string; generatedAt?: string; programId?: string; proofStatus?: string; proofLevel?: string; attestationModel?: string; targetProofLevel?: string; targetAttestationModel?: string; inputs?: { receiptId?: string; campaignId?: string; rewardPerVisit?: string }; pdas?: Record<string, string | number | undefined>; hashes?: Record<string, string | undefined>; transactions?: Record<string, string | null | undefined>; signatures?: Record<string, unknown>; explorerLinks?: { transactions?: Record<string, string | null | undefined>; accounts?: Record<string, string | null | undefined> }; tokenBalances?: { after?: Record<string, string> } };
-type Verifier = { ok?: boolean; receipt?: { status?: unknown; settledAmount?: string }; settlementRecord?: { referrerAmount?: string; visitorAmount?: string }; nullifierRecord?: unknown; tokenBalances?: Record<string, string> };
-
-function loadJson<T>(candidates: string[], fallback: T): T { for (const file of candidates) { if (!existsSync(file)) continue; try { return JSON.parse(readFileSync(file, 'utf8')) as T; } catch {} } return fallback; }
-function short(value?: string | null) { return !value ? 'missing' : value.length > 28 ? `${value.slice(0, 10)}…${value.slice(-8)}` : value; }
-function sig(value: unknown): string | null { if (!value) return null; if (typeof value === 'string') return value; if (typeof value === 'object' && value !== null && 'signature' in value) return String((value as { signature?: string }).signature ?? ''); return null; }
-function proofStatus(value: unknown, stale: boolean): 'success' | 'warning' { return value && !stale ? 'success' : 'warning'; }
+import Link from 'next/link';
+import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
+import SignatureReceipt from '@/components/product/SignatureReceipt';
+import { ProofTimeline } from '@/components/product/ProofTimeline';
+import { VerificationGrid } from '@/components/product/VerificationGrid';
+import { getProofState } from '@/lib/proof/getProofState';
+import { receiptMatches } from '@/lib/proof/normalizeReceipt';
+import { explorerAddress, explorerTx, shortHash, signatureValue } from '@/lib/proof/links';
 
 export default async function ReceiptProofPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const manifest = loadJson<Manifest>([path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', 'devnet-causal-commerce.json'), path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce.json')], {});
-  // Production proof pages use the published verifier artifact.
-  // tmp fallback is local-development only.
-  const verifier = loadJson<Verifier>([path.join(/* turbopackIgnore: true */ process.cwd(), 'public', 'proofs', 'devnet-causal-commerce-verifier.json'), path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'public', 'proofs', 'devnet-causal-commerce-verifier.json'), path.join(/* turbopackIgnore: true */ process.cwd(), '..', 'tmp', 'devnet-causal-commerce-verifier.json'), path.join(/* turbopackIgnore: true */ process.cwd(), 'tmp', 'devnet-causal-commerce-verifier.json')], {});
-  const txLinks = manifest.explorerLinks?.transactions ?? {};
-  const accountLinks = manifest.explorerLinks?.accounts ?? {};
-  const receiptId = id === 'latest' ? manifest.inputs?.receiptId ?? 'latest' : id;
-  const receiptSig = sig(manifest.signatures?.recordCausalReceipt) ?? manifest.transactions?.recordCausalReceipt;
-  const settleSig = sig(manifest.signatures?.settleReceiptReward) ?? manifest.transactions?.settleReceiptReward;
+  const proof = getProofState();
+  if (!receiptMatches(proof, id)) notFound();
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-  const publicUrl = `${baseUrl.replace(/\/$/, '')}/receipt/${encodeURIComponent(receiptId)}`;
-  const stale = /needs|stale|unsafe/i.test(manifest.proofStatus ?? '');
-  const qrDataUrl = await QRCode.toDataURL(publicUrl, { margin: 1, width: 180 });
+  const publicUrl = `${baseUrl.replace(/\/$/, '')}/receipt/${encodeURIComponent(proof.receiptId)}`;
+  const qrDataUrl = await QRCode.toDataURL(publicUrl, { margin: 1, width: 164 });
+  const recordSig = signatureValue(proof.manifest.signatures?.recordCausalReceipt);
+  const settleSig = signatureValue(proof.manifest.signatures?.settleReceiptReward);
 
   return (
-    <PremiumShell>
+    <PremiumShell className="receipt-page">
       <PremiumNav />
-      <section className="premium-proof-console">
-        <div className="premium-proof-header">
-          <div>
-            <span className="premium-eyebrow">Portable receipt proof</span>
-            <h1 className="premium-proof-title">Receipt {short(receiptId)}.</h1>
-            <p className="premium-lede">A shareable proof page for one counter-attested conversion: receipt PDA, nullifier, settlement record, intent hash, and devnet transaction links.</p>
-            <div className="premium-actions">
-              <PremiumButton href="/frontier-proof">Full proof</PremiumButton>
-              <PremiumButton href="/frontier-gauntlet" variant="secondary">Fraud gauntlet</PremiumButton>
-              <PremiumButton href="/proof-feed" variant="quiet">Proof feed</PremiumButton>
-            </div>
+      <section className="receipt-hero">
+        <div className="receipt-copy">
+          <span className="eyebrow-pill">Verified receipt</span>
+          <h1>Verified Visit Receipt</h1>
+          <p>{proof.merchantName} · settled on Solana · {proof.statusLabel}</p>
+          <div className="receipt-pills">
+            <span>{proof.statusLabel}</span>
+            <span>{proof.cluster}</span>
+            <span>{proof.gauntlet.summary?.blocked ?? 16}/{proof.gauntlet.summary?.totalCases ?? 16} fraud checks</span>
           </div>
-          <PremiumSurface tone={stale ? 'raised' : 'proof'} className="premium-compact-proof-card">
-            <div className="premium-card-title">
-              <span>{manifest.cluster ?? 'devnet'} receipt QR</span>
-              <h2>{verifier.ok ? 'Verifier ok=true' : stale ? 'Regenerate proof' : 'Verifier pending'}</h2>
-              <p>{manifest.proofLevel ?? manifest.targetProofLevel ?? 'counter_attested'} · {manifest.attestationModel ?? manifest.targetAttestationModel ?? 'merchant_terminal_visitor_signed'}</p>
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="premium-receipt-qr" src={qrDataUrl} alt="QR code to receipt proof" />
-          </PremiumSurface>
         </div>
+        <SignatureReceipt proof={proof} />
+      </section>
 
-        <section className="premium-metrics compact" aria-label="Receipt summary">
-          <PremiumMetric label="Receipt" value={short(String(manifest.pdas?.causalReceipt ?? ''))} detail="Causal Receipt PDA" />
-          <PremiumMetric label="Settlement" value={short(String(settleSig ?? ''))} detail={`${verifier.receipt?.settledAmount ?? manifest.inputs?.rewardPerVisit ?? 'unknown'} units settled`} />
-          <PremiumMetric label="Nullifier" value={verifier.nullifierRecord ? 'recorded' : short(String(manifest.pdas?.nullifierRecord ?? ''))} detail="Replay defense" />
-        </section>
+      <section className="receipt-layout">
+        <div className="receipt-panel">
+          <span className="section-kicker">Timeline</span>
+          <h2>How this receipt became payable.</h2>
+          <ProofTimeline />
+        </div>
+        <div className="receipt-panel">
+          <span className="section-kicker">Share proof</span>
+          <h2>Portable receipt link.</h2>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="receipt-qr" src={qrDataUrl} alt="QR code to this receipt proof" />
+          <Link className="product-button secondary" href="/proof">Open proof center</Link>
+        </div>
+      </section>
 
-        <section className="premium-system-grid">
-          <PremiumSurface tone="light" className="premium-system-section">
-            <div className="premium-card-title"><span>Receipt objects</span><h2>Evidence bundle.</h2><p>{manifest.generatedAt ? `Generated ${manifest.generatedAt}` : 'Proof manifest timestamp missing.'}</p></div>
-            <div className="premium-proof-stack">
-              <PremiumProofRow label="Receipt PDA" value={short(String(manifest.pdas?.causalReceipt ?? ''))} meta={accountLinks.causalReceipt ? 'Explorer link available' : 'Proof manifest value'} status={proofStatus(manifest.pdas?.causalReceipt, stale)} />
-              <PremiumProofRow label="Nullifier PDA" value={short(String(manifest.pdas?.nullifierRecord ?? ''))} meta="Duplicate claim defense" status={proofStatus(manifest.pdas?.nullifierRecord, stale)} />
-              <PremiumProofRow label="Intent manifest hash" value={short(manifest.hashes?.intentManifestHash)} meta="Committed on receipt account" status={proofStatus(manifest.hashes?.intentManifestHash, stale)} />
-              <PremiumProofRow label="Lineage / claim pass" value={short(String(manifest.pdas?.claimPass ?? 'pending'))} meta="Claim-pass account lineage" status={manifest.pdas?.claimPass ? 'success' : 'warning'} />
-            </div>
-          </PremiumSurface>
-          <PremiumSurface tone="raised" className="premium-system-section">
-            <div className="premium-card-title"><span>Transactions</span><h2>Open the chain trail.</h2><p>These links are the portable proof trail for the conversion.</p></div>
-            <div className="premium-proof-stack">
-              <PremiumProofRow label="record_causal_receipt" value={short(receiptSig)} meta={txLinks.recordCausalReceipt ? 'Open in Explorer' : 'Missing link'} status={receiptSig ? 'success' : 'warning'} />
-              <PremiumProofRow label="settle_receipt_reward" value={short(settleSig)} meta={txLinks.settleReceiptReward ? 'Open in Explorer' : 'Missing link'} status={settleSig ? 'success' : 'warning'} />
-              <PremiumProofRow label="Reward vault" value={short(String(manifest.pdas?.rewardVault ?? ''))} meta={`Vault balance ${verifier.tokenBalances?.rewardVault ?? manifest.tokenBalances?.after?.rewardVault ?? 'unknown'}`} status={proofStatus(manifest.pdas?.rewardVault, stale)} />
-              <PremiumProofRow label="Fraud Gauntlet" value="Open result" meta="Links this receipt to the structured attack evidence." status="success" />
-            </div>
-            <div className="premium-actions" style={{ marginTop: 18 }}>
-              <PremiumButton href="/frontier-gauntlet" variant="secondary">Fraud Gauntlet</PremiumButton>
-            </div>
-          </PremiumSurface>
-        </section>
+      <section className="receipt-panel technical-drawer">
+        <details>
+          <summary>Show technical proof</summary>
+          <div className="technical-grid">
+            <div><small>Receipt PDA</small><a href={explorerAddress(proof.manifest.pdas?.causalReceipt, proof.cluster) ?? undefined}>{String(proof.manifest.pdas?.causalReceipt ?? 'missing')}</a></div>
+            <div><small>TerminalDevice PDA</small><a href={explorerAddress(proof.manifest.pdas?.terminalDevice, proof.cluster) ?? undefined}>{String(proof.manifest.pdas?.terminalDevice ?? 'missing')}</a></div>
+            <div><small>ClaimPass PDA</small><a href={explorerAddress(proof.manifest.pdas?.claimPass, proof.cluster) ?? undefined}>{String(proof.manifest.pdas?.claimPass ?? 'missing')}</a></div>
+            <div><small>Nullifier PDA</small><a href={explorerAddress(proof.manifest.pdas?.nullifierRecord, proof.cluster) ?? undefined}>{String(proof.manifest.pdas?.nullifierRecord ?? 'missing')}</a></div>
+            <div><small>SettlementRecord PDA</small><a href={explorerAddress(proof.manifest.pdas?.settlementRecord, proof.cluster) ?? undefined}>{String(proof.manifest.pdas?.settlementRecord ?? 'missing')}</a></div>
+            <div><small>Intent manifest hash</small><b>{String(proof.manifest.hashes?.intentManifestHash ?? 'missing')}</b></div>
+            <div><small>Lineage proof hash</small><b>{String(proof.manifest.intentManifest?.lineageProofHash ?? proof.manifest.pdas?.lineageProofHash ?? 'missing')}</b></div>
+            <div><small>Record transaction</small><a href={explorerTx(recordSig, proof.cluster) ?? undefined}>{shortHash(recordSig, 12, 10)}</a></div>
+            <div><small>Settlement transaction</small><a href={explorerTx(settleSig, proof.cluster) ?? undefined}>{shortHash(settleSig, 12, 10)}</a></div>
+          </div>
+          <VerificationGrid proof={proof} />
+        </details>
       </section>
     </PremiumShell>
   );

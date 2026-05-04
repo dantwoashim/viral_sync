@@ -63,7 +63,7 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
     '/security',
     '/support',
   ];
-  const immersivePrefixes = ['/offer/', '/receipts/'];
+  const immersivePrefixes = ['/campaign/', '/offer/', '/receipt/', '/receipts/', '/claim/'];
   const immersiveHome = immersiveExactRoutes.includes(pathname) || immersivePrefixes.some((prefix) => pathname.startsWith(prefix));
   const mode = pathname.startsWith('/merchant') ? 'merchant' : 'consumer';
   const tabs = mode === 'merchant' ? merchantTabs : consumerTabs;
