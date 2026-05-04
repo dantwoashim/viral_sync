@@ -7,6 +7,7 @@ import { ProofTimeline } from '@/components/product/ProofTimeline';
 import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 import { explorerAddress, explorerTx, shortHash, signatureValue } from '@/lib/proof/links';
+import { getWorldClassReadiness } from '@/lib/readiness/phases6to10';
 import { getMerchantValidationState } from '@/lib/traction/merchantValidation';
 
 export default function ProofCenterPage() {
@@ -17,6 +18,7 @@ export default function ProofCenterPage() {
   const settleSig = signatureValue(manifest.signatures?.settleReceiptReward);
   const programMatches = proof.programIdConsistency.programIdConsistency?.matches === true;
   const validation = getMerchantValidationState(proof);
+  const readiness = getWorldClassReadiness(proof, validation);
 
   return (
     <PremiumShell className="proof-center-page">
@@ -24,7 +26,7 @@ export default function ProofCenterPage() {
       <section className="proof-center">
         <aside className="proof-sidebar" aria-label="Proof sections">
           <span className="proof-logo">VS</span>
-          {['Receipt', 'Gauntlet', 'Verifier', 'Validation', 'Program', 'Artifacts', 'Limitations'].map((item) => (
+          {['Receipt', 'Gauntlet', 'Verifier', 'Validation', 'Readiness', 'Program', 'Artifacts', 'Limitations'].map((item) => (
             <a key={item} href={`#${item.toLowerCase()}`}>{item}</a>
           ))}
         </aside>
@@ -97,6 +99,37 @@ export default function ProofCenterPage() {
                   <strong>{slot.id}</strong>
                   <small>{slot.status}</small>
                   <p>{slot.prompt}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section id="readiness" className="proof-panel">
+            <div className="proof-panel-header">
+              <div>
+                <span className="section-kicker">phases 6-10</span>
+                <h2>World-class readiness gate: {readiness.overallStatus.replaceAll('_', ' ')}.</h2>
+                <p>
+                  This turns the next five phases into an inspectable operating contract:
+                  economics, security, pilot ops, demo narrative, and final judge claims.
+                </p>
+              </div>
+              <Link href="/api/agent/readiness" className="proof-download">Open API</Link>
+            </div>
+            <div className="readiness-score">
+              <span><small>Readiness score</small><b>{readiness.score}/100</b></span>
+              <span><small>Submit to judges</small><b>{readiness.finalGate.submitToJudges ? 'Yes' : 'No'}</b></span>
+              <span><small>Claim traction</small><b>{readiness.finalGate.claimLiveTraction ? 'Allowed' : 'No'}</b></span>
+              <span><small>Mainnet eligible</small><b>{readiness.security.mainnetEligible ? 'Yes' : 'No'}</b></span>
+            </div>
+            <div className="readiness-phases">
+              {readiness.phases.map((phase) => (
+                <article key={phase.phase} data-status={phase.status}>
+                  <span>phase {phase.phase}</span>
+                  <strong>{phase.title}</strong>
+                  <small>{phase.status}</small>
+                  <p>{phase.objective}</p>
+                  {phase.blockers.length > 0 ? <em>{phase.blockers[0]}</em> : null}
                 </article>
               ))}
             </div>

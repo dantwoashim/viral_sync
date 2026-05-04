@@ -3,8 +3,9 @@ import { expect } from 'chai';
 import { canonicalArtifactHash, readJson, computeProofHashes } from '../scripts/proof-artifact-utils';
 import { expectedErrorMatched, expectedPatternsFor } from '../scripts/fraud-error-matching';
 import { isPublicDemoRoute } from '../app/src/lib/demo-mode';
-import { gauntletLabel } from '../app/src/lib/proof/getProofState';
+import { gauntletLabel, getProofState } from '../app/src/lib/proof/getProofState';
 import { confirmVisitPass, createVisitPassPacket } from '../app/src/lib/product-loop/productLoop';
+import { getWorldClassReadiness } from '../app/src/lib/readiness/phases6to10';
 import { getMerchantValidationState, normalizeMerchantValidation } from '../app/src/lib/traction/merchantValidation';
 
 describe('proof hardening regressions', () => {
@@ -176,5 +177,39 @@ describe('proof hardening regressions', () => {
     expect(validationRoute).to.include('technical_proof_only_do_not_claim_live_traction');
     expect(mcp.tools.some((tool) => tool.name === 'merchant_validation_context' && tool.endpoint === 'GET /api/agent/validation')).to.equal(true);
     expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/validation')).to.equal(true);
+  });
+
+  it('ships phases 6-10 as an inspectable readiness gate instead of vague roadmap prose', () => {
+    const proof = getProofState();
+    const validation = getMerchantValidationState(proof);
+    const readiness = getWorldClassReadiness(proof, validation);
+    const proofPage = fs.readFileSync('app/src/app/proof/page.tsx', 'utf8');
+    const merchantToday = fs.readFileSync('app/src/app/merchant/today/page.tsx', 'utf8');
+    const readinessRoute = fs.readFileSync('app/src/app/api/agent/readiness/route.ts', 'utf8');
+    const mcp = JSON.parse(fs.readFileSync('app/public/.well-known/mcp.json', 'utf8')) as {
+      tools: Array<{ name: string; endpoint?: string; payment?: string | Record<string, unknown> }>;
+    };
+    const blink = JSON.parse(fs.readFileSync('app/public/.well-known/blink.json', 'utf8')) as {
+      rules?: Array<{ pathPattern?: string }>;
+    };
+
+    expect(readiness.artifactType).to.equal('viral_sync_phase_6_10_readiness');
+    expect(readiness.phases.map((item) => item.phase)).to.deep.equal([6, 7, 8, 9, 10]);
+    expect(readiness.economics.grossMarginModel).to.match(/Protocol revenue/);
+    expect(readiness.security.mainnetEligible).to.equal(false);
+    expect(readiness.security.requiredBeforeMainnet).to.include('External security review or audit memo');
+    expect(readiness.pilotOps.missingRequiredEvidence.length).to.be.greaterThan(0);
+    expect(readiness.demoNarrative.oneLine).to.equal('Money only moves when a conversion is co-signed and settled on Solana.');
+    expect(readiness.finalGate.claimProtocolProof).to.equal(true);
+    expect(readiness.finalGate.claimLiveTraction).to.equal(false);
+    expect(readiness.finalGate.submitToJudges).to.equal(true);
+    expect(readiness.score).to.be.greaterThan(50);
+
+    expect(proofPage).to.include('id="readiness"');
+    expect(proofPage).to.include('/api/agent/readiness');
+    expect(merchantToday).to.include('phases 6-10 gate');
+    expect(readinessRoute).to.include('getWorldClassReadiness');
+    expect(mcp.tools.some((tool) => tool.name === 'world_class_readiness' && tool.endpoint === 'GET /api/agent/readiness')).to.equal(true);
+    expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/readiness')).to.equal(true);
   });
 });

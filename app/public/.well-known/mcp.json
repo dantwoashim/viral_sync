@@ -36,6 +36,12 @@
       "description": "Returns the permissioned merchant-evidence status and explicitly says whether live traction may be claimed."
     },
     {
+      "name": "world_class_readiness",
+      "endpoint": "GET /api/agent/readiness",
+      "payment": "none",
+      "description": "Returns the phase 6-10 readiness gate across economics, security, pilot ops, demo narrative, and final judge claims."
+    },
+    {
       "name": "x402_create_campaign",
       "service": "viral-sync-relayer",
       "endpoint": "POST /campaigns/create",

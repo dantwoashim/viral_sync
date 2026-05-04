@@ -3,6 +3,8 @@ import { CheckCircle, Receipt, ShieldCheck, Wallet } from '@phosphor-icons/react
 import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import { defaultProductLoopCampaign } from '@/lib/product-loop/productLoop';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
+import { getWorldClassReadiness } from '@/lib/readiness/phases6to10';
+import { getMerchantValidationState } from '@/lib/traction/merchantValidation';
 
 export default async function MerchantTodayPage() {
   const proof = getProofState();
@@ -10,6 +12,7 @@ export default async function MerchantTodayPage() {
   const remaining = campaign?.rewardPoolRemainingLabel ?? 'Pending';
   const settled = campaign?.settledCount ?? 0;
   const reward = campaign?.rewardLabel ?? proof.rewardAmountLabel;
+  const readiness = getWorldClassReadiness(proof, getMerchantValidationState(proof));
 
   return (
     <PremiumShell className="merchant-today-page">
@@ -69,6 +72,18 @@ export default async function MerchantTodayPage() {
           </p>
         </div>
         <Link className="product-button primary" href={campaign ? `/claim/${encodeURIComponent(campaign.slug)}` : '/merchant/scan'}>Issue next pass</Link>
+      </section>
+
+      <section className="merchant-work-panel readiness-operator-panel">
+        <div>
+          <span className="eyebrow-pill">phases 6-10 gate</span>
+          <h2>Operator readiness is {readiness.score}/100.</h2>
+          <p>
+            The counter can run the proof-backed demo, but the business story stays disciplined:
+            protocol proof is claimable, live traction waits for merchant evidence.
+          </p>
+        </div>
+        <Link className="product-button secondary" href="/proof#readiness">Review readiness</Link>
       </section>
     </PremiumShell>
   );
