@@ -1,6 +1,6 @@
 {
   "type": "viral-sync-frontier-readiness",
-  "generatedAt": "2026-05-04T05:15:06.131Z",
+  "generatedAt": "2026-05-04T08:52:40.787Z",
   "status": "GO",
   "gates": [
     {
@@ -64,6 +64,12 @@
       "detail": "Every proof feed entry is verified."
     },
     {
+      "id": "hash-binding",
+      "label": "Source and artifact hash binding",
+      "status": "PASS",
+      "detail": "Proof hashes match the current repository state."
+    },
+    {
       "id": "merchant-validation-kit",
       "label": "Merchant validation kit",
       "status": "PASS",
@@ -82,18 +88,20 @@
       "detail": "frontier:final includes final artifact assertion."
     }
   ],
+  "hashesVerified": true,
+  "hashFailures": [],
   "programIdConsistency": {
     "anchorToml": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
     "declareId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
     "deployKeypair": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
     "matches": true
   },
-  "programSourceHash": "12e5d5a507929b5b023a59f685506267fa726fd6b9f400a8b7eb72f67c76cf06",
-  "idlHash": "fe4b76d5b9ce8d4dcbcc535b2841428ee2033f69e0b24a7641ada871a7ecdb46",
-  "proofGeneratorHash": "65fdc678b44c9da4039df585ef70f127a765d67ea28bfddfca7cb6e4b7ea9d7d",
-  "verifierHash": "3d870c43df115b1b2e1fa391bc44b86343b9d780e4cf116781ce4e19e0c8c8e4",
-  "rawVerifierHash": "5ac40f20210926d3c705c405f66c82cffe4f3d016db7ca4d7b1b07e835b5e9ad",
-  "publishedVerifierHash": "daa7c3400ebd5782126a4a6d0ebc64be126f0656630acfe460dbcc3ae1437e57",
-  "artifactHash": "0641c73a3d8ab321ec32a94de89816b215547e3811b7c9b1924ed36aef0ff1ff",
-  "stampMode": "final-candidate"
+  "programSourceHash": "72564295617846d1f2b5e435a64224a184a63e1223bac1463c21eada938b56f9",
+  "idlHash": "e6571b802b6519eb70287a9d62c6de77a57c9a5993a3ee338d57b4a7a7e4a23e",
+  "proofGeneratorHash": "b63ab9c7cc18a3948360aa128849841b353acf53de7190c9327dc3c927b365b7",
+  "verifierHash": "b91d90c0769635c274dd25d97515fd53ca50bf9c901d036e213a3a673d833fff",
+  "rawVerifierHash": "df5eb166cb25b94cf27b8ef7669cb3e8dde8e4e4f1c85337ea38b1bf138bdc38",
+  "publishedVerifierHash": "df5eb166cb25b94cf27b8ef7669cb3e8dde8e4e4f1c85337ea38b1bf138bdc38",
+  "stampMode": "final-candidate",
+  "artifactHash": "cef779c32430af49a70a182c1d2ac816a5867677c03ca0b05ab1e812e663ee2c"
 }

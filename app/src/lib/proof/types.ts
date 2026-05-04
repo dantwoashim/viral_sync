@@ -97,6 +97,12 @@ export type ProgramIdConsistency = {
   };
 };
 
+export type FrontierReadiness = {
+  status?: string;
+  hashesVerified?: boolean;
+  hashFailures?: string[];
+};
+
 export type ProofHealth = 'verified' | 'stale' | 'mock' | 'pending' | 'missing' | 'failed';
 
 export type NormalizedReceiptProof = {
@@ -113,4 +119,5 @@ export type NormalizedReceiptProof = {
   verifier: VerifierArtifact;
   gauntlet: FraudGauntlet;
   programIdConsistency: ProgramIdConsistency;
+  readiness: FrontierReadiness;
 };

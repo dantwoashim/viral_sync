@@ -1,6 +1,6 @@
 # Frontier Submission Packet
 
-Generated: 2026-05-04T05:15:09.849Z
+Generated: 2026-05-04T08:52:44.302Z
 
 ## One-Sentence Pitch
 
@@ -59,15 +59,15 @@ Routes:
 | Cluster | `devnet` |
 | Program | `AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46` |
 | RPC | `https://api.devnet.solana.com` |
-| Generated | `2026-05-04T05:14:52.531Z` |
-| Intent checked | `2026-05-04T05:14:52.529Z` |
-| Campaign | `BL8VRETAY9Zpv1WkCWo8neGCCr3Czf5ihRkGWkBQtmSN` |
-| Reward escrow | `EwGJfELtH7e8Bmf85T6ABmBJi4eYovZrpemNntXcY4jq` |
-| Reward vault | `7LUds8ojbUhhQY1rYshmsXkhHb8gsyQa3m9EhwntMQK` |
-| Causal receipt | `7yiym4ehexoghmKwygCeYjvRdzQLCpjQwFyUkxUbLemU` |
-| Nullifier | `5XFMdUwvCz6qXAtqNiK6xZzLeWFxFbUFduWkgKh7TXVn` |
-| Intent manifest hash | `7905df81cc2e23d825394d4faff02843ad8504f9131acce8b8559c4eb590bb5a` |
-| Visit attestation hash | `43c9212d1fb5604b21a1e06d1af8e42012b983d2a9ef50d4e66e2deaabc4f72b` |
+| Generated | `2026-05-04T08:52:26.338Z` |
+| Intent checked | `2026-05-04T08:52:26.336Z` |
+| Campaign | `BjidxhA6HsNeS6QMZ8Mt28VEb3aUDKJyic5CP9oQDXNt` |
+| Reward escrow | `3crDWVB7MqAnUjDocbGaznTSCX8CfnfHvt61wZPQ3H1D` |
+| Reward vault | `EBmCs1hJ1jSsc6ReihxcxhAexvpoqiZf1PYFA4u2qAZL` |
+| Causal receipt | `7wGtDkbzTuFUtKuyLUJ1YmcjujKApYP1fsLpQEY5Az3y` |
+| Nullifier | `2QmjowcPKAJWCFCjg8Q4rEkQNvKQooUC2LX6Qa6R9Xnu` |
+| Intent manifest hash | `fc4f640ee84816da5f369c2e2059d9fd8d0cd5396f2fd2ce432bddbf2fe35d17` |
+| Visit attestation hash | `d935a8bf3b2af002020de2aa37a3c033a85515dedeb8b9fc4840f9c7ee6710d4` |
 | Replay checks | PASS |
 | Intent validation checks | PASS |
 | Required verifier | PASS |
@@ -81,13 +81,13 @@ Routes:
 
 | Step | Signature | Explorer |
 |---|---|---|
-| register_merchant | `5nqTeaH83zRfdxhAaFg2ZVyyN5gU5Zw9SBNm8vGyKhLTCTTbbxrZ5uXokiyw6a2ry7XF6LfagfP4JSGCQRcQCZqa` | https://explorer.solana.com/tx/5nqTeaH83zRfdxhAaFg2ZVyyN5gU5Zw9SBNm8vGyKhLTCTTbbxrZ5uXokiyw6a2ry7XF6LfagfP4JSGCQRcQCZqa?cluster=devnet |
-| create_growth_campaign | `B8gFjjzMpy9pHwXZSenTzQB9FFMBifTcDHuTyoJRLv5DW5XddqT139igdWpLdg6U27Rru9sVABsF1Ji4cEsZrjg` | https://explorer.solana.com/tx/B8gFjjzMpy9pHwXZSenTzQB9FFMBifTcDHuTyoJRLv5DW5XddqT139igdWpLdg6U27Rru9sVABsF1Ji4cEsZrjg?cluster=devnet |
-| enroll_terminal_device | `4TeM7MD23unuuzjJekZdSzQUcULJzAGV8mnGA5vE8LixTNmFVpDJMupTZNDwNaGQG8QX9hKeAAwcUvgKznfaZZm3` | https://explorer.solana.com/tx/4TeM7MD23unuuzjJekZdSzQUcULJzAGV8mnGA5vE8LixTNmFVpDJMupTZNDwNaGQG8QX9hKeAAwcUvgKznfaZZm3?cluster=devnet |
-| issue_claim_pass | `5uzLNRdo6BBi1tdybKNzcfNQez1AbcAEmUmmTxKotadSWPDhKGQZVVmygKKKaguErdEp7KtD8iodRx8HcJti695E` | https://explorer.solana.com/tx/5uzLNRdo6BBi1tdybKNzcfNQez1AbcAEmUmmTxKotadSWPDhKGQZVVmygKKKaguErdEp7KtD8iodRx8HcJti695E?cluster=devnet |
-| fund_growth_bounty | `dtpYvQoNzBji114oAouUeaqk4TpT31VR1cTC8tXykMhc3TLkV3XF5Mw7et7aHyXfh6vCNhxbAdAQsAyXDycyCVm` | https://explorer.solana.com/tx/dtpYvQoNzBji114oAouUeaqk4TpT31VR1cTC8tXykMhc3TLkV3XF5Mw7et7aHyXfh6vCNhxbAdAQsAyXDycyCVm?cluster=devnet |
-| record_causal_receipt | `5WPV9HCEM4CHKTD6qnx5BYgbcyP7sm1JAXjaePfH2KNAiS3411bKpPQxqTNkrbDBuBvPskfgwC5zAWtprZgAqJMh` | https://explorer.solana.com/tx/5WPV9HCEM4CHKTD6qnx5BYgbcyP7sm1JAXjaePfH2KNAiS3411bKpPQxqTNkrbDBuBvPskfgwC5zAWtprZgAqJMh?cluster=devnet |
-| settle_receipt_reward | `5gyQ4ySSHyfDPJU4ZR3ZBTsGcDvVqbda7sTpEBgA4v3BurEeT9kqUjfNUExfAeTmw6YsWraxEuwnBCeddBHN4ARE` | https://explorer.solana.com/tx/5gyQ4ySSHyfDPJU4ZR3ZBTsGcDvVqbda7sTpEBgA4v3BurEeT9kqUjfNUExfAeTmw6YsWraxEuwnBCeddBHN4ARE?cluster=devnet |
+| register_merchant | `34Wx4ahp3woErAxkAe16V61U3MG7Wz5N8WmcTzpkZk42EfDom9cFZZ4WfCRzYgVRag5fE9v5fn4NPCaptju8VgAz` | https://explorer.solana.com/tx/34Wx4ahp3woErAxkAe16V61U3MG7Wz5N8WmcTzpkZk42EfDom9cFZZ4WfCRzYgVRag5fE9v5fn4NPCaptju8VgAz?cluster=devnet |
+| create_growth_campaign | `xC53Yn6qCJo6KZ1te9aGf2qeU2gvXfrHzHpPuT81sBSqRanejSEuEGtZ8r7cTMjngotEfu8yZjiZ5CLYoa5Fz5C` | https://explorer.solana.com/tx/xC53Yn6qCJo6KZ1te9aGf2qeU2gvXfrHzHpPuT81sBSqRanejSEuEGtZ8r7cTMjngotEfu8yZjiZ5CLYoa5Fz5C?cluster=devnet |
+| enroll_terminal_device | `3bW2xRLjm2Y7WDQnzgAe1Kh1RFmAi8dUjioswPrREasNa2LN4hrTDmjnHbNru9gWtQDFRoCk7igsxwPsLTQjyvbf` | https://explorer.solana.com/tx/3bW2xRLjm2Y7WDQnzgAe1Kh1RFmAi8dUjioswPrREasNa2LN4hrTDmjnHbNru9gWtQDFRoCk7igsxwPsLTQjyvbf?cluster=devnet |
+| issue_claim_pass | `LCNiRs3bBYSeqWKAVBp5YnZoVwvz1Ufmf8mP3Esy57xX3L6s9cryQcL7tmmztpHGASWo1EQZ8STGnAoqZ2KDyVr` | https://explorer.solana.com/tx/LCNiRs3bBYSeqWKAVBp5YnZoVwvz1Ufmf8mP3Esy57xX3L6s9cryQcL7tmmztpHGASWo1EQZ8STGnAoqZ2KDyVr?cluster=devnet |
+| fund_growth_bounty | `2JCybBzCUNj75kCwpwufoT9yrsw8iUnUi8yPeLTbc7eu7dGWpCpx8FCQtTydJJXWp9vFGrPfGbRqdiZDTT3M51LQ` | https://explorer.solana.com/tx/2JCybBzCUNj75kCwpwufoT9yrsw8iUnUi8yPeLTbc7eu7dGWpCpx8FCQtTydJJXWp9vFGrPfGbRqdiZDTT3M51LQ?cluster=devnet |
+| record_causal_receipt | `3unL4uYpzuuf3qiXZ6NFHMv2eYiomLPRx6KnR9jPLoDvwj3X21Hr12NbMgncEfhHLbfqdztywYV7huGAVRjf8zhy` | https://explorer.solana.com/tx/3unL4uYpzuuf3qiXZ6NFHMv2eYiomLPRx6KnR9jPLoDvwj3X21Hr12NbMgncEfhHLbfqdztywYV7huGAVRjf8zhy?cluster=devnet |
+| settle_receipt_reward | `3fjD1PsDkbmMx54cMD5gpLd1ews8SMWv7XL86WN9Q4g4EfAUx5dU4YyNND8JWYvRdNM8puSE1vZwS9yXjFA3Y9u4` | https://explorer.solana.com/tx/3fjD1PsDkbmMx54cMD5gpLd1ews8SMWv7XL86WN9Q4g4EfAUx5dU4YyNND8JWYvRdNM8puSE1vZwS9yXjFA3Y9u4?cluster=devnet |
 
 ## SPL Custody Ledger
 

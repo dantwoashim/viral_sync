@@ -17,6 +17,10 @@ function icon(status: StepStatus) {
 
 export function ProofTimeline({ proof }: { proof: NormalizedReceiptProof }) {
   const signatures = proof.manifest.signatures ?? {};
+  const gauntletOk = typeof proof.gauntlet.summary?.blocked === 'number' &&
+    proof.gauntlet.summary.blocked === proof.gauntlet.summary.totalCases &&
+    proof.gauntlet.summary.missing === 0 &&
+    proof.gauntlet.summary.failed === 0;
   const steps: Array<{ label: string; phase: string; status: StepStatus }> = [
     { label: 'Campaign funded', phase: 'Before visit', status: hasSignature(signatures.fundGrowthBounty) ? 'verified' : 'pending' },
     { label: 'Visit pass issued', phase: 'Before visit', status: hasSignature(signatures.issueClaimPass) ? 'verified' : 'pending' },
@@ -24,7 +28,7 @@ export function ProofTimeline({ proof }: { proof: NormalizedReceiptProof }) {
     { label: 'Receipt co-signed', phase: 'At counter', status: hasSignature(signatures.recordCausalReceipt) && proof.verifier.terminalVerified && proof.verifier.visitorVerified ? 'verified' : 'pending' },
     { label: 'Nullifier recorded', phase: 'At counter', status: proof.verifier.nullifierVerified ? 'verified' : 'pending' },
     { label: 'Reward settled', phase: 'At counter', status: hasSignature(signatures.settleReceiptReward) && proof.verifier.settlementVerified ? 'verified' : 'pending' },
-    { label: 'Fraud replay rejected', phase: 'Attack check', status: proof.health === 'verified' ? 'verified' : proof.health === 'failed' ? 'failed' : 'pending' },
+    { label: 'Fraud replay rejected', phase: 'Attack check', status: gauntletOk ? 'verified' : proof.health === 'failed' ? 'failed' : 'pending' },
   ];
 
   return (

@@ -8,12 +8,12 @@
     "matches": true
   },
   "failures": [],
-  "programSourceHash": "12e5d5a507929b5b023a59f685506267fa726fd6b9f400a8b7eb72f67c76cf06",
-  "idlHash": "fe4b76d5b9ce8d4dcbcc535b2841428ee2033f69e0b24a7641ada871a7ecdb46",
-  "proofGeneratorHash": "65fdc678b44c9da4039df585ef70f127a765d67ea28bfddfca7cb6e4b7ea9d7d",
-  "verifierHash": "3d870c43df115b1b2e1fa391bc44b86343b9d780e4cf116781ce4e19e0c8c8e4",
-  "rawVerifierHash": "5ac40f20210926d3c705c405f66c82cffe4f3d016db7ca4d7b1b07e835b5e9ad",
-  "publishedVerifierHash": "daa7c3400ebd5782126a4a6d0ebc64be126f0656630acfe460dbcc3ae1437e57",
-  "artifactHash": "4ade55c62634e0e89cbba36502718a1e1bd2621098d3ae1e0e9eb59366b53b46",
-  "stampMode": "final-candidate"
+  "programSourceHash": "72564295617846d1f2b5e435a64224a184a63e1223bac1463c21eada938b56f9",
+  "idlHash": "e6571b802b6519eb70287a9d62c6de77a57c9a5993a3ee338d57b4a7a7e4a23e",
+  "proofGeneratorHash": "b63ab9c7cc18a3948360aa128849841b353acf53de7190c9327dc3c927b365b7",
+  "verifierHash": "b91d90c0769635c274dd25d97515fd53ca50bf9c901d036e213a3a673d833fff",
+  "rawVerifierHash": "df5eb166cb25b94cf27b8ef7669cb3e8dde8e4e4f1c85337ea38b1bf138bdc38",
+  "publishedVerifierHash": "df5eb166cb25b94cf27b8ef7669cb3e8dde8e4e4f1c85337ea38b1bf138bdc38",
+  "stampMode": "final-candidate",
+  "artifactHash": "1935a94df051550e19f35428a5db7e3e2d5f3ee6bdba006a81a2ea3b826b67e0"
 }

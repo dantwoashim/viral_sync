@@ -128,6 +128,9 @@ function domainChecks(kind: string, artifact: any): ValidationError[] {
         if (item.expectedErrorMatched !== true) errors.push({ path: `$.cases[${index}].expectedErrorMatched`, message: 'case must match the expected rejection error' });
         if (item.accountsMutated !== false) errors.push({ path: `$.cases[${index}].accountsMutated`, message: 'case must prove no account mutation' });
         if (item.accountsMutationVerified !== true) errors.push({ path: `$.cases[${index}].accountsMutationVerified`, message: 'case must explicitly verify no account mutation' });
+        if (!['devnet_transaction_execution', 'localnet_transaction_execution', 'intent_validator_check'].includes(String(item.proofSource ?? ''))) {
+          errors.push({ path: `$.cases[${index}].proofSource`, message: 'final fraud proofSource cannot be mock_final_fixture or another non-final source' });
+        }
       }
     }
   }

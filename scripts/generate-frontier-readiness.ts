@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
-import { writeJson } from './proof-artifact-utils';
+import { computeProofHashes, writeJson } from './proof-artifact-utils';
 
 type Gate = { id: string; label: string; status: 'PASS' | 'FAIL' | 'PENDING'; detail: string };
 function json(file: string): any | null { const p = path.resolve(file); if (!existsSync(p)) return null; try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return null; } }
@@ -18,6 +18,7 @@ const campaignLinks = json('app/public/proofs/campaign-links.json');
 const proofFeed = json('app/public/proofs/proof-feed.json');
 const merchantValidation = json('app/public/proofs/merchant-validation-kit.json');
 const programIdConsistency = json('app/public/proofs/program-id-consistency.json');
+const currentHashes = computeProofHashes();
 
 const manifestReady = manifest?.proofLevel === 'counter_attested' && manifest?.attestationModel === 'merchant_terminal_visitor_signed' && manifest?.terminalVerified === true && manifest?.visitorVerified === true && manifest?.lineageVerified === true && !isStale(manifest?.proofStatus);
 const verifierReady = verifier?.ok === true && verifier?.terminalVerified === true && verifier?.visitorVerified === true && verifier?.lineageVerified === true && verifier?.settlementVerified === true && verifier?.nullifierVerified === true;
@@ -28,6 +29,12 @@ const orderbookReady = Boolean(proofBackedCampaign && orderbook?.proofStatus !==
 const proofBackedLink = (campaignLinks?.links ?? []).find((link: any) => link.proofBacked === true);
 const campaignLinksReady = Boolean(proofBackedLink && proofBackedLink.status === 'verified' && (proofBackedLink.proofLevel === 'counter_attested' || proofBackedLink.campaignProofLevel === 'counter_attested') && proofBackedLink.terminalVerified === true && proofBackedLink.visitorVerified === true && proofBackedLink.lineageVerified === true && proofBackedLink.settlementVerified === true);
 const feedReady = allFeedVerified(proofFeed);
+const hashKeys = ['programSourceHash', 'idlHash', 'proofGeneratorHash', 'verifierHash', 'rawVerifierHash', 'publishedVerifierHash'];
+const hashFailures = hashKeys.filter((key) => {
+  if (!(key in (manifest ?? {}))) return false;
+  return manifest?.[key] !== (currentHashes as Record<string, string | null>)[key];
+});
+const hashesVerified = hashFailures.length === 0 && Boolean(currentHashes.programSourceHash && currentHashes.idlHash && currentHashes.proofGeneratorHash && currentHashes.verifierHash);
 
 const gates: Gate[] = [
   { id: 'program-build-command', label: 'Program build command', status: has('programs/viral_sync/src/lib.rs') ? 'PASS' : 'FAIL', detail: 'Anchor program source present.' },
@@ -40,6 +47,7 @@ const gates: Gate[] = [
   { id: 'orderbook-proof-slot', label: 'Orderbook proof-backed slot', status: orderbookReady ? 'PASS' : orderbook ? 'PENDING' : 'FAIL', detail: orderbookReady ? 'Orderbook has verified proof-backed campaign.' : 'Orderbook proof-backed slot is not fully verified.' },
   { id: 'campaign-links', label: 'Campaign links', status: campaignLinksReady ? 'PASS' : campaignLinks ? 'PENDING' : 'FAIL', detail: campaignLinksReady ? 'At least one campaign link is proof-backed and verified.' : 'Campaign link proof flags are incomplete.' },
   { id: 'proof-feed', label: 'Proof Feed', status: feedReady ? 'PASS' : proofFeed ? 'PENDING' : 'FAIL', detail: feedReady ? 'Every proof feed entry is verified.' : 'Proof feed contains pending/attention entries.' },
+  { id: 'hash-binding', label: 'Source and artifact hash binding', status: hashesVerified ? 'PASS' : 'FAIL', detail: hashesVerified ? 'Proof hashes match the current repository state.' : `Hash binding failed for: ${hashFailures.join(', ') || 'missing hash source'}.` },
   { id: 'merchant-validation-kit', label: 'Merchant validation kit', status: merchantValidation?.type ? 'PASS' : 'PENDING', detail: 'Validation kit present; real traction is intentionally not claimed unless evidence slots are filled.' },
   { id: 'submission-generator', label: 'Submission packet generator', status: has('scripts/prepare-frontier-submission.ts') ? 'PASS' : 'FAIL', detail: 'frontier:submission script exists.' },
   { id: 'final-command', label: 'Final command prepared', status: has('scripts/assert-no-stale-artifacts.ts') ? 'PASS' : 'FAIL', detail: 'frontier:final includes final artifact assertion.' },
@@ -49,5 +57,5 @@ const pending = gates.filter((g) => g.status === 'PENDING');
 const status = failures.length ? 'BLOCKED' : pending.length ? 'READY_FOR_FINAL_PROOF_RUN' : 'GO';
 const md = `# Frontier Final Run Readiness\n\nStatus: **${status}**\n\n${gates.map((g) => `- ${g.status} — ${g.label}: ${g.detail}`).join('\n')}\n\nFinal command:\n\n\`npm run frontier:final\`\n`;
 writeFileSync(path.resolve('docs/frontier-final-run-readiness.md'), md);
-writeJson('app/public/proofs/frontier-readiness.json', { type: 'viral-sync-frontier-readiness', generatedAt: new Date().toISOString(), status, gates, programIdConsistency: programIdConsistency?.programIdConsistency ?? null });
+writeJson('app/public/proofs/frontier-readiness.json', { type: 'viral-sync-frontier-readiness', generatedAt: new Date().toISOString(), status, gates, hashesVerified, hashFailures, programIdConsistency: programIdConsistency?.programIdConsistency ?? null });
 console.log(JSON.stringify({ ok: status !== 'BLOCKED', status, failures: failures.length, pending: pending.length }, null, 2));

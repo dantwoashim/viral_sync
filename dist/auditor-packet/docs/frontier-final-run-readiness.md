@@ -12,6 +12,7 @@ Status: **GO**
 - PASS — Orderbook proof-backed slot: Orderbook has verified proof-backed campaign.
 - PASS — Campaign links: At least one campaign link is proof-backed and verified.
 - PASS — Proof Feed: Every proof feed entry is verified.
+- PASS — Source and artifact hash binding: Proof hashes match the current repository state.
 - PASS — Merchant validation kit: Validation kit present; real traction is intentionally not claimed unless evidence slots are filled.
 - PASS — Submission packet generator: frontier:submission script exists.
 - PASS — Final command prepared: frontier:final includes final artifact assertion.

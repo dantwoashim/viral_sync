@@ -1,5 +1,5 @@
-import { loadFraudGauntlet, loadProgramIdConsistency, loadProofManifest, loadVerifierArtifact } from './loadArtifacts';
-import type { NormalizedReceiptProof, ProofHealth, ProofManifest, VerifierArtifact, FraudGauntlet } from './types';
+import { loadFraudGauntlet, loadFrontierReadiness, loadProgramIdConsistency, loadProofManifest, loadVerifierArtifact } from './loadArtifacts';
+import type { NormalizedReceiptProof, ProofHealth, ProofManifest, VerifierArtifact, FraudGauntlet, FrontierReadiness } from './types';
 
 function hasMockMarker(value: unknown): boolean {
   if (typeof value === 'string') return /mock final fixture|mockFinal|mock-final|mock_final_fixture|fixture/i.test(value);
@@ -33,12 +33,13 @@ function gauntletVerified(gauntlet: FraudGauntlet) {
   ) === true;
 }
 
-function proofHealth(manifest: ProofManifest, verifier: VerifierArtifact, gauntlet: FraudGauntlet): ProofHealth {
+function proofHealth(manifest: ProofManifest, verifier: VerifierArtifact, gauntlet: FraudGauntlet, readiness: FrontierReadiness): ProofHealth {
   if (!manifest.programId || !manifest.pdas?.causalReceipt) return 'missing';
   if (hasMockMarker(manifest) || hasMockMarker(verifier) || hasMockMarker(gauntlet)) return 'mock';
   if (/needs|stale|unsafe|no-go/i.test(String(manifest.proofStatus ?? ''))) return 'stale';
   if (/fail|error/i.test(String(manifest.proofStatus ?? ''))) return 'failed';
   if (manifest.proofStatus !== 'verified') return 'pending';
+  if (readiness.status !== 'GO' || readiness.hashesVerified !== true) return 'pending';
   if (!allVerifierFlags(verifier) || !gauntletVerified(gauntlet)) return 'pending';
   return 'verified';
 }
@@ -71,7 +72,8 @@ export function getProofState(): NormalizedReceiptProof {
   const verifier = loadVerifierArtifact();
   const gauntlet = loadFraudGauntlet();
   const programIdConsistency = loadProgramIdConsistency();
-  const health = proofHealth(manifest, verifier, gauntlet);
+  const readiness = loadFrontierReadiness();
+  const health = proofHealth(manifest, verifier, gauntlet, readiness);
 
   return {
     health,
@@ -87,5 +89,6 @@ export function getProofState(): NormalizedReceiptProof {
     verifier,
     gauntlet,
     programIdConsistency,
+    readiness,
   };
 }

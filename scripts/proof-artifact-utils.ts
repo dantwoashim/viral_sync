@@ -14,6 +14,33 @@ export function sha256Hex(input: string | Buffer | unknown): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
+export const HASH_METADATA_KEYS = new Set([
+  'artifactHash',
+  'programSourceHash',
+  'idlHash',
+  'proofGeneratorHash',
+  'verifierHash',
+  'rawVerifierHash',
+  'publishedVerifierHash',
+  'stampMode',
+  'publishedAt',
+]);
+
+export function stripHashMetadata(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripHashMetadata);
+  if (value === null || typeof value !== 'object') return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (HASH_METADATA_KEYS.has(key)) continue;
+    out[key] = stripHashMetadata(child);
+  }
+  return out;
+}
+
+export function canonicalArtifactHash(value: unknown): string {
+  return sha256Hex(stableJson(stripHashMetadata(value)));
+}
+
 export function readJson<T>(filePath: string, fallback?: T): T {
   const resolved = path.resolve(filePath);
   if (!existsSync(resolved)) {
@@ -31,12 +58,11 @@ export function writeJson(filePath: string, value: unknown): string {
 }
 
 function listFiles(dir: string): string[] {
-  const resolved = path.resolve(dir);
-  if (!existsSync(resolved)) return [];
-  const entries = readdirSync(resolved);
+  if (!existsSync(dir)) return [];
+  const entries = readdirSync(dir);
   const files: string[] = [];
   for (const entry of entries) {
-    const full = path.join(resolved, entry);
+    const full = path.join(dir, entry);
     const stat = statSync(full);
     if (stat.isDirectory()) files.push(...listFiles(full));
     else files.push(full);
@@ -46,10 +72,9 @@ function listFiles(dir: string): string[] {
 
 export function hashFiles(paths: string[]): string | null {
   const files = paths.flatMap((item) => {
-    const resolved = path.resolve(item);
-    if (!existsSync(resolved)) return [];
-    const stat = statSync(resolved);
-    return stat.isDirectory() ? listFiles(resolved) : [resolved];
+    if (!existsSync(item)) return [];
+    const stat = statSync(item);
+    return stat.isDirectory() ? listFiles(item) : [item];
   }).sort();
   if (files.length === 0) return null;
   const hash = createHash('sha256');
@@ -60,6 +85,12 @@ export function hashFiles(paths: string[]): string | null {
     hash.update('\0');
   }
   return hash.digest('hex');
+}
+
+export function hashJsonFileCanonical(filePath: string): string | null {
+  const resolved = path.resolve(filePath);
+  if (!existsSync(resolved)) return null;
+  return canonicalArtifactHash(JSON.parse(readFileSync(resolved, 'utf8')));
 }
 
 export function computeProofHashes(extraFiles: string[] = []) {
@@ -82,8 +113,8 @@ export function computeProofHashes(extraFiles: string[] = []) {
       'sdk/src/index.ts',
       'scripts/validate-proof-schemas.ts',
     ]),
-    rawVerifierHash: hashFiles(['tmp/devnet-causal-commerce-verifier.json']),
-    publishedVerifierHash: hashFiles(['app/public/proofs/devnet-causal-commerce-verifier.json']),
+    rawVerifierHash: hashJsonFileCanonical('tmp/devnet-causal-commerce-verifier.json'),
+    publishedVerifierHash: hashJsonFileCanonical('app/public/proofs/devnet-causal-commerce-verifier.json'),
   };
 }
 

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
-import { computeProofHashes } from './proof-artifact-utils';
+import { canonicalArtifactHash, computeProofHashes } from './proof-artifact-utils';
 
 type Failure = { file: string; path: string; reason: string; value?: unknown };
 
@@ -49,6 +49,14 @@ const localPath = /(C:\\Users|D:\\|\/home\/|\.config\/solana\/id\.json|PRIVATE_K
 const allowMockFinal = process.env.ALLOW_MOCK_FINAL === '1';
 const mockMarker = /mock final fixture|mockFinal|mock-final|mock_final_fixture|fixture/i;
 const currentProofHashes = computeProofHashes();
+const proofHashKeys = [
+  'programSourceHash',
+  'idlHash',
+  'proofGeneratorHash',
+  'verifierHash',
+  'rawVerifierHash',
+  'publishedVerifierHash',
+] as const;
 
 function normalize(filePath: string) { return filePath.replace(/\\/g, '/').replace(/^\.\//, ''); }
 function fail(file: string, at: string, reason: string, value?: unknown) { failures.push({ file, path: at, reason, value }); }
@@ -81,6 +89,24 @@ function scanJsonFile(file: string) {
   try { artifact = JSON.parse(read(file)); } catch (error) { fail(file, '$', 'invalid JSON', error instanceof Error ? error.message : String(error)); return; }
   scanJsonValue(file, artifact);
   const obj = isObj(artifact) ? artifact : {};
+  for (const key of proofHashKeys) {
+    if (!(key in obj)) continue;
+    const current = currentProofHashes[key];
+    if (!current) {
+      fail(file, `$.${key}`, `${key} cannot be verified because its source artifact is missing`);
+    } else if (obj[key] !== current) {
+      fail(file, `$.${key}`, `${key} does not match current repository state`, {
+        artifact: obj[key],
+        current,
+      });
+    }
+  }
+  if ('artifactHash' in obj && obj.artifactHash !== canonicalArtifactHash(obj)) {
+    fail(file, '$.artifactHash', 'artifactHash does not match canonical artifact content', {
+      artifact: obj.artifactHash,
+      current: canonicalArtifactHash(obj),
+    });
+  }
   if (file.endsWith('frontier-readiness.json') && obj.status !== 'GO') fail(file, '$.status', 'frontier readiness must be GO in final artifact', obj.status);
   if (file.endsWith('program-id-consistency.json') && obj.ok !== true) fail(file, '$.ok', 'program ID consistency must pass in final artifact', obj.ok);
   if (file.endsWith('proof-feed.json')) {
@@ -110,24 +136,6 @@ function scanJsonFile(file: string) {
         fail(file, `$.cases[${index}].proofSource`, 'fraud case proofSource must be exact', item.proofSource);
       }
     });
-  }
-  if (file.endsWith('devnet-causal-commerce.json')) {
-    for (const key of ['programSourceHash', 'proofGeneratorHash', 'verifierHash'] as const) {
-      if (obj[key] !== currentProofHashes[key]) {
-        fail(file, `$.${key}`, `${key} does not match current repository state`, {
-          artifact: obj[key],
-          current: currentProofHashes[key],
-        });
-      }
-    }
-    if (!currentProofHashes.idlHash) {
-      fail(file, '$.idlHash', 'canonical idl/viral_sync.json is required for final idlHash verification');
-    } else if (obj.idlHash !== currentProofHashes.idlHash) {
-      fail(file, '$.idlHash', 'idlHash does not match current repository state', {
-        artifact: obj.idlHash,
-        current: currentProofHashes.idlHash,
-      });
-    }
   }
   if (file.endsWith('devnet-causal-commerce.json') || file.endsWith('devnet-causal-commerce-verifier.json')) {
     for (const key of ['terminalVerified','visitorVerified','lineageVerified','settlementVerified','nullifierVerified']) {

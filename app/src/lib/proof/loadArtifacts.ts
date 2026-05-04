@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
-import type { FraudGauntlet, ProgramIdConsistency, ProofManifest, VerifierArtifact } from './types';
+import type { FraudGauntlet, FrontierReadiness, ProgramIdConsistency, ProofManifest, VerifierArtifact } from './types';
 
 function proofCandidates(file: string) {
   return [
@@ -43,4 +43,8 @@ export function loadFraudGauntlet() {
 
 export function loadProgramIdConsistency() {
   return loadJsonArtifact<ProgramIdConsistency>(proofCandidates('program-id-consistency.json'), {});
+}
+
+export function loadFrontierReadiness() {
+  return loadJsonArtifact<FrontierReadiness>(proofCandidates('frontier-readiness.json'), {});
 }

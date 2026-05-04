@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'fs';
+import path from 'path';
 import { NextResponse } from 'next/server';
 
 type Campaign = {
@@ -11,6 +13,9 @@ type Campaign = {
   verification?: Record<string, boolean>;
 };
 type Orderbook = { campaigns?: Campaign[] };
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const ACTIONS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -26,20 +31,20 @@ function actionHeaders(response: NextResponse) {
   return response;
 }
 
-async function loadOrderbook(request: Request): Promise<Orderbook> {
-  try {
-    const res = await fetch(new URL('/proofs/conversion-orderbook.json', request.url), {
-      cache: 'no-store',
-    });
-    if (!res.ok) return { campaigns: [] };
-    return (await res.json()) as Orderbook;
-  } catch {
-    return { campaigns: [] };
+function loadOrderbook(): Orderbook {
+  const candidates = [
+    path.join(process.cwd(), 'public', 'proofs', 'conversion-orderbook.json'),
+    path.join(process.cwd(), 'app', 'public', 'proofs', 'conversion-orderbook.json'),
+  ];
+  for (const file of candidates) {
+    if (!existsSync(file)) continue;
+    return JSON.parse(readFileSync(file, 'utf8')) as Orderbook;
   }
+  return { campaigns: [] };
 }
 
-async function findCampaign(request: Request, slug: string) {
-  return (await loadOrderbook(request)).campaigns?.find((campaign) => campaign.slug === slug);
+function findCampaign(slug: string) {
+  return loadOrderbook().campaigns?.find((campaign) => campaign.slug === slug);
 }
 
 function appBaseUrl(request: Request) {
@@ -54,7 +59,7 @@ export async function OPTIONS() {
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const campaign = await findCampaign(request, slug);
+  const campaign = findCampaign(slug);
   if (!campaign) return actionHeaders(NextResponse.json({ error: 'campaign_not_found' }, { status: 404 }));
   const baseUrl = appBaseUrl(request);
   const campaignPath = campaign.publicPath ?? `/campaign/${slug}`;

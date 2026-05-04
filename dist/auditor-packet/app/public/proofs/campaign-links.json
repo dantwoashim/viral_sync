@@ -1,9 +1,9 @@
 {
   "type": "viral-sync-campaign-links",
   "version": "1.0.0",
-  "generatedAt": "2026-05-04T05:15:01.549Z",
+  "generatedAt": "2026-05-04T08:52:35.050Z",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "orderbookHash": "dd549df7cfa40b72b4ca1abc64f4d0e58a99f0fa350b935036bfb0d597bacd17",
+  "orderbookHash": "64ac71a84e0e3436bd43993360de1621d124582033160ad7f6d1fd5a9d56ba8d",
   "proofStatus": "ready",
   "links": [
     {
@@ -71,13 +71,13 @@
     "The API route returns a Blink-style preview object; it does not submit a production payment transaction.",
     "Only proofBacked=true campaigns are backed by the current devnet proof artifact."
   ],
-  "campaignLinksHash": "8f059fd10b61c348826c40bcf8b16b3b086c8ab0fbf89952800724029588a434",
-  "programSourceHash": "12e5d5a507929b5b023a59f685506267fa726fd6b9f400a8b7eb72f67c76cf06",
-  "idlHash": "fe4b76d5b9ce8d4dcbcc535b2841428ee2033f69e0b24a7641ada871a7ecdb46",
-  "proofGeneratorHash": "65fdc678b44c9da4039df585ef70f127a765d67ea28bfddfca7cb6e4b7ea9d7d",
-  "verifierHash": "3d870c43df115b1b2e1fa391bc44b86343b9d780e4cf116781ce4e19e0c8c8e4",
-  "rawVerifierHash": "5ac40f20210926d3c705c405f66c82cffe4f3d016db7ca4d7b1b07e835b5e9ad",
-  "publishedVerifierHash": "daa7c3400ebd5782126a4a6d0ebc64be126f0656630acfe460dbcc3ae1437e57",
-  "artifactHash": "c7c719980db9e51c8de3ae0c010bec5aa97cf10bfba8db7d20ea5d628103ea8a",
-  "stampMode": "final-candidate"
+  "campaignLinksHash": "442c9bc61e176e78379d38bec1e996e01579c6568feff14556d287f60dc9da2c",
+  "programSourceHash": "72564295617846d1f2b5e435a64224a184a63e1223bac1463c21eada938b56f9",
+  "idlHash": "e6571b802b6519eb70287a9d62c6de77a57c9a5993a3ee338d57b4a7a7e4a23e",
+  "proofGeneratorHash": "b63ab9c7cc18a3948360aa128849841b353acf53de7190c9327dc3c927b365b7",
+  "verifierHash": "b91d90c0769635c274dd25d97515fd53ca50bf9c901d036e213a3a673d833fff",
+  "rawVerifierHash": "df5eb166cb25b94cf27b8ef7669cb3e8dde8e4e4f1c85337ea38b1bf138bdc38",
+  "publishedVerifierHash": "df5eb166cb25b94cf27b8ef7669cb3e8dde8e4e4f1c85337ea38b1bf138bdc38",
+  "stampMode": "final-candidate",
+  "artifactHash": "2e2370e2351b2f835a946f5fee53107c95b488bbaab0d7b9992cce18c905bd58"
 }
