@@ -30,6 +30,12 @@
       "description": "Returns the receipt, verifier, fraud gauntlet, lineage, artifact, and x402 routing context an agent needs before trusting a payout."
     },
     {
+      "name": "merchant_validation_context",
+      "endpoint": "GET /api/agent/validation",
+      "payment": "none",
+      "description": "Returns the permissioned merchant-evidence status and explicitly says whether live traction may be claimed."
+    },
+    {
       "name": "x402_create_campaign",
       "service": "viral-sync-relayer",
       "endpoint": "POST /campaigns/create",

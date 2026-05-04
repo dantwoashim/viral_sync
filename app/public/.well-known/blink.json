@@ -16,6 +16,10 @@
     {
       "pathPattern": "/api/agent/receipt/*",
       "apiPath": "/api/agent/receipt/*"
+    },
+    {
+      "pathPattern": "/api/agent/validation",
+      "apiPath": "/api/agent/validation"
     }
   ],
   "x402": {

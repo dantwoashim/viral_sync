@@ -7,6 +7,7 @@ import { ProofTimeline } from '@/components/product/ProofTimeline';
 import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 import { explorerAddress, explorerTx, shortHash, signatureValue } from '@/lib/proof/links';
+import { getMerchantValidationState } from '@/lib/traction/merchantValidation';
 
 export default function ProofCenterPage() {
   const proof = getProofState();
@@ -15,6 +16,7 @@ export default function ProofCenterPage() {
   const recordSig = signatureValue(manifest.signatures?.recordCausalReceipt);
   const settleSig = signatureValue(manifest.signatures?.settleReceiptReward);
   const programMatches = proof.programIdConsistency.programIdConsistency?.matches === true;
+  const validation = getMerchantValidationState(proof);
 
   return (
     <PremiumShell className="proof-center-page">
@@ -22,7 +24,7 @@ export default function ProofCenterPage() {
       <section className="proof-center">
         <aside className="proof-sidebar" aria-label="Proof sections">
           <span className="proof-logo">VS</span>
-          {['Receipt', 'Gauntlet', 'Verifier', 'Program', 'Artifacts', 'Limitations'].map((item) => (
+          {['Receipt', 'Gauntlet', 'Verifier', 'Validation', 'Program', 'Artifacts', 'Limitations'].map((item) => (
             <a key={item} href={`#${item.toLowerCase()}`}>{item}</a>
           ))}
         </aside>
@@ -71,6 +73,33 @@ export default function ProofCenterPage() {
             <span className="section-kicker">Verifier</span>
             <h2>Account checks, not green paint.</h2>
             <VerificationGrid proof={proof} />
+          </section>
+
+          <section id="validation" className="proof-panel">
+            <div className="proof-panel-header">
+              <div>
+                <span className="section-kicker">Merchant validation</span>
+                <h2>{validation.tractionClaimAllowed ? 'Traction evidence claimable.' : 'Technical proof only. Traction not claimed.'}</h2>
+                <p>{validation.safeSubmissionWording}</p>
+              </div>
+              <Link href="/proofs/merchant-validation-kit.json" className="proof-download">Open kit</Link>
+            </div>
+            <div className="validation-grid" aria-label="Merchant validation summary">
+              <span><small>Technical proof</small><b>{validation.technicalProofVerified ? 'Verified' : 'Review'}</b></span>
+              <span><small>Traction claim</small><b>{validation.tractionClaimAllowed ? 'Allowed' : 'Not claimed'}</b></span>
+              <span><small>Required evidence</small><b>{validation.evidenceSummary.requiredVerifiedSlots}/{validation.evidenceSummary.requiredSlots}</b></span>
+              <span><small>Evidence slots</small><b>{validation.evidenceSummary.filledSlots}/{validation.evidenceSummary.totalSlots}</b></span>
+            </div>
+            <div className="validation-slot-list">
+              {validation.evidenceSlots.map((slot) => (
+                <article key={slot.id} data-status={slot.status}>
+                  <span>{slot.requiredForClaimingTraction ? 'Required' : 'Optional'}</span>
+                  <strong>{slot.id}</strong>
+                  <small>{slot.status}</small>
+                  <p>{slot.prompt}</p>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section id="program" className="proof-panel proof-mono-grid">

@@ -5,6 +5,7 @@ import { expectedErrorMatched, expectedPatternsFor } from '../scripts/fraud-erro
 import { isPublicDemoRoute } from '../app/src/lib/demo-mode';
 import { gauntletLabel } from '../app/src/lib/proof/getProofState';
 import { confirmVisitPass, createVisitPassPacket } from '../app/src/lib/product-loop/productLoop';
+import { getMerchantValidationState, normalizeMerchantValidation } from '../app/src/lib/traction/merchantValidation';
 
 describe('proof hardening regressions', () => {
   it('binds the published manifest to current source, IDL, generator, and verifier', () => {
@@ -139,5 +140,41 @@ describe('proof hardening regressions', () => {
     expect(relayer).to.include('X402_CREATE_CAMPAIGN_PRICE');
     expect(relayer).to.include('X402_VERIFY_RECEIPT_PRICE');
     expect(relayer).to.include('relay_sponsored_transaction');
+  });
+
+  it('keeps phase 5 merchant validation honest until required evidence is verified', () => {
+    const validation = getMerchantValidationState();
+    const proofPage = fs.readFileSync('app/src/app/proof/page.tsx', 'utf8');
+    const validationRoute = fs.readFileSync('app/src/app/api/agent/validation/route.ts', 'utf8');
+    const mcp = JSON.parse(fs.readFileSync('app/public/.well-known/mcp.json', 'utf8')) as {
+      tools: Array<{ name: string; endpoint?: string; payment?: string | Record<string, unknown> }>;
+    };
+    const blink = JSON.parse(fs.readFileSync('app/public/.well-known/blink.json', 'utf8')) as {
+      rules?: Array<{ pathPattern?: string }>;
+    };
+
+    expect(validation.artifactType).to.equal('viral_sync_merchant_validation_context');
+    expect(validation.technicalProofVerified).to.equal(false);
+    expect(validation.tractionClaimAllowed).to.equal(false);
+    expect(validation.claimStatus).to.equal('not_claimed');
+    expect(validation.evidenceSummary.requiredSlots).to.be.greaterThan(0);
+    expect(validation.evidenceSummary.requiredVerifiedSlots).to.equal(0);
+    expect(validation.safeSubmissionWording).to.match(/not claimed/i);
+
+    const claimable = normalizeMerchantValidation({
+      merchantAlias: 'Proof Cafe',
+      evidenceSlots: [
+        { id: 'quote', status: 'verified', requiredForClaimingTraction: true },
+        { id: 'video', status: 'verified', requiredForClaimingTraction: true },
+      ],
+    });
+    expect(claimable.tractionClaimAllowed).to.equal(true);
+    expect(claimable.claimStatus).to.equal('claimable');
+
+    expect(proofPage).to.include('id="validation"');
+    expect(proofPage).to.include('Traction not claimed');
+    expect(validationRoute).to.include('technical_proof_only_do_not_claim_live_traction');
+    expect(mcp.tools.some((tool) => tool.name === 'merchant_validation_context' && tool.endpoint === 'GET /api/agent/validation')).to.equal(true);
+    expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/validation')).to.equal(true);
   });
 });
