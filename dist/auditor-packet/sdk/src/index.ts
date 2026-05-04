@@ -11,7 +11,11 @@ export const SEEDS = {
   receipt: 'causal_receipt',
   nullifier: 'campaign_nullifier',
   settlement: 'settlement',
+  terminalDevice: 'terminal_device',
+  claimPass: 'claim_pass',
 } as const;
+
+const ZERO_HASH = '0'.repeat(64);
 
 export interface ReceiptVerification {
   ok: boolean;
@@ -135,6 +139,32 @@ export function deriveRewardEscrowPda(params: {
   ], params.programId);
 }
 
+export function deriveTerminalDevicePda(params: {
+  merchantConfig: string;
+  terminalAuthority: string;
+  programId?: string;
+}) {
+  return pda([
+    Buffer.from(SEEDS.terminalDevice),
+    new PublicKey(params.merchantConfig).toBuffer(),
+    new PublicKey(params.terminalAuthority).toBuffer(),
+  ], params.programId);
+}
+
+export function deriveClaimPassPda(params: {
+  growthCampaign: string;
+  visitorAuthority: string;
+  claimHashHex: string;
+  programId?: string;
+}) {
+  return pda([
+    Buffer.from(SEEDS.claimPass),
+    new PublicKey(params.growthCampaign).toBuffer(),
+    new PublicKey(params.visitorAuthority).toBuffer(),
+    bytes32(params.claimHashHex, 'claimHashHex'),
+  ], params.programId);
+}
+
 export function deriveReceiptPda(params: {
   growthCampaign: string;
   receiptIdHashHex: string;
@@ -157,6 +187,18 @@ export function deriveSettlementPda(params: {
   ], params.programId);
 }
 
+export function deriveNullifierPda(params: {
+  growthCampaign: string;
+  nullifierHashHex: string;
+  programId?: string;
+}) {
+  return pda([
+    Buffer.from(SEEDS.nullifier),
+    new PublicKey(params.growthCampaign).toBuffer(),
+    bytes32(params.nullifierHashHex, 'nullifierHashHex'),
+  ], params.programId);
+}
+
 export function deriveReceiptSeed(campaignId: string, receiptIdHash: string) {
   return ['causal_receipt', campaignId, receiptIdHash] as const;
 }
@@ -173,4 +215,118 @@ export function isValidWebhookSignature(params: { payload: string; signature: st
   const signature = Buffer.from(params.signature);
   const expected = Buffer.from(params.expectedSignature);
   return signature.length > 0 && signature.length === expected.length && timingSafeEqual(signature, expected);
+}
+
+export type Poc1ReceiptArtifact = {
+  version?: string;
+  network?: 'solana' | string;
+  cluster?: string;
+  programId?: string;
+  campaign?: string;
+  merchant?: string;
+  terminalDevice?: string;
+  terminalAuthority?: string;
+  visitorAuthority?: string;
+  claimPass?: string;
+  receipt?: string;
+  nullifier?: string;
+  settlement?: string;
+  intentManifestHash?: string;
+  visitAttestationHash?: string;
+  lineageProofHash?: string;
+  rewardMint?: string;
+  rewardAmount?: string;
+  proofLevel?: string;
+  settlementVerified?: boolean;
+  nullifierVerified?: boolean;
+  terminalVerified?: boolean;
+  visitorVerified?: boolean;
+  lineageVerified?: boolean;
+};
+
+export type Poc1Verification = {
+  ok: boolean;
+  checks: Record<string, boolean>;
+  failures: string[];
+};
+
+function hasValue(value: unknown) {
+  return typeof value === 'string' && value.length > 0;
+}
+
+export function verifyPoc1ReceiptArtifact(receipt: Poc1ReceiptArtifact): Poc1Verification {
+  const checks = {
+    versionPresent: receipt.version === 'POC-1' || receipt.version === undefined,
+    networkSolana: receipt.network === 'solana' || receipt.network === undefined,
+    programPresent: hasValue(receipt.programId),
+    campaignPresent: hasValue(receipt.campaign),
+    terminalPresent: hasValue(receipt.terminalDevice) && hasValue(receipt.terminalAuthority),
+    visitorPresent: hasValue(receipt.visitorAuthority),
+    claimPassPresent: hasValue(receipt.claimPass),
+    receiptPresent: hasValue(receipt.receipt),
+    nullifierPresent: hasValue(receipt.nullifier),
+    settlementPresent: hasValue(receipt.settlement),
+    intentManifestPresent: hasValue(receipt.intentManifestHash) && receipt.intentManifestHash !== ZERO_HASH,
+    visitAttestationPresent: hasValue(receipt.visitAttestationHash) && receipt.visitAttestationHash !== ZERO_HASH,
+    lineagePresent: hasValue(receipt.lineageProofHash) && receipt.lineageProofHash !== ZERO_HASH,
+    rewardPresent: hasValue(receipt.rewardMint) && hasValue(receipt.rewardAmount),
+    proofLevelSupported: receipt.proofLevel === 'merchant_terminal_visitor_signed' || receipt.proofLevel === 'counter_attested',
+    terminalVerified: receipt.terminalVerified === true,
+    visitorVerified: receipt.visitorVerified === true,
+    lineageVerified: receipt.lineageVerified === true,
+    settlementVerified: receipt.settlementVerified === true,
+    nullifierVerified: receipt.nullifierVerified === true,
+  };
+  const failures = Object.entries(checks).filter(([, ok]) => !ok).map(([key]) => key);
+  return { ok: failures.length === 0, checks, failures };
+}
+
+export type FraudGauntletCase = {
+  id: string;
+  observed?: string;
+  expected?: string;
+  expectedErrorMatched?: boolean;
+  accountsMutationVerified?: boolean;
+  accountsMutated?: boolean;
+  proofSource?: string;
+};
+
+export type FraudGauntletArtifact = {
+  cases?: FraudGauntletCase[];
+};
+
+export function verifyFraudGauntlet(gauntlet: FraudGauntletArtifact): Poc1Verification {
+  const required = [
+    'merchant-only-receipt',
+    'wrong-terminal-signer',
+    'different-merchant-terminal',
+    'terminal-account-signer-mismatch',
+    'visitor-signer-mismatch',
+    'visitor-beneficiary-mismatch',
+    'claim-pass-reused',
+    'claim-pass-campaign-mismatch',
+    'claim-pass-depth-exceeded',
+    'duplicate-nullifier',
+    'inflated-reward-amount',
+    'inflated-split-bps',
+    'wrong-reward-mint',
+    'wrong-reward-vault',
+    'settlement-replay',
+    'paused-or-expired-campaign',
+  ];
+  const cases = gauntlet.cases ?? [];
+  const byId = new Map(cases.map((item) => [item.id, item]));
+  const checks: Record<string, boolean> = {};
+
+  for (const id of required) {
+    const item = byId.get(id);
+    checks[`${id}:present`] = Boolean(item);
+    checks[`${id}:rejected`] = item?.observed === 'rejected' && item?.expected === 'rejected';
+    checks[`${id}:errorMatched`] = item?.expectedErrorMatched === true;
+    checks[`${id}:mutationChecked`] = item?.accountsMutationVerified === true && item?.accountsMutated === false;
+    checks[`${id}:notMock`] = item?.proofSource !== 'mock_final_fixture';
+  }
+
+  const failures = Object.entries(checks).filter(([, ok]) => !ok).map(([key]) => key);
+  return { ok: failures.length === 0, checks, failures };
 }

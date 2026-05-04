@@ -1,6 +1,8 @@
 # Auditor Start Here
 
-This packet is the first pass for an external reviewer. Viral Sync is still not cleared for uncapped mainnet funds.
+Viral Sync is the Solana settlement layer for outcome-based marketing: merchants escrow bounties, creators or agents route customers, and payouts only release when the customer actually converts.
+
+Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by the merchant, an enrolled terminal, and the visitor, with nullifier replay protection and settlement-time intent checks. This packet is the first pass for an external reviewer. Viral Sync is still not cleared for uncapped mainnet funds.
 
 ## Scope To Review
 

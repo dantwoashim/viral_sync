@@ -1,0 +1,6 @@
+{
+  "id": "duplicate-nullifier",
+  "expected": "rejected",
+  "expectedError": "AccountAlreadyInitialized",
+  "reason": "A campaign nullifier PDA can be initialized once for a claimant nullifier hash."
+}

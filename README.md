@@ -1,8 +1,8 @@
 # Viral Sync
 
-Viral Sync is proof-of-outcome infrastructure for Solana commerce:
-merchants escrow rewards, enrolled terminals and visitors counter-attest conversions,
-and payouts settle only when the POC-1 receipt verifies.
+Viral Sync is the Solana settlement layer for outcome-based marketing: merchants escrow bounties, creators or agents route customers, and payouts only release when the customer actually converts.
+
+Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by the merchant, an enrolled terminal, and the visitor, with nullifier replay protection and settlement-time intent checks.
 
 Each receipt commits to the invite hash, campaign nullifier, visit attestation hash, and intent manifest hash. The point is not to reward clicks. The point is to make offline referral spend verifiable.
 
@@ -27,6 +27,8 @@ reward is settled from escrow
 ```
 
 The app still includes product surfaces for merchants, consumers, receipts, and operations, but the proof path is the part that matters most.
+
+The current public product is the POC-1 outcome settlement path. Experimental Token-2022 and reputation modules are excluded from the live demo and are not required for receipt settlement; see `docs/program-scope.md`.
 
 ## Devnet Proof
 
@@ -68,7 +70,7 @@ app/public/proofs/devnet-causal-commerce.json
 The proof page is:
 
 ```text
-/frontier-proof
+/proof
 ```
 
 It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, intent manifest hash, and the valid-vs-malicious Causal Receipt Intent Validator results.
@@ -90,7 +92,7 @@ Invite -> Claim -> Redeem Code -> Merchant Confirmation -> Receipt Proof -> Caus
 Useful routes:
 
 ```text
-/frontier-proof     Devnet proof path
+/proof              Devnet proof path
 /invite             Referral invite flow
 /offer/[token]      Offer claim flow
 /redeem             Consumer redemption code

@@ -29,12 +29,11 @@ export function PremiumNav() {
         Viral Sync
       </Link>
       <div className="premium-nav-links">
-        <Link href="/frontier">Frontier</Link>
-        <Link href="/frontier-proof">Proof</Link>
-        <Link href="/frontier-gauntlet">Gauntlet</Link>
-        <Link href="/conversion-orderbook">Orderbook</Link>
-        <Link href="/merchant-passport">Passport</Link>
-        <Link href="/technical-deep-dive">Technical</Link>
+        <Link href="/#how-it-works">How it works</Link>
+        <Link href="/invite">Claim</Link>
+        <Link href="/merchant/scan">Merchant scan</Link>
+        <Link href="/proof">Receipt proof</Link>
+        <Link href="/proof#builders">For builders</Link>
       </div>
     </nav>
   );

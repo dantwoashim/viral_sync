@@ -1,0 +1,6 @@
+{
+  "id": "inflated-split-bps",
+  "expected": "rejected",
+  "expectedError": "IntentMismatch",
+  "reason": "Settlement terms on the receipt must still match the campaign reward mint, reward amount, and split."
+}

@@ -1,0 +1,6 @@
+{
+  "id": "visitor-signer-mismatch",
+  "expected": "rejected",
+  "expectedError": "InvalidClaimPass",
+  "reason": "The visitor signer must match the visitor authority bound into the claim-pass account."
+}

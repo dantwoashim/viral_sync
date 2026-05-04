@@ -1,9 +1,9 @@
 {
   "type": "viral-sync-campaign-links",
   "version": "1.0.0",
-  "generatedAt": "2026-05-03T22:10:29.253Z",
+  "generatedAt": "2026-05-04T02:20:35.556Z",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "orderbookHash": "5fd345a8f006f46950e882b8ce1d4460ff6b255d25bef593a9df99e7ff50eacd",
+  "orderbookHash": "2768e6a95d02dbdefb020fbab3e776a8e149d6845ca127d065aefcb66e160a71",
   "proofStatus": "ready",
   "links": [
     {
@@ -71,13 +71,13 @@
     "The API route returns a Blink-style preview object; it does not submit a production payment transaction.",
     "Only proofBacked=true campaigns are backed by the current devnet proof artifact."
   ],
-  "campaignLinksHash": "7e28927c50eec5420cb686b220307646819093c035cec40cc6ed00d6951dc060",
+  "campaignLinksHash": "b617a4286223cc673cb75666e9f7e8b5f1f0fea722de27fd1887b000a44c4a15",
   "programSourceHash": "92cd14949d4e3bc0c099b54cedb2730a1e09a550679fd3615d86d809d38f32c7",
   "idlHash": "1a5a37491319e4ae75dbc97d62466ac86e6301a850b6570fac4e82cf6c30bc5e",
   "proofGeneratorHash": "5d677ab030e673b8383eb1b74b01b9de553519d872ef784912ebbeef7021c5e2",
-  "verifierHash": "9b8b5e6c3d804765056bdd9e81751479d97a21bf12bfcbc10f1895f4bfdc078a",
-  "rawVerifierHash": "3b9a687b30deda5c639e55bc53abd57134581a9d5ae2b811ea40509fa45153f6",
-  "publishedVerifierHash": "5a30d0a165695a2bc942320f7f8b075e9e2ae265f37dd780fc4f0529b814ea64",
-  "artifactHash": "a4e0db5afa3ea0a1c21cd948eed6ce7b3f2547a32ed21c37506eca8809d667c5",
+  "verifierHash": "e45d6f8095bf3141b322912e2ad304456e224bdc033b99649e5c7265943e8ada",
+  "rawVerifierHash": "6be2ba2bb2fea091d98131c65245af79e4801c5d4d30b21c0ad4127eec57552f",
+  "publishedVerifierHash": "4552babec16a4a42e765f80e06dcef8bc384bb61b26817b4342fc98ee614945b",
+  "artifactHash": "072b565a6c80357592a62d20ff2dfdc69c554bd3dfd4c0200bd644c4a061f68d",
   "stampMode": "final-candidate"
 }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "title": "Proof-of-Conversion Orderbook",
   "network": "solana-devnet",
-  "generatedAt": "2026-05-03T22:10:28.147Z",
+  "generatedAt": "2026-05-04T02:20:34.461Z",
   "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
   "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
@@ -37,14 +37,14 @@
       },
       "proofObjects": {
         "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
-        "campaignPda": "NW4DiF2wYuvS1ygqbsnhontvW8q8xCz1KMZrvizcHRD",
-        "rewardEscrow": "CWw2VS75xqJxpWysYJ87fjKjmpUGm5PttsJ8EwbiVMeb",
-        "receiptPda": "Hvaos2q61tnsJ43EdyCGpskhgZ3ZbzhmQWWvcgt9JkYi",
-        "nullifierPda": "276yEybe1QYVFyuA5jsR4NsCMsQxkqzAJAudHBKvY6VE",
-        "terminalDevice": "GNiPZveah8Hs4YP1fyMmNpkFPrjTudkGUDE7LvrKJLtn",
-        "claimPass": "3eMK2ET3KpgKvqQ78PJUhKVX75Bs36G1uptsCxThujXK",
-        "intentManifestHash": "cf4e2dbd135da76d26331f494d9bd94277e70c5fddd1af7460541888a4751303",
-        "passportHash": "ed0f6f1669e7a25a78dac34dc4f231a4a12f272d32fd98671de67f755916f164"
+        "campaignPda": "EqhGE4hoV7q5bmq7AL53wAy7622gqadnRr76CTKAjq6u",
+        "rewardEscrow": "4TsjFHmMPU6oLLAL8GHeT7s6EBP7SKkrMfCc3oGTu1dU",
+        "receiptPda": "H6c17KFD81Sig4gE4cZigZabXjCu7R2zL7E2JJ8og7mj",
+        "nullifierPda": "CeUe5MchERWBSSo1LCLuTFsoysrSe4314KBpxqhcpVrm",
+        "terminalDevice": "Hvh1AEJYaGcRmBRgcDm66osRzoJFRCAyLZgn7hBroRmF",
+        "claimPass": "AKbBj51JbLLWMav89oxwjMmQETn7TiLuGsgDCp1hziud",
+        "intentManifestHash": "a2d0dae7c1de417b2e73acdd53ee3f9f4b34f1f6c3548ad5fc144cd1a884671f",
+        "passportHash": "6b7de9f39641049bc8168634a02c675bf076958bb560e58bd1fc86c64bc3d375"
       },
       "verification": {
         "verifierOk": true,
@@ -60,8 +60,8 @@
         "gauntlet": "/frontier-gauntlet",
         "receipt": "/receipt/latest",
         "passport": "/merchant-passport",
-        "recordTx": "https://explorer.solana.com/tx/fmYHqAkWXpgBtuCG3YPDeQsuHBoxS8AEQk87X7gvhU3v2XzZGn3xTPsbxSJnPcpwJdhSEYRLwC9LBvaGyLUB4m8?cluster=devnet",
-        "settleTx": "https://explorer.solana.com/tx/3wiLJq3vUF5ohfg17NXQt6fE4rfMU3xTb8BijLAzMymZVFzYsWPTJ5F8vvBfHy8Ywb9deDNjCzBM9sG8vw7ZXxyo?cluster=devnet"
+        "recordTx": "https://explorer.solana.com/tx/5aJtPSTbYHxU2knrqvwFvwVKGg3NGpbd32j9yRVpNmeypLZ5Ud1DS8rP34RYB4Yf3HxGbXcaaCWEeP6CkkSNSX8d?cluster=devnet",
+        "settleTx": "https://explorer.solana.com/tx/3qmnwJkbZZn21XrTA4aQn5LvfgAB5aK4jZD7pKyJACpHFnLThR1AEUDFXokk1ZHnZd4fXUdNGfrV9qpZM42uLNsd?cluster=devnet"
       }
     },
     {
@@ -91,13 +91,13 @@
       }
     }
   ],
-  "orderbookHash": "5fd345a8f006f46950e882b8ce1d4460ff6b255d25bef593a9df99e7ff50eacd",
+  "orderbookHash": "2768e6a95d02dbdefb020fbab3e776a8e149d6845ca127d065aefcb66e160a71",
   "programSourceHash": "92cd14949d4e3bc0c099b54cedb2730a1e09a550679fd3615d86d809d38f32c7",
   "idlHash": "1a5a37491319e4ae75dbc97d62466ac86e6301a850b6570fac4e82cf6c30bc5e",
   "proofGeneratorHash": "5d677ab030e673b8383eb1b74b01b9de553519d872ef784912ebbeef7021c5e2",
-  "verifierHash": "9b8b5e6c3d804765056bdd9e81751479d97a21bf12bfcbc10f1895f4bfdc078a",
-  "rawVerifierHash": "3b9a687b30deda5c639e55bc53abd57134581a9d5ae2b811ea40509fa45153f6",
-  "publishedVerifierHash": "5a30d0a165695a2bc942320f7f8b075e9e2ae265f37dd780fc4f0529b814ea64",
-  "artifactHash": "19a45f4eeead549433660f735503f44a1e3b7d2c7536c325d0e4193715e30cdc",
+  "verifierHash": "e45d6f8095bf3141b322912e2ad304456e224bdc033b99649e5c7265943e8ada",
+  "rawVerifierHash": "6be2ba2bb2fea091d98131c65245af79e4801c5d4d30b21c0ad4127eec57552f",
+  "publishedVerifierHash": "4552babec16a4a42e765f80e06dcef8bc384bb61b26817b4342fc98ee614945b",
+  "artifactHash": "ab3b062bdb993c99ab5cfb3a94b87dc96c6d2c07b6f286d45dba2a638ee09c23",
   "stampMode": "final-candidate"
 }

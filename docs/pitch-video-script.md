@@ -2,11 +2,11 @@
 
 ## 0:00-0:15 - Hook
 
-Online referral systems can be faked. Offline conversions are worse. Viral Sync turns counter-attested conversions into Solana-verifiable proof objects.
+Merchants should not pay for clicks, coupons, or routed traffic until a customer actually converts. Viral Sync is the Solana settlement layer for outcome-based marketing: merchants escrow bounties, creators or agents route customers, and payouts only release when the customer actually converts.
 
 ## 0:15-0:40 - Problem
 
-Merchants pay platforms for clicks and coupons, but the platform controls attribution. There is no open settlement layer for counter-attested conversions.
+Merchants pay platforms for clicks and coupons, but the platform controls attribution. Viral Sync makes the settlement rule public: no verified outcome, no payout.
 
 ## 0:40-1:30 - Demo
 
@@ -22,4 +22,4 @@ This starts with local merchants and events. The bigger market is permissionless
 
 ## 2:35-3:00 - Close
 
-Viral Sync is proof-of-outcome infrastructure for Solana commerce: merchants escrow rewards, enrolled terminals and visitors counter-attest conversions, and payouts settle only when the POC-1 receipt verifies.
+Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by the merchant, an enrolled terminal, and the visitor, with nullifier replay protection and settlement-time intent checks.

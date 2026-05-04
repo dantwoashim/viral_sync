@@ -257,11 +257,11 @@ Generated: ${generatedAt}
 
 ## One-Sentence Pitch
 
-Viral Sync turns counter-attested offline visits into portable proof-of-local-commerce for small merchants.
+Viral Sync is the Solana settlement layer for outcome-based marketing: merchants escrow bounties, creators or agents route customers, and payouts only release when the customer actually converts.
 
 ## Submission Thesis
 
-Viral Sync is a counter-attested Causal Commerce protocol for Solana. A merchant funds a capped SPL reward vault. A visitor claims an invite. At the counter, an enrolled terminal and the visitor participate in the receipt path. The program records a Causal Receipt PDA, rejects duplicate nullifiers, commits the \`intent_manifest_hash\`, and settles rewards only through the verified program path.
+Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by the merchant, an enrolled terminal, and the visitor, with nullifier replay protection and settlement-time intent checks.
 
 ## Merchant Proof Passport
 
@@ -296,14 +296,14 @@ Routes:
 
 ## Judge-Facing Proof Path
 
-1. Merchant registers a Causal Commerce config.
+1. Merchant registers an outcome settlement config.
 2. Merchant enrolls a terminal device for counter attestation.
 3. Merchant creates and funds a Growth Bounty.
 4. Visitor claim/lineage context is committed into the receipt path.
 5. The program records a Causal Receipt with a campaign-scoped nullifier.
 6. The receipt stores the \`intent_manifest_hash\` commitment.
 7. The program settles exactly once from the SPL reward vault.
-8. The passport exports privacy-preserving proof-of-local-commerce.
+8. The passport exports privacy-preserving proof of outcome settlement.
 
 ## Devnet Evidence
 
@@ -370,7 +370,7 @@ npm run frontier:final
 
 ## Hosted App Proof Surface
 
-- Devnet proof page: \`/frontier-proof\`
+- Devnet proof page: \`/proof\`
 - Merchant Proof Passport: \`/merchant-passport\`
 - Policy: \`GET /api/launch/relayer/policy\`
 - Causal Commerce intent builder: \`GET|POST /api/launch/relayer/causal-commerce\`
@@ -416,7 +416,7 @@ ${decision}
 | Hosted fraud gauntlet page | ${existsSync(path.resolve('app/src/app/frontier-gauntlet/page.tsx')) ? 'PASS' : 'FAIL'} |
 | Hosted proof feed page | ${existsSync(path.resolve('app/src/app/proof-feed/page.tsx')) ? 'PASS' : 'FAIL'} |
 | Hosted receipt proof page | ${existsSync(path.resolve('app/src/app/receipt/[id]/page.tsx')) ? 'PASS' : 'FAIL'} |
-| Hosted proof page | ${existsSync(path.resolve('app/src/app/frontier-proof/page.tsx')) ? 'PASS' : 'FAIL'} |
+| Hosted proof page | ${existsSync(path.resolve('app/src/app/proof/page.tsx')) ? 'PASS' : 'FAIL'} |
 | Hosted passport page | ${existsSync(path.resolve('app/src/app/merchant-passport/page.tsx')) ? 'PASS' : 'FAIL'} |
 
 ## Blockers
@@ -425,7 +425,7 @@ ${failures.length ? failures.map((failure) => `- ${failure}`).join('\n') : '- no
 
 ## Submission Stance
 
-Lead with the devnet receipt proof and Merchant Proof Passport, not broad product surface area. The winning story is proof-of-local-commerce: funded SPL custody, counter-attested Causal Receipt, exact-once settlement, nullifier replay rejection, on-chain \`intent_manifest_hash\` commitment, and a privacy-preserving merchant-owned proof packet.
+Lead with the devnet receipt proof and Merchant Proof Passport, not broad product surface area. The winning story is outcome settlement: funded SPL custody, counter-attested POC-1 receipt, exact-once settlement, nullifier replay rejection, on-chain \`intent_manifest_hash\` commitment, and a privacy-preserving merchant-owned proof packet.
 `;
 }
 
@@ -451,7 +451,7 @@ async function main() {
   const failures: string[] = [];
   [
     'README.md',
-    'app/src/app/frontier-proof/page.tsx',
+    'app/src/app/proof/page.tsx',
     'app/src/app/merchant-passport/page.tsx',
     'app/src/app/api/launch/relayer/causal-commerce/route.ts',
     'programs/viral_sync/src/lib.rs',
@@ -583,9 +583,9 @@ async function main() {
 
   if (existsSync(path.resolve('README.md'))) {
     const readme = readText('README.md');
-    requireText('README', readme, 'proof-of-outcome infrastructure for Solana commerce', failures);
+    requireText('README', readme, 'Solana settlement layer for outcome-based marketing', failures);
     requireText('README', readme, 'Merchant Proof Passport', failures);
-    requireText('README', readme, '/frontier-proof', failures);
+    requireText('README', readme, '/proof', failures);
   }
 
   const generatedAt = new Date().toISOString();

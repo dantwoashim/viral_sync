@@ -1,6 +1,6 @@
 {
   "type": "viral-sync-frontier-readiness",
-  "generatedAt": "2026-05-03T22:10:33.776Z",
+  "generatedAt": "2026-05-04T02:20:40.101Z",
   "status": "GO",
   "gates": [
     {
@@ -91,9 +91,9 @@
   "programSourceHash": "92cd14949d4e3bc0c099b54cedb2730a1e09a550679fd3615d86d809d38f32c7",
   "idlHash": "1a5a37491319e4ae75dbc97d62466ac86e6301a850b6570fac4e82cf6c30bc5e",
   "proofGeneratorHash": "5d677ab030e673b8383eb1b74b01b9de553519d872ef784912ebbeef7021c5e2",
-  "verifierHash": "9b8b5e6c3d804765056bdd9e81751479d97a21bf12bfcbc10f1895f4bfdc078a",
-  "rawVerifierHash": "3b9a687b30deda5c639e55bc53abd57134581a9d5ae2b811ea40509fa45153f6",
-  "publishedVerifierHash": "5a30d0a165695a2bc942320f7f8b075e9e2ae265f37dd780fc4f0529b814ea64",
-  "artifactHash": "3cef237a171d96cd2455619bf4ec2fcf75e8bf38bdcf594b524af2088f7ae0bf",
+  "verifierHash": "e45d6f8095bf3141b322912e2ad304456e224bdc033b99649e5c7265943e8ada",
+  "rawVerifierHash": "6be2ba2bb2fea091d98131c65245af79e4801c5d4d30b21c0ad4127eec57552f",
+  "publishedVerifierHash": "4552babec16a4a42e765f80e06dcef8bc384bb61b26817b4342fc98ee614945b",
+  "artifactHash": "1ed12f0d680a3553331ae2d3c2e2212a5a5617dd6390b0558ffcb916f82a0c2c",
   "stampMode": "final-candidate"
 }

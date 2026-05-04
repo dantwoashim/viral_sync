@@ -1,6 +1,6 @@
 # Frontier Final Go/No-Go
 
-Generated: 2026-05-03T22:10:37.908Z
+Generated: 2026-05-04T02:25:51.485Z
 
 ## Decision
 
@@ -33,4 +33,4 @@ GO: submit this build for Frontier judging.
 
 ## Submission Stance
 
-Lead with the devnet receipt proof and Merchant Proof Passport, not broad product surface area. The winning story is proof-of-local-commerce: funded SPL custody, counter-attested Causal Receipt, exact-once settlement, nullifier replay rejection, on-chain `intent_manifest_hash` commitment, and a privacy-preserving merchant-owned proof packet.
+Lead with the devnet receipt proof and Merchant Proof Passport, not broad product surface area. The winning story is outcome settlement: funded SPL custody, counter-attested POC-1 receipt, exact-once settlement, nullifier replay rejection, on-chain `intent_manifest_hash` commitment, and a privacy-preserving merchant-owned proof packet.

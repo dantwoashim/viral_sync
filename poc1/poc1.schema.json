@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://viral-sync.dev/schemas/poc1-receipt.json",
+  "title": "POC-1 Receipt",
+  "type": "object",
+  "required": [
+    "version",
+    "network",
+    "cluster",
+    "programId",
+    "campaign",
+    "merchant",
+    "terminalDevice",
+    "terminalAuthority",
+    "visitorAuthority",
+    "claimPass",
+    "receipt",
+    "nullifier",
+    "settlement",
+    "intentManifestHash",
+    "visitAttestationHash",
+    "lineageProofHash",
+    "rewardMint",
+    "rewardAmount",
+    "proofLevel",
+    "settlementVerified",
+    "nullifierVerified"
+  ],
+  "properties": {
+    "version": { "const": "POC-1" },
+    "network": { "const": "solana" },
+    "cluster": { "type": "string" },
+    "programId": { "type": "string", "minLength": 32 },
+    "campaign": { "type": "string", "minLength": 32 },
+    "merchant": { "type": "string", "minLength": 32 },
+    "terminalDevice": { "type": "string", "minLength": 32 },
+    "terminalAuthority": { "type": "string", "minLength": 32 },
+    "visitorAuthority": { "type": "string", "minLength": 32 },
+    "claimPass": { "type": "string", "minLength": 32 },
+    "receipt": { "type": "string", "minLength": 32 },
+    "nullifier": { "type": "string", "minLength": 32 },
+    "settlement": { "type": "string", "minLength": 32 },
+    "intentManifestHash": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "visitAttestationHash": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "lineageProofHash": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "rewardMint": { "type": "string", "minLength": 32 },
+    "rewardAmount": { "type": "string", "pattern": "^[0-9]+$" },
+    "proofLevel": {
+      "enum": [
+        "merchant_terminal_visitor_signed",
+        "payment_bound",
+        "payment_bound_terminal_visitor_signed"
+      ]
+    },
+    "settlementVerified": { "const": true },
+    "nullifierVerified": { "const": true },
+    "terminalVerified": { "type": "boolean" },
+    "visitorVerified": { "type": "boolean" },
+    "lineageVerified": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

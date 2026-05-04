@@ -1,0 +1,6 @@
+{
+  "id": "wrong-terminal-signer",
+  "expected": "rejected",
+  "expectedError": "InvalidTerminalAuthority",
+  "reason": "A receipt signed by a terminal authority that is not bound to the enrolled terminal device must fail."
+}

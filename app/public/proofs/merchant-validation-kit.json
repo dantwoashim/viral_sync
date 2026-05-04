@@ -1,13 +1,13 @@
 {
   "type": "viral-sync-merchant-validation-kit",
   "version": "1.0.0",
-  "generatedAt": "2026-05-03T22:10:30.340Z",
+  "generatedAt": "2026-05-04T02:20:36.662Z",
   "validationStatus": "not_claimed_until_real_merchant_evidence_is_added",
   "merchantAlias": "Thamel Brew House",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "passportHash": "ed0f6f1669e7a25a78dac34dc4f231a4a12f272d32fd98671de67f755916f164",
-  "orderbookHash": "5fd345a8f006f46950e882b8ce1d4460ff6b255d25bef593a9df99e7ff50eacd",
+  "passportHash": "6b7de9f39641049bc8168634a02c675bf076958bb560e58bd1fc86c64bc3d375",
+  "orderbookHash": "2768e6a95d02dbdefb020fbab3e776a8e149d6845ca127d065aefcb66e160a71",
   "rules": [
     "Do not claim live merchant traction unless evidenceSlots are filled with real permissioned evidence.",
     "Screenshots, quotes, and videos must be from a real merchant or must be labeled demo-only.",
@@ -46,13 +46,13 @@
     }
   ],
   "safeSubmissionWording": "The Frontier submission includes a complete devnet proof and verifier. Real-world merchant validation is not claimed unless this kit is filled with permissioned evidence.",
-  "validationKitHash": "6d3de4dd55daa7e59e43a3b5c1137e63483a49d44a78c43ed051f2af1dda0143",
+  "validationKitHash": "5e25738b14fab0c363ef1a0848d6b118df5e81ddd9e50f2cdb748f5516c06814",
   "programSourceHash": "92cd14949d4e3bc0c099b54cedb2730a1e09a550679fd3615d86d809d38f32c7",
   "idlHash": "1a5a37491319e4ae75dbc97d62466ac86e6301a850b6570fac4e82cf6c30bc5e",
   "proofGeneratorHash": "5d677ab030e673b8383eb1b74b01b9de553519d872ef784912ebbeef7021c5e2",
-  "verifierHash": "9b8b5e6c3d804765056bdd9e81751479d97a21bf12bfcbc10f1895f4bfdc078a",
-  "rawVerifierHash": "3b9a687b30deda5c639e55bc53abd57134581a9d5ae2b811ea40509fa45153f6",
-  "publishedVerifierHash": "5a30d0a165695a2bc942320f7f8b075e9e2ae265f37dd780fc4f0529b814ea64",
-  "artifactHash": "72885173f93bb19d81530b52dd005af43151d1f7a58e996e54bf907d6c8b2d58",
+  "verifierHash": "e45d6f8095bf3141b322912e2ad304456e224bdc033b99649e5c7265943e8ada",
+  "rawVerifierHash": "6be2ba2bb2fea091d98131c65245af79e4801c5d4d30b21c0ad4127eec57552f",
+  "publishedVerifierHash": "4552babec16a4a42e765f80e06dcef8bc384bb61b26817b4342fc98ee614945b",
+  "artifactHash": "41c0e583c252d30ed7e51651eed9c6228979321f45d29895c52ddc1eca54ec2e",
   "stampMode": "final-candidate"
 }

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { isPublicDemoRoute, labsEnabled } from './lib/demo-mode';
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -12,9 +13,25 @@ function applySecurityHeaders(response: NextResponse) {
 }
 
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (
+    !labsEnabled() &&
+    request.method === 'GET' &&
+    !pathname.startsWith('/api') &&
+    !pathname.startsWith('/_next') &&
+    !pathname.startsWith('/public') &&
+    !pathname.startsWith('/manifest.webmanifest') &&
+    !pathname.startsWith('/favicon') &&
+    pathname !== '/_not-found' &&
+    !isPublicDemoRoute(pathname)
+  ) {
+    return applySecurityHeaders(NextResponse.rewrite(new URL('/_not-found', request.url)));
+  }
+
   if (
     process.env.LAUNCH_PAUSED === 'true' &&
-    request.nextUrl.pathname.startsWith('/api/launch') &&
+    pathname.startsWith('/api/launch') &&
     MUTATION_METHODS.has(request.method)
   ) {
     return applySecurityHeaders(NextResponse.json({

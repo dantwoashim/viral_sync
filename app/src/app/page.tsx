@@ -14,15 +14,16 @@ export default function ConsumerHomePage() {
       <PremiumNav />
       <section className="premium-hero">
         <div className="premium-hero-copy">
-          <span className="premium-eyebrow">Causal receipt protocol</span>
-          <h1 className="premium-h1">Clicks are claims. Receipts are proof.</h1>
+          <span className="premium-eyebrow">Outcome settlement infrastructure</span>
+          <h1 className="premium-h1">Pay only when customers actually convert.</h1>
           <p className="premium-lede">
-            Viral Sync turns real-world conversions into Solana-verifiable proof objects: merchants escrow rewards, terminals and visitors counter-attest, and payouts settle only when POC-1 verifies.
+            Viral Sync is the Solana settlement layer for outcome-based marketing: merchants escrow bounties, creators or agents route customers, and payouts only release when the customer actually converts.
+            Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by the merchant, an enrolled terminal, and the visitor, with nullifier replay protection and settlement-time intent checks.
           </p>
           <div className="premium-actions">
-            <PremiumButton href="/frontier">Open Frontier command center</PremiumButton>
+            <PremiumButton href="/proof">Open proof mode</PremiumButton>
             <PremiumButton href="/invite" variant="secondary">Open visitor invite</PremiumButton>
-            <PremiumButton href="/security" variant="quiet">Review trust model</PremiumButton>
+            <PremiumButton href="/receipt/demo" variant="quiet">View receipt proof</PremiumButton>
           </div>
           <div className="premium-metrics" aria-label="Protocol proof points">
             <PremiumMetric label="Receipt primitive" value="PDA" detail="Every visit has a deterministic proof address." />
@@ -41,7 +42,7 @@ export default function ConsumerHomePage() {
       </section>
 
 
-      <section className="premium-system-grid" style={{ marginTop: 'clamp(36px, 6vw, 72px)' }}>
+      <section id="how-it-works" className="premium-system-grid" style={{ marginTop: 'clamp(36px, 6vw, 72px)' }}>
         <PremiumSurface tone="proof" className="premium-system-section">
           <div className="premium-card-title">
             <span>Traditional ads</span>
