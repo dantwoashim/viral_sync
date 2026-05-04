@@ -1,18 +1,18 @@
 {
   "proofArtifactSourceHashes": {
-    "programSourceHash": "f457c7ecd8faf2ac5619ffc7cb49515e4195acb944970e29c3425c153e51b131",
+    "programSourceHash": "eafdd1ef6a245b220232a37c7a5c6e09b1124c16a392b10a389c3a1d23f00f27",
     "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-    "proofGeneratorHash": "469d10f8e8a712de1db40fdc97e10835be0feabbe7f7dd736e1099fc1d383478",
-    "verifierHash": "19c0a5b046079e7f25828c2d615fed2863b19504d4ce6ec5d44508d80987db8a",
-    "rawVerifierHash": "b9ff7bfb149dd213a8428f3cd272f33574dd048197e67c5cac156570794990f7",
-    "publishedVerifierHash": "b9ff7bfb149dd213a8428f3cd272f33574dd048197e67c5cac156570794990f7"
+    "proofGeneratorHash": "1a8e8783830beb12c90ee48bd1e9a67b1951c81d1a1990e018955883ce9c587d",
+    "verifierHash": "1763f87732702b69347f2bc8be6b701f261531b65b9a4ab87d8877236a4f3624",
+    "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
+    "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867"
   },
   "auditorPacketHashes": {
-    "programSourceHash": "f457c7ecd8faf2ac5619ffc7cb49515e4195acb944970e29c3425c153e51b131",
+    "programSourceHash": "eafdd1ef6a245b220232a37c7a5c6e09b1124c16a392b10a389c3a1d23f00f27",
     "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-    "proofGeneratorHash": "c08f1ead2e3d42661f6fe6b733020141fb8d075e2555c148649aa508f73b857b",
-    "verifierHash": "19c0a5b046079e7f25828c2d615fed2863b19504d4ce6ec5d44508d80987db8a",
-    "rawVerifierHash": "b9ff7bfb149dd213a8428f3cd272f33574dd048197e67c5cac156570794990f7",
-    "publishedVerifierHash": "b9ff7bfb149dd213a8428f3cd272f33574dd048197e67c5cac156570794990f7"
+    "proofGeneratorHash": "f36de690668650c1868f478f05d9cb8a7941096f30bb2ff680a74c9b88073344",
+    "verifierHash": "1763f87732702b69347f2bc8be6b701f261531b65b9a4ab87d8877236a4f3624",
+    "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
+    "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867"
   }
 }

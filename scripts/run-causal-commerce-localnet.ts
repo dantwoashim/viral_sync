@@ -41,6 +41,7 @@ type CliOptions = {
 };
 
 type RpcBuilder = {
+  remainingAccounts?: (accounts: Array<{ pubkey: PublicKey; isWritable: boolean; isSigner: boolean }>) => RpcBuilder;
   signers: (signers: Keypair[]) => { rpc: () => Promise<string> };
   rpc: () => Promise<string>;
   instruction: () => Promise<TransactionInstruction>;
@@ -1903,6 +1904,136 @@ async function main() {
       tokenProgram: TOKEN_PROGRAM_ID,
     }));
 
+  let issueChildClaimPass: string | null = null;
+  let recordChildCausalReceipt: string | null = null;
+  let childLineageProof: Record<string, unknown> | null = null;
+  const childClaimHash = hashBytes('claim-pass', `${options.campaignId}:child-lineage`);
+  const childLineageProofHash = hashBytes('lineage-proof', `${options.campaignId}:child-lineage`);
+  const childReceiptIdHash = hashBytes('receipt', `${options.receiptId}:child-lineage`);
+  const childNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:child-lineage`);
+  const [childClaimPass] = findPda('claim_pass', [growthCampaign.toBuffer(), visitorAuthority.publicKey.toBuffer(), childClaimHash]);
+  const [childReceipt] = findPda('causal_receipt', [growthCampaign.toBuffer(), childReceiptIdHash]);
+  const [childNullifier] = findPda('campaign_nullifier', [growthCampaign.toBuffer(), childNullifierHash]);
+
+  issueChildClaimPass = await sendProgramInstruction(connection, walletInfo.keypair, methods.issueClaimPass(
+    Array.from(childClaimHash),
+    2,
+    Array.from(childLineageProofHash),
+    causalReceipt,
+  )
+    .accounts({
+      growthCampaign,
+      merchantConfig,
+      merchantAuthority: wallet.publicKey,
+      visitorAuthority: visitorAuthority.publicKey,
+      claimPass: childClaimPass,
+      systemProgram: SystemProgram.programId,
+    }));
+  const childRecordBuilder = methods.recordCausalReceipt(
+    Array.from(childReceiptIdHash),
+    Array.from(receiptIdHash),
+    Array.from(referrerCommitment),
+    Array.from(childNullifierHash),
+    Array.from(inviteHash),
+    Array.from(visitAttestationHash),
+    Array.from(intentManifestHash),
+    Array.from(riskScoreCommitment),
+    referrerAuthority.publicKey,
+    visitorAuthority.publicKey,
+  )
+    .accounts({
+      growthCampaign,
+      merchantConfig,
+      rewardEscrow,
+      rewardVault: rewardVault.address,
+      causalReceipt: childReceipt,
+      nullifierRecord: childNullifier,
+      claimPass: childClaimPass,
+      terminalDevice,
+      terminalAuthority: terminalAuthority.publicKey,
+      visitorAuthority: visitorAuthority.publicKey,
+      merchantAuthority: wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+    });
+  recordChildCausalReceipt = await sendProgramInstruction(
+    connection,
+    walletInfo.keypair,
+    childRecordBuilder.remainingAccounts
+      ? childRecordBuilder.remainingAccounts([{ pubkey: causalReceipt, isWritable: false, isSigner: false }])
+      : childRecordBuilder,
+    [terminalAuthority, visitorAuthority],
+  );
+  childLineageProof = {
+    depth: 2,
+    parentReceipt: causalReceipt.toBase58(),
+    childReceipt: childReceipt.toBase58(),
+    childClaimPass: childClaimPass.toBase58(),
+    parentReceiptIdHash: receiptIdHash.toString('hex'),
+    childReceiptIdHash: childReceiptIdHash.toString('hex'),
+    childNullifierHash: childNullifierHash.toString('hex'),
+    childLineageProofHash: childLineageProofHash.toString('hex'),
+    issueChildClaimPass,
+    recordChildCausalReceipt,
+    onChainParentReceiptVerified: true,
+  };
+
+  if (options.attackCheck) {
+    const childParentMismatchClaimHash = hashBytes('claim-pass', `${options.campaignId}:child-parent-mismatch`);
+    const [childParentMismatchClaimPass] = findPda('claim_pass', [growthCampaign.toBuffer(), visitorAuthority.publicKey.toBuffer(), childParentMismatchClaimHash]);
+    await sendProgramInstruction(connection, walletInfo.keypair, methods.issueClaimPass(
+      Array.from(childParentMismatchClaimHash),
+      2,
+      Array.from(hashBytes('lineage-proof', `${options.campaignId}:child-parent-mismatch`)),
+      causalReceipt,
+    )
+      .accounts({
+        growthCampaign,
+        merchantConfig,
+        merchantAuthority: wallet.publicKey,
+        visitorAuthority: visitorAuthority.publicKey,
+        claimPass: childParentMismatchClaimPass,
+        systemProgram: SystemProgram.programId,
+      }));
+    const childParentMismatchReceiptIdHash = hashBytes('receipt', `${options.receiptId}:child-parent-mismatch`);
+    const childParentMismatchNullifierHash = hashBytes('claimer-nullifier', `${options.campaignId}:child-parent-mismatch`);
+    const [childParentMismatchReceipt] = findPda('causal_receipt', [growthCampaign.toBuffer(), childParentMismatchReceiptIdHash]);
+    const [childParentMismatchNullifier] = findPda('campaign_nullifier', [growthCampaign.toBuffer(), childParentMismatchNullifierHash]);
+    const childMismatchBuilder = methods.recordCausalReceipt(
+      Array.from(childParentMismatchReceiptIdHash),
+      Array.from(hashBytes('receipt', `${options.receiptId}:forged-parent-hash`)),
+      Array.from(referrerCommitment),
+      Array.from(childParentMismatchNullifierHash),
+      Array.from(inviteHash),
+      Array.from(visitAttestationHash),
+      Array.from(intentManifestHash),
+      Array.from(riskScoreCommitment),
+      referrerAuthority.publicKey,
+      visitorAuthority.publicKey,
+    )
+      .accounts({
+        growthCampaign,
+        merchantConfig,
+        rewardEscrow,
+        rewardVault: rewardVault.address,
+        causalReceipt: childParentMismatchReceipt,
+        nullifierRecord: childParentMismatchNullifier,
+        claimPass: childParentMismatchClaimPass,
+        terminalDevice,
+        terminalAuthority: terminalAuthority.publicKey,
+        visitorAuthority: visitorAuthority.publicKey,
+        merchantAuthority: wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      });
+    replayChecks.push(await expectRejected('child claim pass with forged parent receipt hash rejected', () => sendProgramInstruction(
+      connection,
+      walletInfo.keypair,
+      childMismatchBuilder.remainingAccounts
+        ? childMismatchBuilder.remainingAccounts([{ pubkey: causalReceipt, isWritable: false, isSigner: false }])
+        : childMismatchBuilder,
+      [terminalAuthority, visitorAuthority],
+    ), [childParentMismatchReceipt, childParentMismatchNullifier, childParentMismatchClaimPass]));
+  }
+
   if (options.replayCheck) {
     replayChecks.push(await expectRejected('duplicate receipt settlement', () => sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
       .accounts({
@@ -2060,6 +2191,7 @@ async function main() {
     replayEvidence('claim-pass-campaign-mismatch', 'Claim pass campaign mismatch', 'record_causal_receipt', replayByLabel('claim pass campaign'), 'InvalidClaimPass'),
     replayEvidence('claim-pass-depth-exceeds-max-depth', 'Claim pass depth exceeds campaign max depth', 'issue_claim_pass', replayByLabel('depth exceeds'), 'MaxDepthExceeded'),
     replayEvidence('root-parent-lineage-mismatch', 'Root claim pass supplies parent receipt hash', 'record_causal_receipt', replayByLabel('root claim pass with parent'), 'InvalidLineageProof'),
+    replayEvidence('child-parent-receipt-hash-mismatch', 'Child claim pass supplies forged parent receipt hash', 'record_causal_receipt', replayByLabel('child claim pass with forged parent'), 'InvalidLineageProof'),
     replayEvidence('paused-terminal-device', 'Paused terminal device cannot record receipt', 'record_causal_receipt', replayByLabel('paused terminal device'), 'TerminalDeviceInactive'),
     replayEvidence('duplicate-nullifier', 'Duplicate receipt nullifier', 'record_causal_receipt', replayByLabel('duplicate campaign nullifier'), 'AccountAlreadyInitialized'),
     intentEvidence('inflated-reward-amount', 'Inflated reward amount', effectByLabel('Inflated reward'), 'RewardAmountExceedsManifest'),
@@ -2078,7 +2210,7 @@ async function main() {
       entry.accountsMutationVerified !== true ||
       !['program_rejection', 'intent_validator_rejection'].includes(entry.failureKind)
     ));
-    const expectedAttackCases = 18;
+    const expectedAttackCases = 19;
     if (attackEvidence.length !== expectedAttackCases || incompleteAttackEvidence.length > 0) {
       throw new Error(
         `Fraud gauntlet incomplete: ${attackEvidence.length}/${expectedAttackCases} cases emitted; ${incompleteAttackEvidence.length} cases not rejected: ${incompleteAttackEvidence
@@ -2180,9 +2312,11 @@ async function main() {
       enrollTerminalDevice,
       createGrowthCampaign,
       issueClaimPass,
+      issueChildClaimPass,
       issueReplayClaimPass,
       fundGrowthBounty,
       recordCausalReceipt,
+      recordChildCausalReceipt,
       settleReceiptReward,
       closeGrowthBounty,
     },
@@ -2229,6 +2363,7 @@ async function main() {
     terminalVerified: true,
     visitorVerified: true,
     lineageVerified: true,
+    childLineageProof,
     settlementVerified: true,
     nullifierVerified: true,
     ...computeProofHashes(),

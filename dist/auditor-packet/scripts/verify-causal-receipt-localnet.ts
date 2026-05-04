@@ -55,6 +55,15 @@ type ManifestShape = {
     } | null;
   };
   attackEvidence?: Array<Record<string, unknown>>;
+  childLineageProof?: {
+    parentReceipt?: string;
+    childReceipt?: string;
+    childClaimPass?: string;
+    parentReceiptIdHash?: string;
+    childReceiptIdHash?: string;
+    childLineageProofHash?: string;
+    onChainParentReceiptVerified?: boolean;
+  };
 };
 
 type CliOptions = {
@@ -336,6 +345,10 @@ async function main() {
   const claimPass = claimPassPda ? await fetchAccount<ClaimPass>(program, 'claimPass', claimPassPda) : undefined;
   const terminalDevicePda = receipt.terminalDevice ?? (manifest?.pdas?.terminalDevice ? new PublicKey(manifest.pdas.terminalDevice) : undefined);
   const terminalDeviceAccount = terminalDevicePda ? await fetchAccount<TerminalDevice>(program, 'terminalDevice', terminalDevicePda) : undefined;
+  const childReceiptPda = manifest?.childLineageProof?.childReceipt ? new PublicKey(manifest.childLineageProof.childReceipt) : undefined;
+  const childReceipt = childReceiptPda ? await fetchAccount<Receipt>(program, 'causalReceipt', childReceiptPda) : undefined;
+  const childClaimPassPda = manifest?.childLineageProof?.childClaimPass ? new PublicKey(manifest.childLineageProof.childClaimPass) : undefined;
+  const childClaimPass = childClaimPassPda ? await fetchAccount<ClaimPass>(program, 'claimPass', childClaimPassPda) : undefined;
 
   const failures: string[] = [];
   expectPublicKey('receipt campaign', receipt.campaign, settlement.campaign, failures);
@@ -436,6 +449,44 @@ async function main() {
     }
   } else {
     failures.push('claim pass account is missing');
+  }
+
+  if (manifest?.childLineageProof) {
+    if (!childReceipt || !childClaimPass || !childReceiptPda || !childClaimPassPda) {
+      failures.push('child lineage proof is present but child receipt or claim pass account is missing');
+    } else {
+      expectPublicKey('child lineage parent receipt', new PublicKey(manifest.childLineageProof.parentReceipt ?? PublicKey.default.toBase58()), causalReceiptPda, failures);
+      expectPublicKey('child receipt campaign', childReceipt.campaign, receipt.campaign, failures);
+      expectPublicKey('child claim pass campaign', childClaimPass.campaign, receipt.campaign, failures);
+      expectPublicKey('child claim pass first receipt', childClaimPass.firstReceipt, childReceiptPda, failures);
+      expectPublicKey('child claim pass referrer receipt', childClaimPass.referrerReceipt ?? PublicKey.default, causalReceiptPda, failures);
+      if (enumName(childClaimPass.status) !== 'recorded') {
+        failures.push(`child claim pass status is ${enumName(childClaimPass.status)}, expected recorded`);
+      }
+      if (childReceipt.lineageGeneration !== (receipt.lineageGeneration ?? 0) + 1) {
+        failures.push(`child lineage generation ${childReceipt.lineageGeneration} does not extend parent generation ${receipt.lineageGeneration ?? 'missing'}`);
+      }
+      const childParentHash = childReceipt.parentReceiptIdHash ? hashArrayToHex(childReceipt.parentReceiptIdHash) : undefined;
+      const parentReceiptHash = receipt.receiptIdHash ? hashArrayToHex(receipt.receiptIdHash) : undefined;
+      if (childParentHash !== parentReceiptHash) {
+        failures.push(`child parent receipt hash expected ${parentReceiptHash ?? 'missing'} but got ${childParentHash ?? 'missing'}`);
+      }
+      if (manifest.childLineageProof.parentReceiptIdHash && childParentHash !== manifest.childLineageProof.parentReceiptIdHash) {
+        failures.push(`child proof parent hash expected ${manifest.childLineageProof.parentReceiptIdHash} but got ${childParentHash ?? 'missing'}`);
+      }
+      if (manifest.childLineageProof.childReceiptIdHash) {
+        const childReceiptHash = childReceipt.receiptIdHash ? hashArrayToHex(childReceipt.receiptIdHash) : undefined;
+        if (childReceiptHash !== manifest.childLineageProof.childReceiptIdHash) {
+          failures.push(`child receipt hash expected ${manifest.childLineageProof.childReceiptIdHash} but got ${childReceiptHash ?? 'missing'}`);
+        }
+      }
+      if (manifest.childLineageProof.childLineageProofHash) {
+        const childLineageHash = childClaimPass.lineageProofHash ? hashArrayToHex(childClaimPass.lineageProofHash) : undefined;
+        if (childLineageHash !== manifest.childLineageProof.childLineageProofHash) {
+          failures.push(`child lineage proof hash expected ${manifest.childLineageProof.childLineageProofHash} but got ${childLineageHash ?? 'missing'}`);
+        }
+      }
+    }
   }
 
   expectBn('settled amount', receipt.settledAmount, receipt.rewardAmount, failures);
@@ -576,6 +627,19 @@ async function main() {
           hashArrayToHex(receipt.parentReceiptIdHash) !== '0'.repeat(64))
       ),
     ),
+    childParentReceiptVerified: !manifest?.childLineageProof || Boolean(
+      childReceipt &&
+      childClaimPass &&
+      childReceiptPda &&
+      childClaimPass.firstReceipt.equals(childReceiptPda) &&
+      childClaimPass.referrerReceipt?.equals(causalReceiptPda) &&
+      childReceipt.campaign.equals(receipt.campaign) &&
+      childReceipt.parentReceiptIdHash &&
+      receipt.receiptIdHash &&
+      hashArrayToHex(childReceipt.parentReceiptIdHash) === hashArrayToHex(receipt.receiptIdHash) &&
+      childReceipt.lineageGeneration === (receipt.lineageGeneration ?? 0) + 1 &&
+      manifest.childLineageProof.onChainParentReceiptVerified === true
+    ),
   };
   const nullifierAccountVerified = Boolean(nullifier.campaign.equals(receipt.campaign) && nullifier.firstReceipt.equals(causalReceiptPda));
   const settlementAccountVerified = Boolean(settlement.receipt.equals(causalReceiptPda) && settlement.campaign.equals(receipt.campaign));
@@ -656,6 +720,8 @@ async function main() {
     settlementRecord: normalize(settlement),
     nullifierRecord: normalize(nullifier),
     claimPass: normalize(claimPass),
+    childReceipt: normalize(childReceipt),
+    childClaimPass: normalize(childClaimPass),
     terminalDevice: normalize(terminalDeviceAccount),
     tokenBalances,
     failures,

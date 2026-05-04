@@ -100,8 +100,7 @@ pub struct GrowthCampaign {
     pub lineage_required: bool,
     pub reward_per_verified_visit: u64,
     pub max_redemptions: u32,
-    // Maximum lineage depth. Root-vs-child parent consistency is enforced on-chain;
-    // full multi-hop parent account proof remains verifier-backed until phase 3.
+    // Maximum lineage depth. Root and child parent receipt consistency is enforced on-chain.
     pub max_depth: u8,
     pub referrer_split_bps: u16,
     // Policy commitments; split amount and lineage shape are enforced by the current program.

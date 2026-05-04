@@ -1,9 +1,9 @@
 {
   "type": "viral-sync-campaign-links",
   "version": "1.0.0",
-  "generatedAt": "2026-05-04T17:29:48.206Z",
+  "generatedAt": "2026-05-04T17:48:12.280Z",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "orderbookHash": "84662b9dcb264bc507cfcb97b8cd1dff4dedeef9d2b708d08a2552c774a0c175",
+  "orderbookHash": "5bc148684a3d6c1823905eb63d0055e00836e0c1e2924190e7db980e1ac8d648",
   "proofStatus": "ready",
   "links": [
     {
@@ -71,13 +71,13 @@
     "The API route returns a Blink-style preview object; it does not submit a production payment transaction.",
     "Only proofBacked=true campaigns are backed by the current devnet proof artifact."
   ],
-  "campaignLinksHash": "692ab2a061a4966e255bed77d69405e38d7b878daf358a1ef6b22008dc6986ff",
-  "programSourceHash": "f457c7ecd8faf2ac5619ffc7cb49515e4195acb944970e29c3425c153e51b131",
+  "campaignLinksHash": "832c9adab83d770817ddc31812a7d3f8e4b7e510dbb3a142f4ec2e0b76e0035e",
+  "programSourceHash": "eafdd1ef6a245b220232a37c7a5c6e09b1124c16a392b10a389c3a1d23f00f27",
   "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-  "proofGeneratorHash": "469d10f8e8a712de1db40fdc97e10835be0feabbe7f7dd736e1099fc1d383478",
-  "verifierHash": "19c0a5b046079e7f25828c2d615fed2863b19504d4ce6ec5d44508d80987db8a",
-  "rawVerifierHash": "b9ff7bfb149dd213a8428f3cd272f33574dd048197e67c5cac156570794990f7",
-  "publishedVerifierHash": "b9ff7bfb149dd213a8428f3cd272f33574dd048197e67c5cac156570794990f7",
+  "proofGeneratorHash": "1a8e8783830beb12c90ee48bd1e9a67b1951c81d1a1990e018955883ce9c587d",
+  "verifierHash": "1763f87732702b69347f2bc8be6b701f261531b65b9a4ab87d8877236a4f3624",
+  "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
+  "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "stampMode": "final-candidate",
-  "artifactHash": "15905ff6051781177fdf12256b24780ea473b4d021f57840a279c2c4639bf9d0"
+  "artifactHash": "4162fb196702368ba5c8d72dff64b7b67cdedb9201985bf8f90f261a849e541f"
 }

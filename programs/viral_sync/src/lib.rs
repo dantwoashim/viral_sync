@@ -244,8 +244,8 @@ pub mod viral_sync {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn record_causal_receipt(
-        ctx: Context<RecordCausalReceipt>,
+    pub fn record_causal_receipt<'info>(
+        ctx: Context<'_, '_, 'info, 'info, RecordCausalReceipt<'info>>,
         receipt_id_hash: [u8; 32],
         parent_receipt_id_hash: [u8; 32],
         referrer_commitment: [u8; 32],

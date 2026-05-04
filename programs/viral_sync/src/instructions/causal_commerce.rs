@@ -548,8 +548,8 @@ pub struct RecordCausalReceipt<'info> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn record_causal_receipt(
-    ctx: Context<RecordCausalReceipt>,
+pub fn record_causal_receipt<'info>(
+    ctx: Context<'_, '_, 'info, 'info, RecordCausalReceipt<'info>>,
     receipt_id_hash: [u8; 32],
     parent_receipt_id_hash: [u8; 32],
     referrer_commitment: [u8; 32],
@@ -593,14 +593,33 @@ pub fn record_causal_receipt(
 
     let receipt = &mut ctx.accounts.causal_receipt;
     let nullifier = &mut ctx.accounts.nullifier_record;
-    let claim_pass = &mut ctx.accounts.claim_pass;
+    let claim_pass = &ctx.accounts.claim_pass;
     if claim_pass.depth == 1 {
         require_keys_eq!(claim_pass.referrer_receipt, Pubkey::default(), ViralSyncError::InvalidLineageProof);
         require!(parent_receipt_id_hash == [0; 32], ViralSyncError::InvalidLineageProof);
     } else {
         require!(claim_pass.referrer_receipt != Pubkey::default(), ViralSyncError::InvalidLineageProof);
         require!(parent_receipt_id_hash != [0; 32], ViralSyncError::InvalidLineageProof);
+        let parent_info = ctx
+            .remaining_accounts
+            .first()
+            .ok_or(ViralSyncError::InvalidLineageProof)?;
+        let parent_receipt = Account::<CausalReceipt>::try_from(parent_info)
+            .map_err(|_| ViralSyncError::InvalidLineageProof)?;
+        require_keys_eq!(parent_info.key(), claim_pass.referrer_receipt, ViralSyncError::InvalidLineageProof);
+        require_keys_eq!(parent_receipt.campaign, campaign.key(), ViralSyncError::InvalidLineageProof);
+        require_keys_eq!(parent_receipt.merchant_config, campaign.merchant_config, ViralSyncError::InvalidLineageProof);
+        require!(parent_receipt.status == CausalReceiptStatus::Settled, ViralSyncError::InvalidLineageProof);
+        require!(parent_receipt.receipt_id_hash == parent_receipt_id_hash, ViralSyncError::InvalidLineageProof);
+        require!(
+            parent_receipt
+                .lineage_generation
+                .checked_add(1)
+                == Some(claim_pass.depth),
+            ViralSyncError::InvalidLineageProof
+        );
     }
+    let claim_pass = &mut ctx.accounts.claim_pass;
 
     receipt.bump = ctx.bumps.causal_receipt;
     receipt.campaign = campaign.key();

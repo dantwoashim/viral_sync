@@ -87,10 +87,12 @@ describe('proof hardening regressions', () => {
     expect(rejected.status).to.equal('rejected');
   });
 
-  it('keeps phase 2 protocol hardening wired into the on-chain surface', () => {
+  it('keeps phase 2 and phase 3 protocol hardening wired into the on-chain surface', () => {
     const program = fs.readFileSync('programs/viral_sync/src/instructions/causal_commerce.rs', 'utf8');
     const lib = fs.readFileSync('programs/viral_sync/src/lib.rs', 'utf8');
     const errors = fs.readFileSync('programs/viral_sync/src/errors.rs', 'utf8');
+    const runner = fs.readFileSync('scripts/run-causal-commerce-localnet.ts', 'utf8');
+    const verifier = fs.readFileSync('scripts/verify-causal-receipt-localnet.ts', 'utf8');
 
     expect(program).to.include('set_terminal_device_status');
     expect(lib).to.include('pub fn set_terminal_device_status');
@@ -98,6 +100,11 @@ describe('proof hardening regressions', () => {
     expect(program).to.include('claim_pass.depth == 1');
     expect(program).to.include('parent_receipt_id_hash == [0; 32]');
     expect(program).to.include('claim_pass.referrer_receipt != Pubkey::default()');
+    expect(program).to.include('remaining_accounts');
+    expect(program).to.include('parent_receipt.status == CausalReceiptStatus::Settled');
+    expect(program).to.include('parent_receipt.receipt_id_hash == parent_receipt_id_hash');
+    expect(runner).to.include('child-parent-receipt-hash-mismatch');
+    expect(verifier).to.include('childParentReceiptVerified');
     expect(errors).to.include('InvalidLineageProof');
   });
 });
