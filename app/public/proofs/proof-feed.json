@@ -2,7 +2,7 @@
   "type": "viral-sync-proof-feed",
   "version": "1.0.0",
   "network": "solana-devnet",
-  "generatedAt": "2026-05-04T09:58:59.496Z",
+  "generatedAt": "2026-05-04T10:13:58.633Z",
   "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
   "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
@@ -20,9 +20,9 @@
       "kind": "escrow",
       "status": "verified",
       "detail": "Merchant funded the reward vault for counter-attested conversions.",
-      "signature": "65FZF4x4DkuoP6dgGT3EAEaN6M1JsVTVqczJQDTdtDcCdgpMQJJvaVbeFS22qhSR2NuwmbLAcgKPPesWFzHmEJ86",
-      "explorerLink": "https://explorer.solana.com/tx/65FZF4x4DkuoP6dgGT3EAEaN6M1JsVTVqczJQDTdtDcCdgpMQJJvaVbeFS22qhSR2NuwmbLAcgKPPesWFzHmEJ86?cluster=devnet",
-      "object": "9kMxr1bJmVLdtZZX5RNeWLsDQAuc5cYP3v8JXVEcJhJ8",
+      "signature": "21dB9bkHAcKqEQ2q4mdWdpuftQWj1Sbk1PwdrMHjXEpak54pCF41VAns7nP6NB2Rgy63M3PYAsEPkqiqp3HPNZXT",
+      "explorerLink": "https://explorer.solana.com/tx/21dB9bkHAcKqEQ2q4mdWdpuftQWj1Sbk1PwdrMHjXEpak54pCF41VAns7nP6NB2Rgy63M3PYAsEPkqiqp3HPNZXT?cluster=devnet",
+      "object": "AbYRUoyUq154QrVCBWZMuF9f7we8LdDmSF9yPhbTQQ7w",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -37,10 +37,10 @@
       "kind": "receipt",
       "status": "verified",
       "detail": "Counter-attested receipt committed the intent manifest and visit attestation hashes.",
-      "signature": "4g5P3bQDkQYcU27sWnc4eviz11RVFH3LbhX3dMn2sXHWBGWjjoBAqUP1jLVUDqaSGv9cGedHgoydupTWYEPjBCk7",
-      "explorerLink": "https://explorer.solana.com/tx/4g5P3bQDkQYcU27sWnc4eviz11RVFH3LbhX3dMn2sXHWBGWjjoBAqUP1jLVUDqaSGv9cGedHgoydupTWYEPjBCk7?cluster=devnet",
-      "object": "2zVPrjAJzuVBkkppofweHRL9ZsCTbcBaw53nqbAGU5wC",
-      "objectLink": "https://explorer.solana.com/address/2zVPrjAJzuVBkkppofweHRL9ZsCTbcBaw53nqbAGU5wC?cluster=devnet",
+      "signature": "4ksSZhzyjTkwbW2F2X821oodZHkN8FHJVq3TbpZv2wWdvzssbXr6G7CNptMNxuz3nvg3dbPMngw79ezaGsWBBbJJ",
+      "explorerLink": "https://explorer.solana.com/tx/4ksSZhzyjTkwbW2F2X821oodZHkN8FHJVq3TbpZv2wWdvzssbXr6G7CNptMNxuz3nvg3dbPMngw79ezaGsWBBbJJ?cluster=devnet",
+      "object": "BCMjUfviPJtFWgGD35mMnrtUgm1yMCQeUMB3Yhc3nMrd",
+      "objectLink": "https://explorer.solana.com/address/BCMjUfviPJtFWgGD35mMnrtUgm1yMCQeUMB3Yhc3nMrd?cluster=devnet",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -55,10 +55,10 @@
       "kind": "settlement",
       "status": "verified",
       "detail": "Settlement amount: 1000 units.",
-      "signature": "YYaW69DsHYs3N3kSPA6qSxVqS9VMpJ1YVhsdT6NNzP1gWpsK11oVf3tf2ZiHgGg2iaSArcrPjcTUHn5dub3pJXV",
-      "explorerLink": "https://explorer.solana.com/tx/YYaW69DsHYs3N3kSPA6qSxVqS9VMpJ1YVhsdT6NNzP1gWpsK11oVf3tf2ZiHgGg2iaSArcrPjcTUHn5dub3pJXV?cluster=devnet",
-      "object": "ECDb5aLTCoHeFvkfhCjVWZNufXVEiyi6rTKPirzwNYft",
-      "objectLink": "https://explorer.solana.com/address/ECDb5aLTCoHeFvkfhCjVWZNufXVEiyi6rTKPirzwNYft?cluster=devnet",
+      "signature": "2gqirka4Hrn28iiQVb59HiJyYvaFNu12jSYmTkaz94bz4JbfVCNUtgEEd58xmEnQT84VCNoazKajDqSfETfQoWRd",
+      "explorerLink": "https://explorer.solana.com/tx/2gqirka4Hrn28iiQVb59HiJyYvaFNu12jSYmTkaz94bz4JbfVCNUtgEEd58xmEnQT84VCNoazKajDqSfETfQoWRd?cluster=devnet",
+      "object": "Ct5LwFZYL2yJ2WWtDdM2Bx1JnxFjyRy2r9V6CQfz2cMv",
+      "objectLink": "https://explorer.solana.com/address/Ct5LwFZYL2yJ2WWtDdM2Bx1JnxFjyRy2r9V6CQfz2cMv?cluster=devnet",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -73,7 +73,7 @@
       "kind": "security",
       "status": "verified",
       "detail": "16/16 expected fraud cases blocked by proof artifacts.",
-      "object": "2bd029fd0ed2bedda0e168f9e2020922618e401738d97d6eeb3dee3e71615d90",
+      "object": "95d0bf87b2bb28c9e0ed27b8c5af3685c218de870905fa2a9db9a51959dbbd93",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -88,7 +88,7 @@
       "kind": "passport",
       "status": "verified",
       "detail": "Privacy-preserving proof-of-local-commerce packet generated from receipt and verifier artifacts.",
-      "object": "5f53539d00db71aa1ee7cd6878e8a1d616c6fc8ab2c3648a59ea4023f214f1cd",
+      "object": "c388eed3dd782e7dbdc1a6694c5ed90c198d8c6d7874972dc3f15b241a57c9df",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -103,7 +103,7 @@
       "kind": "orderbook",
       "status": "verified",
       "detail": "1/3 campaigns are proof-backed.",
-      "object": "fd2fa599973ef3c4eb226ffa334fa8d381fb8cba9cf6c029b8031514b75e0b33",
+      "object": "acdc8e9654bf428535760161911e573f95e0d8c60920281ebd1da792d724ae45",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -118,7 +118,7 @@
       "kind": "campaign-link",
       "status": "verified",
       "detail": "3 public campaign links generated for proof-of-conversion routing.",
-      "object": "7e05adcbf828f245e741956d2e715eb9bfdb78986ca5c95da3a28ea49846be47",
+      "object": "2f1fa54245c9a717ebd4dc6d0fad12475de6a9aae3b8490a0618698a11ebb3c8",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -128,12 +128,12 @@
       }
     }
   ],
-  "programSourceHash": "72564295617846d1f2b5e435a64224a184a63e1223bac1463c21eada938b56f9",
+  "programSourceHash": "46902a5346b917738d66901adaf5d2b26c96c7c03206131b230b870a86ed9674",
   "idlHash": "e6571b802b6519eb70287a9d62c6de77a57c9a5993a3ee338d57b4a7a7e4a23e",
-  "proofGeneratorHash": "d72e691a40404d898481e838770a9c26797ced0e7bd45c3ca8b7989c30497308",
-  "verifierHash": "b91d90c0769635c274dd25d97515fd53ca50bf9c901d036e213a3a673d833fff",
-  "rawVerifierHash": "3e301823301c771c52ad94c23ce6d2f01ca4bf3e831551f97ba28d56bedb3000",
-  "publishedVerifierHash": "3e301823301c771c52ad94c23ce6d2f01ca4bf3e831551f97ba28d56bedb3000",
+  "proofGeneratorHash": "b639a16cc4512bb37495ae29f82ca72cdf5994e58cdc58f14cad243d7e1490e6",
+  "verifierHash": "ed44afae220e15f9a4e00dc036c7b0f7dc09735723a3fbe2e1a8f353e8292e26",
+  "rawVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
+  "publishedVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
   "stampMode": "final-candidate",
-  "artifactHash": "5533dc700bd98e1cc4394688f7c40792a62e8b56591aef50230d1159b74caf5e"
+  "artifactHash": "0bbadab681a831aeae91213b3aaf993f582080b48efd862a25220ae2892004ed"
 }

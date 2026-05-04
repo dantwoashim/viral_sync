@@ -1,9 +1,9 @@
 {
   "type": "viral-sync-campaign-links",
   "version": "1.0.0",
-  "generatedAt": "2026-05-04T09:58:57.140Z",
+  "generatedAt": "2026-05-04T10:13:56.288Z",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "orderbookHash": "fd2fa599973ef3c4eb226ffa334fa8d381fb8cba9cf6c029b8031514b75e0b33",
+  "orderbookHash": "acdc8e9654bf428535760161911e573f95e0d8c60920281ebd1da792d724ae45",
   "proofStatus": "ready",
   "links": [
     {
@@ -71,13 +71,13 @@
     "The API route returns a Blink-style preview object; it does not submit a production payment transaction.",
     "Only proofBacked=true campaigns are backed by the current devnet proof artifact."
   ],
-  "campaignLinksHash": "7e05adcbf828f245e741956d2e715eb9bfdb78986ca5c95da3a28ea49846be47",
-  "programSourceHash": "72564295617846d1f2b5e435a64224a184a63e1223bac1463c21eada938b56f9",
+  "campaignLinksHash": "2f1fa54245c9a717ebd4dc6d0fad12475de6a9aae3b8490a0618698a11ebb3c8",
+  "programSourceHash": "46902a5346b917738d66901adaf5d2b26c96c7c03206131b230b870a86ed9674",
   "idlHash": "e6571b802b6519eb70287a9d62c6de77a57c9a5993a3ee338d57b4a7a7e4a23e",
-  "proofGeneratorHash": "d72e691a40404d898481e838770a9c26797ced0e7bd45c3ca8b7989c30497308",
-  "verifierHash": "b91d90c0769635c274dd25d97515fd53ca50bf9c901d036e213a3a673d833fff",
-  "rawVerifierHash": "3e301823301c771c52ad94c23ce6d2f01ca4bf3e831551f97ba28d56bedb3000",
-  "publishedVerifierHash": "3e301823301c771c52ad94c23ce6d2f01ca4bf3e831551f97ba28d56bedb3000",
+  "proofGeneratorHash": "b639a16cc4512bb37495ae29f82ca72cdf5994e58cdc58f14cad243d7e1490e6",
+  "verifierHash": "ed44afae220e15f9a4e00dc036c7b0f7dc09735723a3fbe2e1a8f353e8292e26",
+  "rawVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
+  "publishedVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
   "stampMode": "final-candidate",
-  "artifactHash": "270ec5a980f8cb4b75a6eaa35d31a74fa15c1ee7867d84abbeb3dab10a25eadc"
+  "artifactHash": "5d7f7fc70213ea41d84caf4cdbaaabfb11010d702796994616c4deb319aee042"
 }

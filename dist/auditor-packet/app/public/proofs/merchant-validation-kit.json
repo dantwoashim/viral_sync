@@ -1,13 +1,13 @@
 {
   "type": "viral-sync-merchant-validation-kit",
   "version": "1.0.0",
-  "generatedAt": "2026-05-04T09:58:58.280Z",
+  "generatedAt": "2026-05-04T10:13:57.401Z",
   "validationStatus": "not_claimed_until_real_merchant_evidence_is_added",
   "merchantAlias": "Thamel Brew House",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "passportHash": "5f53539d00db71aa1ee7cd6878e8a1d616c6fc8ab2c3648a59ea4023f214f1cd",
-  "orderbookHash": "fd2fa599973ef3c4eb226ffa334fa8d381fb8cba9cf6c029b8031514b75e0b33",
+  "passportHash": "c388eed3dd782e7dbdc1a6694c5ed90c198d8c6d7874972dc3f15b241a57c9df",
+  "orderbookHash": "acdc8e9654bf428535760161911e573f95e0d8c60920281ebd1da792d724ae45",
   "rules": [
     "Do not claim live merchant traction unless evidenceSlots are filled with real permissioned evidence.",
     "Screenshots, quotes, and videos must be from a real merchant or must be labeled demo-only.",
@@ -46,13 +46,13 @@
     }
   ],
   "safeSubmissionWording": "The Frontier submission includes a complete devnet proof and verifier. Real-world merchant validation is not claimed unless this kit is filled with permissioned evidence.",
-  "validationKitHash": "1ab204e3543f376fe1b8c6d745c924853c1c322e4d948cc358ba9774f5faabfb",
-  "programSourceHash": "72564295617846d1f2b5e435a64224a184a63e1223bac1463c21eada938b56f9",
+  "validationKitHash": "1453e14694604bc737db09c4ddf260601516d2b7f8c09719131da79d72d90c77",
+  "programSourceHash": "46902a5346b917738d66901adaf5d2b26c96c7c03206131b230b870a86ed9674",
   "idlHash": "e6571b802b6519eb70287a9d62c6de77a57c9a5993a3ee338d57b4a7a7e4a23e",
-  "proofGeneratorHash": "d72e691a40404d898481e838770a9c26797ced0e7bd45c3ca8b7989c30497308",
-  "verifierHash": "b91d90c0769635c274dd25d97515fd53ca50bf9c901d036e213a3a673d833fff",
-  "rawVerifierHash": "3e301823301c771c52ad94c23ce6d2f01ca4bf3e831551f97ba28d56bedb3000",
-  "publishedVerifierHash": "3e301823301c771c52ad94c23ce6d2f01ca4bf3e831551f97ba28d56bedb3000",
+  "proofGeneratorHash": "b639a16cc4512bb37495ae29f82ca72cdf5994e58cdc58f14cad243d7e1490e6",
+  "verifierHash": "ed44afae220e15f9a4e00dc036c7b0f7dc09735723a3fbe2e1a8f353e8292e26",
+  "rawVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
+  "publishedVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
   "stampMode": "final-candidate",
-  "artifactHash": "5ecf8eba34765d5b1e7dd9fed5eba0cd1cdcf807f78b6efd16ce9b6db37b40b4"
+  "artifactHash": "ef2e35ec753acb34aea2d23d67aefe7d82b37e79e91274f48e63d5ea9b1b73c1"
 }

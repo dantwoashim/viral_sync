@@ -1,7 +1,7 @@
 {
   "type": "viral-sync-invariant-matrix",
   "version": "1.0.0",
-  "generatedAt": "2026-05-04T09:59:00.661Z",
+  "generatedAt": "2026-05-04T10:13:59.783Z",
   "rows": [
     {
       "id": "receipt-requires-merchant",
@@ -384,13 +384,13 @@
       "status": "PASS_ON_FRESH_PROOF"
     }
   ],
-  "invariantMatrixHash": "206259d07fcaffbdbb5baf4d12b31733893076eee5c5e5a693a9e042116f5e37",
-  "programSourceHash": "72564295617846d1f2b5e435a64224a184a63e1223bac1463c21eada938b56f9",
+  "invariantMatrixHash": "7d5c73e5c421eb5f0abc68f486e2b7895f28628523fc001f03355c0ddebad432",
+  "programSourceHash": "46902a5346b917738d66901adaf5d2b26c96c7c03206131b230b870a86ed9674",
   "idlHash": "e6571b802b6519eb70287a9d62c6de77a57c9a5993a3ee338d57b4a7a7e4a23e",
-  "proofGeneratorHash": "d72e691a40404d898481e838770a9c26797ced0e7bd45c3ca8b7989c30497308",
-  "verifierHash": "b91d90c0769635c274dd25d97515fd53ca50bf9c901d036e213a3a673d833fff",
-  "rawVerifierHash": "3e301823301c771c52ad94c23ce6d2f01ca4bf3e831551f97ba28d56bedb3000",
-  "publishedVerifierHash": "3e301823301c771c52ad94c23ce6d2f01ca4bf3e831551f97ba28d56bedb3000",
+  "proofGeneratorHash": "b639a16cc4512bb37495ae29f82ca72cdf5994e58cdc58f14cad243d7e1490e6",
+  "verifierHash": "ed44afae220e15f9a4e00dc036c7b0f7dc09735723a3fbe2e1a8f353e8292e26",
+  "rawVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
+  "publishedVerifierHash": "0a38e900a11c0dd3fd900e2f62839f4f79e2c3b22b8a709cff5fec9786a65cc1",
   "stampMode": "final-candidate",
-  "artifactHash": "17000f8f1916451b24a2d3ddc6db7a3c29aeca5df76f4dd2fc7468f9641c03d6"
+  "artifactHash": "bf8d5364831af19f99419df20a6b63dbf0ff56a033c3bd5537a4200e21019bdd"
 }
