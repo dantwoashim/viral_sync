@@ -10,9 +10,9 @@ function hasSignature(value: ProofSignature | undefined) {
 }
 
 function icon(status: StepStatus) {
-  if (status === 'verified') return <CheckCircle size={18} weight="fill" />;
-  if (status === 'failed') return <WarningCircle size={18} weight="fill" />;
-  return <Circle size={18} />;
+  if (status === 'verified') return <CheckCircle size={20} weight="fill" />;
+  if (status === 'failed') return <WarningCircle size={20} weight="fill" />;
+  return <Circle size={20} weight="duotone" />;
 }
 
 export function ProofTimeline({ proof }: { proof: NormalizedReceiptProof }) {
@@ -32,12 +32,36 @@ export function ProofTimeline({ proof }: { proof: NormalizedReceiptProof }) {
   ];
 
   return (
-    <ol className="proof-timeline">
+    <ol className="relative flex flex-col gap-6 w-full before:absolute before:inset-y-3 before:left-[11px] before:w-0.5 before:bg-gray-100">
       {steps.map((step, index) => (
-        <li key={step.label} data-status={step.status} style={{ '--delay': `${index * 80}ms` } as CSSProperties}>
-          {icon(step.status)}
-          <span>{step.label}</span>
-          <small>{step.phase}</small>
+        <li
+          key={step.label}
+          className={`relative flex items-start gap-4 animate-[fadeInUp_0.5s_ease-out_forwards] ${
+            step.status === 'verified' ? 'text-gray-900' :
+            step.status === 'failed' ? 'text-rose-600' :
+            'text-gray-400'
+          }`}
+          style={{ animationDelay: `${index * 80}ms`, opacity: 0 } as CSSProperties}
+        >
+          <div className={`relative z-10 flex items-center justify-center bg-white mt-0.5 ${
+            step.status === 'verified' ? 'text-emerald-500' :
+            step.status === 'failed' ? 'text-rose-500' :
+            'text-gray-300'
+          }`}>
+            {icon(step.status)}
+          </div>
+          <div className="flex flex-col gap-1 items-start cursor-default">
+            <span className={`text-[15px] font-bold leading-none ${
+               step.status === 'verified' ? 'text-gray-900' :
+               step.status === 'failed' ? 'text-rose-900' :
+               'text-gray-500'
+            }`}>
+              {step.label}
+            </span>
+            <span className="text-xs font-semibold tracking-widest uppercase opacity-60">
+              {step.phase}
+            </span>
+          </div>
         </li>
       ))}
     </ol>

@@ -3,6 +3,8 @@ export const PUBLIC_DEMO_ROUTES = new Set([
   '/merchant/today',
   '/merchant/scan',
   '/proof',
+  '/demo',
+  '/for-merchants',
   '/icon.png',
   '/favicon.ico',
 ]);

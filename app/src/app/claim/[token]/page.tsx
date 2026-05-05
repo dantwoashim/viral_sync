@@ -10,7 +10,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ token: s
   if (!campaign?.proofBacked) notFound();
 
   return (
-    <PremiumShell className="claim-page">
+    <PremiumShell>
       <PremiumNav />
       <ProductClaimFlow campaign={campaign} token={decodedToken || campaign.slug} />
     </PremiumShell>
