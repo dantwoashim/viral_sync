@@ -47,7 +47,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
             <div className="premium-card-title">
               <span>Claim pass preview</span>
               <h2>Send a customer to the counter.</h2>
-              <p>phase 1 product loop: the claim page creates a server-issued pass code; the terminal verifies that same code against the proof-backed campaign.</p>
+              <p>The claim page creates a server-issued pass code; the terminal verifies that same code against the proof-backed campaign.</p>
             </div>
             <div className="premium-proof-stack">
               <PremiumProofRow label="Campaign URL" value={campaign.publicPath} meta="Shareable link" status={proofTone} />

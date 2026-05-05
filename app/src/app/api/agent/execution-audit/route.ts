@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProofState } from '@/lib/proof/getProofState';
-import { getWorldClassReadiness } from '@/lib/readiness/phases6to10';
-import { getYearOneAudit } from '@/lib/readiness/yearOneAudit';
+import { getWorldClassReadiness } from '@/lib/readiness/operatingReadiness';
+import { getExecutionAudit } from '@/lib/readiness/executionAudit';
 import { getMerchantValidationState } from '@/lib/traction/merchantValidation';
 
 export const runtime = 'nodejs';
@@ -35,14 +35,14 @@ export async function GET(request: NextRequest) {
   const proof = getProofState();
   const validation = getMerchantValidationState(proof);
   const readiness = getWorldClassReadiness(proof, validation);
-  const audit = getYearOneAudit(proof, validation, readiness);
+  const audit = getExecutionAudit(proof, validation, readiness);
   const root = appBaseUrl(request);
 
   return agentHeaders(NextResponse.json({
     ok: audit.allCodeExecutableWorkComplete,
     ...audit,
     links: {
-      proofCenter: `${root}/proof#year-one`,
+      proofCenter: `${root}/proof#execution-audit`,
       readiness: `${root}/api/agent/readiness`,
       validation: `${root}/api/agent/validation`,
       receiptContext: `${root}/api/agent/receipt/latest`,

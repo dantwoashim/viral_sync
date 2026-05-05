@@ -7,8 +7,8 @@ import { ProofTimeline } from '@/components/product/ProofTimeline';
 import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 import { explorerAddress, explorerTx, shortHash, signatureValue } from '@/lib/proof/links';
-import { getWorldClassReadiness } from '@/lib/readiness/phases6to10';
-import { getYearOneAudit } from '@/lib/readiness/yearOneAudit';
+import { getWorldClassReadiness } from '@/lib/readiness/operatingReadiness';
+import { getExecutionAudit } from '@/lib/readiness/executionAudit';
 import { getMerchantValidationState } from '@/lib/traction/merchantValidation';
 
 export default function ProofCenterPage() {
@@ -20,15 +20,15 @@ export default function ProofCenterPage() {
   const programMatches = proof.programIdConsistency.programIdConsistency?.matches === true;
   const validation = getMerchantValidationState(proof);
   const readiness = getWorldClassReadiness(proof, validation);
-  const yearOne = getYearOneAudit(proof, validation, readiness);
+  const executionAudit = getExecutionAudit(proof, validation, readiness);
 
   const sections = [
     { id: 'receipt', label: 'Receipt Proof', icon: FileCode },
     { id: 'gauntlet', label: 'Fraud Gauntlet', icon: Bug },
     { id: 'verifier', label: 'On-chain Verifier', icon: Checks },
     { id: 'validation', label: 'Merchant Validation', icon: Trophy },
-    { id: 'readiness', label: 'phases 6-10 Ops', icon: Robot },
-    { id: 'year-one', label: 'Year One Audit', icon: ShieldCheck },
+    { id: 'readiness', label: 'Operating Readiness', icon: Robot },
+    { id: 'execution-audit', label: 'Execution Audit', icon: ShieldCheck },
     { id: 'program', label: 'Program Identity', icon: LockKey },
     { id: 'artifacts', label: 'Artifact Downloads', icon: DownloadSimple },
     { id: 'limitations', label: 'Limitations', icon: ShieldWarning },
@@ -200,13 +200,13 @@ export default function ProofCenterPage() {
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 p-8 lg:p-12 border-b border-gray-100 bg-indigo-900 text-white">
               <div className="flex flex-col gap-6">
                 <span className="inline-flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-indigo-300">
-                  <Robot size={16} /> phases 6-10 Operations
+                  <Robot size={16} /> Operating Readiness
                 </span>
                 <h2 className="text-3xl lg:text-4xl font-bold tracking-tight font-serif text-white">
                   World-class readiness gate: {readiness.overallStatus.replaceAll('_', ' ')}.
                 </h2>
                 <p className="text-indigo-200 font-medium max-w-2xl leading-relaxed">
-                  This turns the next five phases into an inspectable operating contract: economics, security, pilot ops, demo narrative, and final judge claims.
+                  This turns the operating system into an inspectable contract: economics, security, pilot ops, demo narrative, and final judge claims.
                 </p>
                 <div className="flex flex-wrap gap-4 mt-2">
                   <span className="bg-white/10 border border-white/20 px-4 py-2 rounded-xl flex flex-col gap-1"><small className="text-[10px] font-bold tracking-widest text-indigo-300 uppercase">Score</small><b className="text-xl font-bold">{readiness.score}/100</b></span>
@@ -218,41 +218,41 @@ export default function ProofCenterPage() {
             </div>
 
             <div className="grid sm:grid-cols-2 p-6 lg:p-8 gap-4 bg-gray-50/50">
-              {readiness.phases.map((phase) => (
-                <article key={phase.phase} className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-3 transition-shadow hover:shadow-sm" data-status={phase.status}>
+              {readiness.workstreams.map((workstream) => (
+                <article key={workstream.phase} className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col gap-3 transition-shadow hover:shadow-sm" data-status={workstream.status}>
                   <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                    <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">phase {phase.phase}</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${phase.status === 'ready' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{phase.status}</span>
+                    <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">{workstream.phase.replaceAll('_', ' ')}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${workstream.status === 'ready' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{workstream.status}</span>
                   </div>
-                  <strong className="text-gray-900 font-bold">{phase.title}</strong>
-                  <p className="text-sm text-gray-500 leading-relaxed font-medium">{phase.objective}</p>
-                  {phase.blockers.length > 0 ? <em className="text-xs text-rose-600 bg-rose-50 px-3 py-2 rounded-lg not-italic mt-2 flex items-start gap-2"><LockKey size={14} className="shrink-0 mt-0.5" /> {phase.blockers[0]}</em> : null}
+                  <strong className="text-gray-900 font-bold">{workstream.title}</strong>
+                  <p className="text-sm text-gray-500 leading-relaxed font-medium">{workstream.objective}</p>
+                  {workstream.blockers.length > 0 ? <em className="text-xs text-rose-600 bg-rose-50 px-3 py-2 rounded-lg not-italic mt-2 flex items-start gap-2"><LockKey size={14} className="shrink-0 mt-0.5" /> {workstream.blockers[0]}</em> : null}
                 </article>
               ))}
             </div>
           </section>
 
-          {/* 6. Year One Audit */}
-          <section id="year-one" className="flex flex-col bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden scroll-mt-32">
+          {/* 6. Execution Audit */}
+          <section id="execution-audit" className="flex flex-col bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden scroll-mt-32">
             <div className="flex flex-col gap-6 p-8 lg:p-12 border-b border-gray-100">
               <span className="inline-flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-indigo-600">
-                <ShieldCheck size={16} /> phases 1-12 Code Audit
+                <ShieldCheck size={16} /> Execution Audit
               </span>
               <h2 className="text-3xl font-bold tracking-tight text-gray-900 border-l-4 border-indigo-500 pl-4 py-1">
-                {yearOne.allCodeExecutableWorkComplete ? 'All executable work is complete.' : 'Execution still has code blockers.'}
+                {executionAudit.allCodeExecutableWorkComplete ? 'All executable work is complete.' : 'Execution still has code blockers.'}
               </h2>
               <p className="text-gray-500 font-medium max-w-2xl leading-relaxed">
-                This final audit accounts for every phase. Personal founder work stays separate: merchant permission, demo video, dependency-advisory decisions, and live pitch delivery.
+                This final audit accounts for each product and proof phase. Personal founder work stays separate: merchant permission, demo video, dependency-advisory decisions, and live pitch delivery.
               </p>
               <div className="flex gap-4 items-center">
-                <Link href="/api/agent/year-one" className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-gray-100 text-gray-900 text-sm font-bold hover:bg-gray-200 transition-colors">Audit JSON <ArrowRight size={14} /></Link>
+                <Link href="/api/agent/execution-audit" className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-gray-100 text-gray-900 text-sm font-bold hover:bg-gray-200 transition-colors">Audit JSON <ArrowRight size={14} /></Link>
               </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-gray-100 border-b border-gray-100">
-              {yearOne.phases.map((phase) => (
+              {executionAudit.phases.map((phase) => (
                 <article key={phase.phase} className="bg-white p-5 flex flex-col gap-2">
-                  <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">M{phase.phase}</span>
+                  <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">{phase.phase.replaceAll('_', ' ')}</span>
                   <strong className="text-sm font-bold text-gray-900 leading-tight">{phase.title}</strong>
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded w-fit ${phase.status === 'complete' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>{phase.status}</span>
                 </article>
@@ -264,7 +264,7 @@ export default function ProofCenterPage() {
                 <div className="w-2 h-2 rounded-full bg-rose-500" /> Personal actions still required
               </strong>
               <ul className="flex flex-col gap-3">
-                {yearOne.finalPersonalActions.slice(0, 4).map((action) => (
+                {executionAudit.finalPersonalActions.slice(0, 4).map((action) => (
                   <li key={action} className="text-gray-600 font-medium text-sm border-b border-gray-200/50 pb-3 last:border-0 last:pb-0">{action}</li>
                 ))}
               </ul>

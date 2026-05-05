@@ -89,7 +89,7 @@ Viral Sync needs cheap settlement, account-level proof objects, escrow custody, 
 Campaign link -> Claim pass -> Merchant scan -> Co-signed receipt -> Escrow settlement -> Public proof
 ```
 
-The phase 1 product loop now has server-backed pass and terminal endpoints, so the public claim and counter screens call the same proof packet instead of rendering a timer-only walkthrough:
+The product loop now has server-backed pass and terminal endpoints, so the public claim and counter screens call the same proof packet instead of rendering a timer-only walkthrough:
 
 ```text
 POST /api/product-loop/claim-pass

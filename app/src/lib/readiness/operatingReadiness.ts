@@ -2,8 +2,8 @@ import { defaultProductLoopCampaign, productLoopCampaigns } from '../product-loo
 import type { NormalizedReceiptProof } from '../proof/types';
 import { getMerchantValidationState, type MerchantValidationState } from '../traction/merchantValidation';
 
-export type phaseReadiness = {
-  phase: 6 | 7 | 8 | 9 | 10;
+export type ReadinessWorkstream = {
+  phase: 'economics' | 'security' | 'pilot_ops' | 'demo_narrative' | 'submission_gate';
   title: string;
   status: 'ready' | 'blocked' | 'watch';
   objective: string;
@@ -13,11 +13,11 @@ export type phaseReadiness = {
 };
 
 export type WorldClassReadiness = {
-  artifactType: 'viral_sync_phase_6_10_readiness';
+  artifactType: 'viral_sync_operating_readiness';
   generatedFor: 'frontier_submission';
   overallStatus: 'ready_for_judging' | 'proof_ready_business_blocked' | 'blocked';
   score: number;
-  phases: phaseReadiness[];
+  workstreams: ReadinessWorkstream[];
   economics: {
     campaign: string;
     rewardPerVisit: string;
@@ -53,14 +53,14 @@ export type WorldClassReadiness = {
   };
 };
 
-function status(blockers: string[], watch = false): phaseReadiness['status'] {
+function status(blockers: string[], watch = false): ReadinessWorkstream['status'] {
   if (blockers.length > 0) return 'blocked';
   return watch ? 'watch' : 'ready';
 }
 
-function scorephase(phase: phaseReadiness) {
-  if (phase.status === 'ready') return 20;
-  if (phase.status === 'watch') return 12;
+function scoreWorkstream(workstream: ReadinessWorkstream) {
+  if (workstream.status === 'ready') return 20;
+  if (workstream.status === 'watch') return 12;
   return 6;
 }
 
@@ -78,62 +78,62 @@ export function getWorldClassReadiness(proof: NormalizedReceiptProof, validation
     .map((slot) => slot.id);
   const missingRequiredEvidence = validation.evidenceSummary.missingRequiredSlots;
 
-  const phase6Blockers = proofVerified ? [] : ['Final receipt proof must be verified before economics can be represented as proof-backed.'];
-  const phase7Blockers = proofVerified && fraudGauntletStrict ? [] : ['Fraud gauntlet and verifier must remain strict-green before any mainnet story.'];
-  const phase8Blockers = missingRequiredEvidence.length > 0 ? missingRequiredEvidence.map((slot) => `Missing permissioned pilot evidence: ${slot}`) : [];
-  const phase9Blockers = proofVerified ? [] : ['Demo narrative cannot lead with verified settlement until proof health is verified.'];
-  const phase10Blockers = validation.tractionClaimAllowed ? [] : ['Do not claim live merchant traction; keep the final pitch at technical-proof plus pilot-ready.'];
+  const economicsBlockers = proofVerified ? [] : ['Final receipt proof must be verified before economics can be represented as proof-backed.'];
+  const securityBlockers = proofVerified && fraudGauntletStrict ? [] : ['Fraud gauntlet and verifier must remain strict-green before any mainnet story.'];
+  const pilotOpsBlockers = missingRequiredEvidence.length > 0 ? missingRequiredEvidence.map((slot) => `Missing permissioned pilot evidence: ${slot}`) : [];
+  const demoNarrativeBlockers = proofVerified ? [] : ['Demo narrative cannot lead with verified settlement until proof health is verified.'];
+  const submissionGateBlockers = validation.tractionClaimAllowed ? [] : ['Do not claim live merchant traction; keep the final pitch at technical-proof plus pilot-ready.'];
 
-  const phases: phaseReadiness[] = [
+  const workstreams: ReadinessWorkstream[] = [
     {
-      phase: 6,
+      phase: 'economics',
       title: 'Outcome Economics',
-      status: status(phase6Blockers),
+      status: status(economicsBlockers),
       objective: 'Show the business model with reward split, protocol fee, bounded liability, and a non-inflated ROI story.',
       deliverables: ['Reward-per-visit economics', 'Protocol fee visibility', 'Liability cap from max redemptions', 'Traction caveat tied to validation evidence'],
       evidence: [campaign?.rewardLabel ?? 'Pending reward', campaign?.protocolFeeLabel ?? 'Pending protocol fee', `${campaign?.maxRedemptions ?? 'unknown'} max redemptions`],
-      blockers: phase6Blockers,
+      blockers: economicsBlockers,
     },
     {
-      phase: 7,
+      phase: 'security',
       title: 'Security And Mainnet Gate',
-      status: status(phase7Blockers),
+      status: status(securityBlockers),
       objective: 'Make mainnet readiness conditional on proof health, fraud gauntlet strictness, capped beta controls, and external review.',
       deliverables: ['Mainnet eligibility gate', 'Fraud-gauntlet dependency', 'Required-before-mainnet checklist', 'No fake production claim'],
       evidence: [proof.statusLabel, `${gauntletSummary?.blocked ?? 0}/${gauntletSummary?.totalCases ?? 0} fraud checks`, proof.readiness.hashesVerified ? 'hashes verified' : 'hash review'],
-      blockers: phase7Blockers,
+      blockers: securityBlockers,
     },
     {
-      phase: 8,
+      phase: 'pilot_ops',
       title: 'Pilot Operations',
-      status: status(phase8Blockers),
+      status: status(pilotOpsBlockers),
       objective: 'Convert the empty merchant-validation kit into a disciplined pilot checklist instead of pretending traction exists.',
       deliverables: ['Required evidence slots', 'Interview script', 'Permissioned merchant proof rules', 'Next pilot actions'],
       evidence: [`${validation.evidenceSummary.requiredVerifiedSlots}/${validation.evidenceSummary.requiredSlots} required evidence verified`, validation.safeSubmissionWording],
-      blockers: phase8Blockers,
+      blockers: pilotOpsBlockers,
     },
     {
-      phase: 9,
+      phase: 'demo_narrative',
       title: 'Judge Demo Narrative',
-      status: status(phase9Blockers),
+      status: status(demoNarrativeBlockers),
       objective: 'Compress the demo into one sentence, one receipt, one proof center, and one honest limitation.',
       deliverables: ['One-line pitch', '90-second demo flow', 'Forbidden-claims guardrail', 'Receipt-first demo order'],
       evidence: ['Money only moves after co-signed conversion settlement.', '/receipt/latest', '/proof#validation'],
-      blockers: phase9Blockers,
+      blockers: demoNarrativeBlockers,
     },
     {
-      phase: 10,
+      phase: 'submission_gate',
       title: 'Final A+ Gate',
-      status: status(phase10Blockers, proofVerified && !validation.tractionClaimAllowed),
+      status: status(submissionGateBlockers, proofVerified && !validation.tractionClaimAllowed),
       objective: 'Decide exactly what the submission can claim: protocol proof now, live traction only after evidence.',
       deliverables: ['Final claim boundary', 'Judge risk notes', 'Submission go/no-go', 'Agent-readable readiness API'],
       evidence: [validation.tractionClaimAllowed ? 'traction claim allowed' : 'traction not claimed', proofVerified ? 'protocol proof claim allowed' : 'protocol proof blocked'],
-      blockers: phase10Blockers,
+      blockers: submissionGateBlockers,
     },
   ];
 
-  const score = phases.reduce((total, item) => total + scorephase(item), 0);
-  const submitToJudges = proofVerified && phases[0].status !== 'blocked' && phases[1].status !== 'blocked' && phases[3].status !== 'blocked';
+  const score = workstreams.reduce((total, item) => total + scoreWorkstream(item), 0);
+  const submitToJudges = proofVerified && workstreams[0].status !== 'blocked' && workstreams[1].status !== 'blocked' && workstreams[3].status !== 'blocked';
   const claimLiveTraction = validation.tractionClaimAllowed;
   const overallStatus = !proofVerified
     ? 'blocked'
@@ -142,11 +142,11 @@ export function getWorldClassReadiness(proof: NormalizedReceiptProof, validation
       : 'proof_ready_business_blocked';
 
   return {
-    artifactType: 'viral_sync_phase_6_10_readiness',
+    artifactType: 'viral_sync_operating_readiness',
     generatedFor: 'frontier_submission',
     overallStatus,
     score,
-    phases,
+    workstreams,
     economics: {
       campaign: campaign?.title ?? 'Proof-backed campaign',
       rewardPerVisit: campaign?.rewardLabel ?? proof.rewardAmountLabel,
@@ -197,8 +197,8 @@ export function getWorldClassReadiness(proof: NormalizedReceiptProof, validation
       claimLiveTraction,
       claimProtocolProof: proofVerified,
       judgeRiskNotes: [
-        ...phase8Blockers,
-        ...phase10Blockers,
+        ...pilotOpsBlockers,
+        ...submissionGateBlockers,
         campaigns.some((item) => !item.proofBacked) ? 'Some orderbook lanes are vision-only and must stay labeled that way.' : '',
       ].filter(Boolean),
     },

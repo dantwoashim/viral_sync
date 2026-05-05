@@ -1,10 +1,10 @@
 import { defaultProductLoopCampaign } from '../product-loop/productLoop';
 import type { NormalizedReceiptProof } from '../proof/types';
-import { getWorldClassReadiness, type WorldClassReadiness } from './phases6to10';
+import { getWorldClassReadiness, type WorldClassReadiness } from './operatingReadiness';
 import { getMerchantValidationState, type MerchantValidationState } from '../traction/merchantValidation';
 
-export type YearOneExecutionItem = {
-  phase: number;
+export type ExecutionAuditItem = {
+  phase: string;
   title: string;
   status: 'complete' | 'complete_with_personal_blocker' | 'blocked';
   qualityBar: 'world_class' | 'submission_safe' | 'personal_action_required';
@@ -12,83 +12,83 @@ export type YearOneExecutionItem = {
   remainingPersonalActions: string[];
 };
 
-export type YearOneAudit = {
-  artifactType: 'viral_sync_phase_1_12_execution_audit';
+export type ExecutionAudit = {
+  artifactType: 'viral_sync_execution_audit';
   generatedFor: 'frontier_submission';
   allCodeExecutableWorkComplete: boolean;
-  allphasesAccountedFor: boolean;
+  allPhasesAccountedFor: boolean;
   highestPossibleStandard: 'met_for_codebase_and_submission_artifacts';
   personalWorkStillRequired: boolean;
   summary: {
-    completephases: number;
+    completePhases: number;
     phasesWithPersonalBlockers: number;
-    blockedphases: number;
+    blockedPhases: number;
     protocolProofClaimAllowed: boolean;
     liveTractionClaimAllowed: boolean;
     mainnetClaimAllowed: boolean;
   };
-  phases: YearOneExecutionItem[];
+  phases: ExecutionAuditItem[];
   finalPersonalActions: string[];
   forbiddenClaims: string[];
   submissionClaim: string;
 };
 
-function phaseItem(input: YearOneExecutionItem): YearOneExecutionItem {
+function auditItem(input: ExecutionAuditItem): ExecutionAuditItem {
   return input;
 }
 
-export function getYearOneAudit(
+export function getExecutionAudit(
   proof: NormalizedReceiptProof,
   validation: MerchantValidationState = getMerchantValidationState(proof),
   readiness: WorldClassReadiness = getWorldClassReadiness(proof, validation),
-): YearOneAudit {
+): ExecutionAudit {
   const campaign = defaultProductLoopCampaign();
   const proofVerified = proof.health === 'verified';
   const requiredEvidenceMissing = validation.evidenceSummary.missingRequiredSlots;
   const personalPilotActions = requiredEvidenceMissing.map((slot) => `Fill and verify permissioned merchant evidence slot: ${slot}`);
 
-  const phases: YearOneExecutionItem[] = [
-    phaseItem({
-      phase: 1,
+  const phases: ExecutionAuditItem[] = [
+    auditItem({
+      phase: 'product_loop',
       title: 'Receipt-first product loop',
       status: 'complete',
       qualityBar: 'world_class',
       completedEvidence: ['Claim pass API', 'Terminal confirmation API', 'Receipt-first navigation', 'Product-loop regression tests'],
       remainingPersonalActions: [],
     }),
-    phaseItem({
-      phase: 2,
+    auditItem({
+      phase: 'protocol_hardening',
       title: 'Protocol hardening',
       status: 'complete',
       qualityBar: 'world_class',
       completedEvidence: ['Terminal status controls', 'Protocol fee path', 'Strict final proof assertion', 'Anchor build gate'],
       remainingPersonalActions: [],
     }),
-    phaseItem({
-      phase: 3,
+    auditItem({
+      phase: 'lineage_hardening',
       title: 'On-chain lineage hardening',
       status: 'complete',
       qualityBar: 'world_class',
       completedEvidence: ['Parent receipt verification', 'Child lineage proof', '19/19 fraud gauntlet', 'Verifier lineage checks'],
       remainingPersonalActions: [],
     }),
-    phaseItem({
-      phase: 4,
+    auditItem({
+      phase: 'agent_x402_surface',
       title: 'Agent and x402 surface',
       status: 'complete',
       qualityBar: 'world_class',
       completedEvidence: ['Agent receipt context API', 'MCP metadata', 'Blink discovery', 'x402 relayer metadata'],
       remainingPersonalActions: [],
     }),
-    phaseItem({
-      phase: 5,
+    auditItem({
+      phase: 'merchant_validation',
       title: 'Merchant validation discipline',
       status: validation.tractionClaimAllowed ? 'complete' : 'complete_with_personal_blocker',
       qualityBar: validation.tractionClaimAllowed ? 'world_class' : 'personal_action_required',
       completedEvidence: ['Validation normalization', 'Agent validation API', 'Proof-center validation section', 'No-fake-traction tests'],
       remainingPersonalActions: personalPilotActions,
     }),
-    ...readiness.phases.map((item) => phaseItem({
+    ...readiness.workstreams.map((item) => auditItem({
       phase: item.phase,
       title: item.title,
       status: item.status === 'blocked' ? 'complete_with_personal_blocker' : 'complete',
@@ -96,8 +96,8 @@ export function getYearOneAudit(
       completedEvidence: item.evidence,
       remainingPersonalActions: item.blockers,
     })),
-    phaseItem({
-      phase: 11,
+    auditItem({
+      phase: 'submission_dependency_gate',
       title: 'Submission and dependency risk gate',
       status: 'complete_with_personal_blocker',
       qualityBar: 'submission_safe',
@@ -112,8 +112,8 @@ export function getYearOneAudit(
         'Record final demo video and upload it to the hackathon submission.',
       ],
     }),
-    phaseItem({
-      phase: 12,
+    auditItem({
+      phase: 'founder_launch_posture',
       title: 'Final founder proof and launch posture',
       status: 'complete_with_personal_blocker',
       qualityBar: 'personal_action_required',
@@ -132,25 +132,25 @@ export function getYearOneAudit(
     }),
   ];
 
-  const completephases = phases.filter((item) => item.status === 'complete').length;
+  const completePhases = phases.filter((item) => item.status === 'complete').length;
   const phasesWithPersonalBlockers = phases.filter((item) => item.status === 'complete_with_personal_blocker').length;
-  const blockedphases = phases.filter((item) => item.status === 'blocked').length;
+  const blockedPhases = phases.filter((item) => item.status === 'blocked').length;
   const finalPersonalActions = Array.from(new Set(phases.flatMap((item) => item.remainingPersonalActions)));
   const protocolProofClaimAllowed = proofVerified && readiness.finalGate.claimProtocolProof;
   const liveTractionClaimAllowed = validation.tractionClaimAllowed;
   const mainnetClaimAllowed = readiness.security.mainnetEligible;
 
   return {
-    artifactType: 'viral_sync_phase_1_12_execution_audit',
+    artifactType: 'viral_sync_execution_audit',
     generatedFor: 'frontier_submission',
-    allCodeExecutableWorkComplete: proofVerified && blockedphases === 0,
-    allphasesAccountedFor: phases.length === 12 && phases.every((item, index) => item.phase === index + 1),
+    allCodeExecutableWorkComplete: proofVerified && blockedPhases === 0,
+    allPhasesAccountedFor: phases.length === 12 && new Set(phases.map((item) => item.phase)).size === phases.length,
     highestPossibleStandard: 'met_for_codebase_and_submission_artifacts',
     personalWorkStillRequired: finalPersonalActions.length > 0,
     summary: {
-      completephases,
+      completePhases,
       phasesWithPersonalBlockers,
-      blockedphases,
+      blockedPhases,
       protocolProofClaimAllowed,
       liveTractionClaimAllowed,
       mainnetClaimAllowed,

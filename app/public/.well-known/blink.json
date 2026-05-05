@@ -26,8 +26,8 @@
       "apiPath": "/api/agent/readiness"
     },
     {
-      "pathPattern": "/api/agent/year-one",
-      "apiPath": "/api/agent/year-one"
+      "pathPattern": "/api/agent/execution-audit",
+      "apiPath": "/api/agent/execution-audit"
     }
   ],
   "x402": {

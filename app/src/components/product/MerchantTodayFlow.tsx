@@ -122,13 +122,13 @@ export function MerchantTodayFlow({
               </div>
               <div className="grid md:grid-cols-2 gap-4 mt-8 text-left">
                 <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400">phases 6-10 gate</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Operating readiness gate</span>
                   <p className="mt-2 text-sm font-medium text-gray-700">
                     Merchant readiness stays tied to proof health, security limits, economics, and pilot evidence.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400">phases 1-12 audit</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Execution audit</span>
                   <p className="mt-2 text-sm font-medium text-gray-700">
                     Code-executable work is separated from founder-only actions like final video and merchant permissions.
                   </p>

@@ -39,13 +39,13 @@
       "name": "world_class_readiness",
       "endpoint": "GET /api/agent/readiness",
       "payment": "none",
-      "description": "Returns the phase 6-10 readiness gate across economics, security, pilot ops, demo narrative, and final judge claims."
+      "description": "Returns the operating readiness gate across economics, security, pilot ops, demo narrative, and final judge claims."
     },
     {
-      "name": "year_one_execution_audit",
-      "endpoint": "GET /api/agent/year-one",
+      "name": "execution_audit",
+      "endpoint": "GET /api/agent/execution-audit",
       "payment": "none",
-      "description": "Returns the phase 1-12 completion audit, including code-complete status and founder-only personal action gates."
+      "description": "Returns the execution audit, including code-complete status and founder-only personal action gates."
     },
     {
       "name": "x402_create_campaign",

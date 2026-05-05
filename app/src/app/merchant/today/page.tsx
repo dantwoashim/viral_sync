@@ -7,8 +7,8 @@ export default async function MerchantTodayPage() {
   const campaign = defaultProductLoopCampaign();
   const settled = campaign?.settledCount ?? 0;
   const fakeVisits = settled > 0 ? settled : 24;
-  const readinessGateLabel = "phases 6-10 gate";
-  const executionAuditLabel = "phases 1-12 audit";
+  const readinessGateLabel = "Operating readiness gate";
+  const executionAuditLabel = "Execution audit";
 
   return (
     <>

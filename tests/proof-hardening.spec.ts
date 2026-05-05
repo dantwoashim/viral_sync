@@ -5,8 +5,8 @@ import { expectedErrorMatched, expectedPatternsFor } from '../scripts/fraud-erro
 import { isPublicDemoRoute } from '../app/src/lib/demo-mode';
 import { gauntletLabel, getProofState } from '../app/src/lib/proof/getProofState';
 import { confirmVisitPass, createVisitPassPacket } from '../app/src/lib/product-loop/productLoop';
-import { getWorldClassReadiness } from '../app/src/lib/readiness/phases6to10';
-import { getYearOneAudit } from '../app/src/lib/readiness/yearOneAudit';
+import { getWorldClassReadiness } from '../app/src/lib/readiness/operatingReadiness';
+import { getExecutionAudit } from '../app/src/lib/readiness/executionAudit';
 import { getMerchantValidationState, normalizeMerchantValidation } from '../app/src/lib/traction/merchantValidation';
 
 describe('proof hardening regressions', () => {
@@ -102,7 +102,7 @@ describe('proof hardening regressions', () => {
     expect(actionRoute).to.include('terminalSigned: terminalUrl');
   });
 
-  it('keeps phase 2 and phase 3 protocol hardening wired into the on-chain surface', () => {
+  it('keeps protocol and lineage hardening wired into the on-chain surface', () => {
     const program = fs.readFileSync('programs/viral_sync/src/instructions/causal_commerce.rs', 'utf8');
     const lib = fs.readFileSync('programs/viral_sync/src/lib.rs', 'utf8');
     const errors = fs.readFileSync('programs/viral_sync/src/errors.rs', 'utf8');
@@ -123,7 +123,7 @@ describe('proof hardening regressions', () => {
     expect(errors).to.include('InvalidLineageProof');
   });
 
-  it('publishes phase 4 agent and x402 discovery surfaces without overstating payment-free access', () => {
+  it('publishes agent and x402 discovery surfaces without overstating payment-free access', () => {
     const mcp = JSON.parse(fs.readFileSync('app/public/.well-known/mcp.json', 'utf8')) as {
       tools: Array<{ name: string; endpoint?: string; payment?: string | Record<string, unknown> }>;
       proofContract?: { currentFraudGauntlet?: string };
@@ -158,7 +158,7 @@ describe('proof hardening regressions', () => {
     expect(relayer).to.include('relay_sponsored_transaction');
   });
 
-  it('keeps phase 5 merchant validation honest until required evidence is verified', () => {
+  it('keeps merchant validation honest until required evidence is verified', () => {
     const validation = getMerchantValidationState();
     const proofPage = fs.readFileSync('app/src/app/proof/page.tsx', 'utf8');
     const validationRoute = fs.readFileSync('app/src/app/api/agent/validation/route.ts', 'utf8');
@@ -194,7 +194,7 @@ describe('proof hardening regressions', () => {
     expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/validation')).to.equal(true);
   });
 
-  it('ships phases 6-10 as an inspectable readiness gate instead of vague roadmap prose', () => {
+  it('ships an inspectable operating readiness gate instead of vague roadmap prose', () => {
     const proof = getProofState();
     const validation = getMerchantValidationState(proof);
     const readiness = getWorldClassReadiness(proof, validation);
@@ -208,8 +208,8 @@ describe('proof hardening regressions', () => {
       rules?: Array<{ pathPattern?: string }>;
     };
 
-    expect(readiness.artifactType).to.equal('viral_sync_phase_6_10_readiness');
-    expect(readiness.phases.map((item) => item.phase)).to.deep.equal([6, 7, 8, 9, 10]);
+    expect(readiness.artifactType).to.equal('viral_sync_operating_readiness');
+    expect(readiness.workstreams.map((item) => item.phase)).to.deep.equal(['economics', 'security', 'pilot_ops', 'demo_narrative', 'submission_gate']);
     expect(readiness.economics.grossMarginModel).to.match(/Protocol revenue/);
     expect(readiness.security.mainnetEligible).to.equal(false);
     expect(readiness.security.requiredBeforeMainnet).to.include('External security review or audit memo');
@@ -222,20 +222,20 @@ describe('proof hardening regressions', () => {
 
     expect(proofPage).to.include('id="readiness"');
     expect(proofPage).to.include('/api/agent/readiness');
-    expect(merchantToday).to.include('phases 6-10 gate');
+    expect(merchantToday).to.include('Operating readiness gate');
     expect(readinessRoute).to.include('getWorldClassReadiness');
     expect(mcp.tools.some((tool) => tool.name === 'world_class_readiness' && tool.endpoint === 'GET /api/agent/readiness')).to.equal(true);
     expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/readiness')).to.equal(true);
   });
 
-  it('accounts for phases 1-12 and separates code completion from founder-only personal work', () => {
+  it('accounts for execution phases and separates code completion from founder-only personal work', () => {
     const proof = getProofState();
     const validation = getMerchantValidationState(proof);
     const readiness = getWorldClassReadiness(proof, validation);
-    const audit = getYearOneAudit(proof, validation, readiness);
+    const audit = getExecutionAudit(proof, validation, readiness);
     const proofPage = fs.readFileSync('app/src/app/proof/page.tsx', 'utf8');
     const merchantToday = fs.readFileSync('app/src/app/merchant/today/page.tsx', 'utf8');
-    const yearOneRoute = fs.readFileSync('app/src/app/api/agent/year-one/route.ts', 'utf8');
+    const executionAuditRoute = fs.readFileSync('app/src/app/api/agent/execution-audit/route.ts', 'utf8');
     const mcp = JSON.parse(fs.readFileSync('app/public/.well-known/mcp.json', 'utf8')) as {
       tools: Array<{ name: string; endpoint?: string; payment?: string | Record<string, unknown> }>;
     };
@@ -243,9 +243,22 @@ describe('proof hardening regressions', () => {
       rules?: Array<{ pathPattern?: string }>;
     };
 
-    expect(audit.artifactType).to.equal('viral_sync_phase_1_12_execution_audit');
-    expect(audit.allphasesAccountedFor).to.equal(true);
-    expect(audit.phases.map((item) => item.phase)).to.deep.equal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(audit.artifactType).to.equal('viral_sync_execution_audit');
+    expect(audit.allPhasesAccountedFor).to.equal(true);
+    expect(audit.phases.map((item) => item.phase)).to.deep.equal([
+      'product_loop',
+      'protocol_hardening',
+      'lineage_hardening',
+      'agent_x402_surface',
+      'merchant_validation',
+      'economics',
+      'security',
+      'pilot_ops',
+      'demo_narrative',
+      'submission_gate',
+      'submission_dependency_gate',
+      'founder_launch_posture',
+    ]);
     expect(audit.allCodeExecutableWorkComplete).to.equal(true);
     expect(audit.personalWorkStillRequired).to.equal(true);
     expect(audit.summary.protocolProofClaimAllowed).to.equal(true);
@@ -256,11 +269,11 @@ describe('proof hardening regressions', () => {
     expect(audit.phases[10].title).to.equal('Submission and dependency risk gate');
     expect(audit.phases[11].title).to.equal('Final founder proof and launch posture');
 
-    expect(proofPage).to.include('id="year-one"');
-    expect(proofPage).to.include('/api/agent/year-one');
-    expect(merchantToday).to.include('phases 1-12 audit');
-    expect(yearOneRoute).to.include('getYearOneAudit');
-    expect(mcp.tools.some((tool) => tool.name === 'year_one_execution_audit' && tool.endpoint === 'GET /api/agent/year-one')).to.equal(true);
-    expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/year-one')).to.equal(true);
+    expect(proofPage).to.include('id="execution-audit"');
+    expect(proofPage).to.include('/api/agent/execution-audit');
+    expect(merchantToday).to.include('Execution audit');
+    expect(executionAuditRoute).to.include('getExecutionAudit');
+    expect(mcp.tools.some((tool) => tool.name === 'execution_audit' && tool.endpoint === 'GET /api/agent/execution-audit')).to.equal(true);
+    expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/execution-audit')).to.equal(true);
   });
 });

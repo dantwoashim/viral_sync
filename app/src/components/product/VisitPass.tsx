@@ -66,7 +66,7 @@ export function VisitPass({
     verified: ['Visit verified.', 'Your reward was settled on Solana and the receipt is ready to inspect.'],
   }[stage];
 
-  const expiry = expiresAt ? new Date(expiresAt).toLocaleString('en', { phase: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Proof window locked';
+  const expiry = expiresAt ? new Date(expiresAt).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' }) : 'Proof window locked';
 
   const isShow = stage === 'show' || stage === 'verified';
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProofState } from '@/lib/proof/getProofState';
-import { getWorldClassReadiness } from '@/lib/readiness/phases6to10';
+import { getWorldClassReadiness } from '@/lib/readiness/operatingReadiness';
 import { getMerchantValidationState } from '@/lib/traction/merchantValidation';
 
 export const runtime = 'nodejs';
