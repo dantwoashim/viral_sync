@@ -42,6 +42,12 @@
       "description": "Returns the phase 6-10 readiness gate across economics, security, pilot ops, demo narrative, and final judge claims."
     },
     {
+      "name": "year_one_execution_audit",
+      "endpoint": "GET /api/agent/year-one",
+      "payment": "none",
+      "description": "Returns the phase 1-12 completion audit, including code-complete status and founder-only personal action gates."
+    },
+    {
       "name": "x402_create_campaign",
       "service": "viral-sync-relayer",
       "endpoint": "POST /campaigns/create",

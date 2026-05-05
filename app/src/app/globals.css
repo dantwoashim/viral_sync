@@ -1043,6 +1043,52 @@
   color: #fbbf24;
 }
 
+.year-one-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.year-one-grid article,
+.year-one-actions {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--proof-line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.year-one-grid article[data-status="complete"] {
+  border-color: rgba(22, 163, 74, 0.42);
+}
+
+.year-one-grid article[data-status="complete_with_personal_blocker"] {
+  border-color: rgba(217, 119, 6, 0.42);
+}
+
+.year-one-grid span,
+.year-one-grid small {
+  color: rgba(247, 244, 237, 0.62);
+  font-size: 0.76rem;
+}
+
+.year-one-grid strong,
+.year-one-actions strong {
+  color: #fffaf1;
+}
+
+.year-one-actions {
+  margin-top: 16px;
+}
+
+.year-one-actions p {
+  margin: 0;
+  color: rgba(247, 244, 237, 0.68);
+  font-size: 0.9rem;
+}
+
 .readiness-operator-panel {
   margin-top: 0;
 }
@@ -1272,6 +1318,7 @@
   .validation-slot-list,
   .readiness-score,
   .readiness-phases,
+  .year-one-grid,
   .verification-grid,
   .artifact-grid,
   .technical-grid,

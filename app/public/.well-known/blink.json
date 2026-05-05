@@ -24,6 +24,10 @@
     {
       "pathPattern": "/api/agent/readiness",
       "apiPath": "/api/agent/readiness"
+    },
+    {
+      "pathPattern": "/api/agent/year-one",
+      "apiPath": "/api/agent/year-one"
     }
   ],
   "x402": {

@@ -6,6 +6,7 @@ import { isPublicDemoRoute } from '../app/src/lib/demo-mode';
 import { gauntletLabel, getProofState } from '../app/src/lib/proof/getProofState';
 import { confirmVisitPass, createVisitPassPacket } from '../app/src/lib/product-loop/productLoop';
 import { getWorldClassReadiness } from '../app/src/lib/readiness/phases6to10';
+import { getYearOneAudit } from '../app/src/lib/readiness/yearOneAudit';
 import { getMerchantValidationState, normalizeMerchantValidation } from '../app/src/lib/traction/merchantValidation';
 
 describe('proof hardening regressions', () => {
@@ -211,5 +212,41 @@ describe('proof hardening regressions', () => {
     expect(readinessRoute).to.include('getWorldClassReadiness');
     expect(mcp.tools.some((tool) => tool.name === 'world_class_readiness' && tool.endpoint === 'GET /api/agent/readiness')).to.equal(true);
     expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/readiness')).to.equal(true);
+  });
+
+  it('accounts for phases 1-12 and separates code completion from founder-only personal work', () => {
+    const proof = getProofState();
+    const validation = getMerchantValidationState(proof);
+    const readiness = getWorldClassReadiness(proof, validation);
+    const audit = getYearOneAudit(proof, validation, readiness);
+    const proofPage = fs.readFileSync('app/src/app/proof/page.tsx', 'utf8');
+    const merchantToday = fs.readFileSync('app/src/app/merchant/today/page.tsx', 'utf8');
+    const yearOneRoute = fs.readFileSync('app/src/app/api/agent/year-one/route.ts', 'utf8');
+    const mcp = JSON.parse(fs.readFileSync('app/public/.well-known/mcp.json', 'utf8')) as {
+      tools: Array<{ name: string; endpoint?: string; payment?: string | Record<string, unknown> }>;
+    };
+    const blink = JSON.parse(fs.readFileSync('app/public/.well-known/blink.json', 'utf8')) as {
+      rules?: Array<{ pathPattern?: string }>;
+    };
+
+    expect(audit.artifactType).to.equal('viral_sync_phase_1_12_execution_audit');
+    expect(audit.allphasesAccountedFor).to.equal(true);
+    expect(audit.phases.map((item) => item.phase)).to.deep.equal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(audit.allCodeExecutableWorkComplete).to.equal(true);
+    expect(audit.personalWorkStillRequired).to.equal(true);
+    expect(audit.summary.protocolProofClaimAllowed).to.equal(true);
+    expect(audit.summary.liveTractionClaimAllowed).to.equal(false);
+    expect(audit.summary.mainnetClaimAllowed).to.equal(false);
+    expect(audit.finalPersonalActions).to.include('Record final demo video and upload it to the hackathon submission.');
+    expect(audit.forbiddenClaims.join(' ')).to.match(/Do not claim live merchant traction/);
+    expect(audit.phases[10].title).to.equal('Submission and dependency risk gate');
+    expect(audit.phases[11].title).to.equal('Final founder proof and launch posture');
+
+    expect(proofPage).to.include('id="year-one"');
+    expect(proofPage).to.include('/api/agent/year-one');
+    expect(merchantToday).to.include('phases 1-12 audit');
+    expect(yearOneRoute).to.include('getYearOneAudit');
+    expect(mcp.tools.some((tool) => tool.name === 'year_one_execution_audit' && tool.endpoint === 'GET /api/agent/year-one')).to.equal(true);
+    expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/year-one')).to.equal(true);
   });
 });

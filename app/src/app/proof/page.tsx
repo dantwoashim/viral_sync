@@ -8,6 +8,7 @@ import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 import { explorerAddress, explorerTx, shortHash, signatureValue } from '@/lib/proof/links';
 import { getWorldClassReadiness } from '@/lib/readiness/phases6to10';
+import { getYearOneAudit } from '@/lib/readiness/yearOneAudit';
 import { getMerchantValidationState } from '@/lib/traction/merchantValidation';
 
 export default function ProofCenterPage() {
@@ -19,6 +20,7 @@ export default function ProofCenterPage() {
   const programMatches = proof.programIdConsistency.programIdConsistency?.matches === true;
   const validation = getMerchantValidationState(proof);
   const readiness = getWorldClassReadiness(proof, validation);
+  const yearOne = getYearOneAudit(proof, validation, readiness);
 
   return (
     <PremiumShell className="proof-center-page">
@@ -26,8 +28,8 @@ export default function ProofCenterPage() {
       <section className="proof-center">
         <aside className="proof-sidebar" aria-label="Proof sections">
           <span className="proof-logo">VS</span>
-          {['Receipt', 'Gauntlet', 'Verifier', 'Validation', 'Readiness', 'Program', 'Artifacts', 'Limitations'].map((item) => (
-            <a key={item} href={`#${item.toLowerCase()}`}>{item}</a>
+          {['Receipt', 'Gauntlet', 'Verifier', 'Validation', 'Readiness', 'Year One', 'Program', 'Artifacts', 'Limitations'].map((item) => (
+            <a key={item} href={`#${item.toLowerCase().replaceAll(' ', '-')}`}>{item}</a>
           ))}
         </aside>
         <main className="proof-workspace">
@@ -132,6 +134,33 @@ export default function ProofCenterPage() {
                   {phase.blockers.length > 0 ? <em>{phase.blockers[0]}</em> : null}
                 </article>
               ))}
+            </div>
+          </section>
+
+          <section id="year-one" className="proof-panel">
+            <div className="proof-panel-header">
+              <div>
+                <span className="section-kicker">phases 1-12 audit</span>
+                <h2>{yearOne.allCodeExecutableWorkComplete ? 'All executable work is complete.' : 'Execution still has code blockers.'}</h2>
+                <p>
+                  This final audit accounts for every phase. Personal founder work stays separate:
+                  merchant permission, demo video, dependency-advisory decisions, and live pitch delivery.
+                </p>
+              </div>
+              <Link href="/api/agent/year-one" className="proof-download">Open audit API</Link>
+            </div>
+            <div className="year-one-grid">
+              {yearOne.phases.map((phase) => (
+                <article key={phase.phase} data-status={phase.status}>
+                  <span>phase {phase.phase}</span>
+                  <strong>{phase.title}</strong>
+                  <small>{phase.qualityBar.replaceAll('_', ' ')}</small>
+                </article>
+              ))}
+            </div>
+            <div className="year-one-actions">
+              <strong>Personal actions still required</strong>
+              {yearOne.finalPersonalActions.slice(0, 4).map((action) => <p key={action}>{action}</p>)}
             </div>
           </section>
 

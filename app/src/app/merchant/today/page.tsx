@@ -4,6 +4,7 @@ import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import { defaultProductLoopCampaign } from '@/lib/product-loop/productLoop';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 import { getWorldClassReadiness } from '@/lib/readiness/phases6to10';
+import { getYearOneAudit } from '@/lib/readiness/yearOneAudit';
 import { getMerchantValidationState } from '@/lib/traction/merchantValidation';
 
 export default async function MerchantTodayPage() {
@@ -12,7 +13,9 @@ export default async function MerchantTodayPage() {
   const remaining = campaign?.rewardPoolRemainingLabel ?? 'Pending';
   const settled = campaign?.settledCount ?? 0;
   const reward = campaign?.rewardLabel ?? proof.rewardAmountLabel;
-  const readiness = getWorldClassReadiness(proof, getMerchantValidationState(proof));
+  const validation = getMerchantValidationState(proof);
+  const readiness = getWorldClassReadiness(proof, validation);
+  const yearOne = getYearOneAudit(proof, validation, readiness);
 
   return (
     <PremiumShell className="merchant-today-page">
@@ -84,6 +87,18 @@ export default async function MerchantTodayPage() {
           </p>
         </div>
         <Link className="product-button secondary" href="/proof#readiness">Review readiness</Link>
+      </section>
+
+      <section className="merchant-work-panel readiness-operator-panel">
+        <div>
+          <span className="eyebrow-pill">phases 1-12 audit</span>
+          <h2>{yearOne.summary.completephases}/12 phases fully complete.</h2>
+          <p>
+            Code-executable work is complete at submission quality. Personal evidence gates remain
+            for live traction, mainnet claims, and final founder delivery.
+          </p>
+        </div>
+        <Link className="product-button secondary" href="/proof#year-one">Open final audit</Link>
       </section>
     </PremiumShell>
   );
