@@ -27,7 +27,7 @@ export default async function ReceiptProofPage({ params }: { params: Promise<{ i
         <div className="receipt-copy">
           <span className="eyebrow-pill">Verified receipt</span>
           <h1>Verified Visit Receipt</h1>
-          <p>{proof.merchantName} · settled on Solana · {proof.statusLabel}</p>
+          <p>{proof.merchantName} - settled on Solana - {proof.statusLabel}</p>
           <div className="receipt-pills">
             <span>{proof.statusLabel}</span>
             <span>{proof.cluster}</span>

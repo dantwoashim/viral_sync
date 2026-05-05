@@ -32,6 +32,7 @@
   ],
   "x402": {
     "relayer": {
+      "baseUrlEnv": "RELAYER_PUBLIC_URL",
       "mcp": "/.well-known/mcp.json",
       "createCampaign": "POST /campaigns/create",
       "verifyReceipt": "GET /receipts/{receiptPda}/verify"

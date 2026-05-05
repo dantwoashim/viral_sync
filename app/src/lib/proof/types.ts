@@ -8,6 +8,12 @@ export type ProofManifest = {
   generatedAt?: string;
   effectCheckedAt?: string;
   programId?: string;
+  programSourceHash?: string | null;
+  idlHash?: string | null;
+  proofGeneratorHash?: string | null;
+  verifierHash?: string | null;
+  rawVerifierHash?: string | null;
+  publishedVerifierHash?: string | null;
   wallet?: string;
   rewardMintSymbol?: string;
   rewardMintDecimals?: number;

@@ -50,6 +50,7 @@
     {
       "name": "x402_create_campaign",
       "service": "viral-sync-relayer",
+      "baseUrlEnv": "RELAYER_PUBLIC_URL",
       "endpoint": "POST /campaigns/create",
       "payment": {
         "protocol": "x402",
@@ -61,6 +62,7 @@
     {
       "name": "x402_verify_receipt",
       "service": "viral-sync-relayer",
+      "baseUrlEnv": "RELAYER_PUBLIC_URL",
       "endpoint": "GET /receipts/{receiptPda}/verify",
       "payment": {
         "protocol": "x402",

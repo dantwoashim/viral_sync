@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { getProofState, gauntletLabel } from '../proof/getProofState';
 import { signatureValue } from '../proof/links';
 import { loadProofSidecar } from '../proof/loadArtifacts';
@@ -43,6 +43,27 @@ function hashText(value: string, length = 12) {
 function humanCode(value: string) {
   const raw = hashText(value, 8).toUpperCase();
   return `VS-${raw.slice(0, 4)}-${raw.slice(4)}`;
+}
+
+function passSigningKey() {
+  const configured = process.env.PRODUCT_LOOP_PASS_SECRET;
+  if (configured && configured.length >= 32) return configured;
+  const proof = getProofState();
+  return [
+    proof.manifest.programSourceHash,
+    proof.manifest.pdas?.causalReceipt,
+    proof.manifest.hashes?.receiptIdHash,
+  ].filter(Boolean).join(':') || 'viral-sync-development-pass-key';
+}
+
+function passMac(passSeed: string) {
+  return createHmac('sha256', passSigningKey()).update(passSeed).digest('hex');
+}
+
+function constantTimeEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 export function productLoopCampaigns(): ProductLoopCampaign[] {
@@ -144,6 +165,7 @@ export function createVisitPassPacket(slug: string, token = slug): VisitPassPack
   if (!campaign || !campaign.proofBacked) return null;
   const passSeed = `${campaign.slug}:${token}:${campaign.claimPassPda}:${campaign.receiptPda}`;
   const passCode = humanCode(passSeed);
+  const mac = passMac(passSeed);
   const passId = `pass_${hashText(passSeed, 18)}`;
   const qrPayload = JSON.stringify({
     type: 'viral_sync_visit_pass',
@@ -151,6 +173,7 @@ export function createVisitPassPacket(slug: string, token = slug): VisitPassPack
     campaign: campaign.slug,
     token,
     passCode,
+    passMac: mac,
     claimPassPda: campaign.claimPassPda,
     receiptPda: campaign.receiptPda,
   });
@@ -163,6 +186,7 @@ export function createVisitPassPacket(slug: string, token = slug): VisitPassPack
     token,
     passId,
     passCode,
+    passMac: mac,
     qrPayload,
     issuedAt: new Date().toISOString(),
     expiresAt: campaign.expiresAt,
@@ -175,7 +199,7 @@ export function expectedPassCodeForCampaign(slug: string) {
   return pass?.passCode ?? '';
 }
 
-export function confirmVisitPass(input: { slug?: string; passCode?: string; token?: string }): TerminalConfirmation {
+export function confirmVisitPass(input: { slug?: string; passCode?: string; passMac?: string; token?: string }): TerminalConfirmation {
   const campaign = input.slug ? findProductLoopCampaign(input.slug) : defaultProductLoopCampaign();
   const emptyCampaign = campaign ?? {
     slug: 'missing',
@@ -209,12 +233,20 @@ export function confirmVisitPass(input: { slug?: string; passCode?: string; toke
   const pass = campaign ? createVisitPassPacket(campaign.slug, token) : null;
   const normalizedInput = String(input.passCode ?? '').trim().toUpperCase();
   const expected = pass?.passCode ?? '';
+  const suppliedMac = String(input.passMac ?? '').trim().toLowerCase();
+  const expectedMac = pass?.passMac ?? '';
   const checks: ProductLoopCheck[] = [
     {
       label: 'Pass code matches claim pass',
       ok: normalizedInput.length > 0 && normalizedInput === expected,
       source: 'terminal_request',
       detail: expected ? `Expected ${expected}` : 'No proof-backed campaign is available.',
+    },
+    {
+      label: 'Pass packet signature matches',
+      ok: suppliedMac.length > 0 && expectedMac.length > 0 && constantTimeEqual(suppliedMac, expectedMac),
+      source: 'terminal_request',
+      detail: suppliedMac.length > 0 ? 'Pass packet MAC verified by server.' : 'Pass packet MAC missing.',
     },
     ...proofChecks(emptyCampaign),
   ];

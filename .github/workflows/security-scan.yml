@@ -19,6 +19,9 @@ jobs:
         run: npm ci
       - name: Dependency audit
         run: npm audit --audit-level=high
+      - name: Moderate dependency advisory report
+        continue-on-error: true
+        run: npm audit --audit-level=moderate
       - name: Secret pattern scan
         shell: bash
         run: |

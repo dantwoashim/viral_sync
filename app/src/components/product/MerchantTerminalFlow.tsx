@@ -11,10 +11,12 @@ type TerminalState = 'idle' | 'detected' | 'signing' | 'success' | 'error';
 export function MerchantTerminalFlow({
   campaign,
   initialPassCode,
+  initialPassMac,
   token,
 }: {
   campaign: ProductLoopCampaign;
   initialPassCode?: string;
+  initialPassMac?: string;
   token?: string;
 }) {
   const [state, setState] = useState<TerminalState>(initialPassCode ? 'detected' : 'idle');
@@ -39,7 +41,7 @@ export function MerchantTerminalFlow({
     const response = await fetch('/api/product-loop/terminal/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug: campaign.slug, passCode: code, token: token || campaign.slug }),
+      body: JSON.stringify({ slug: campaign.slug, passCode: code, passMac: initialPassMac, token: token || campaign.slug }),
     });
     const payload = await response.json() as TerminalConfirmation;
     setConfirmation(payload);
@@ -87,7 +89,7 @@ export function MerchantTerminalFlow({
               <summary>Show program checks</summary>
               <div className="proof-check-list">
                 {confirmation.checks.map((check) => (
-                  <span key={check.label} data-ok={check.ok}>{check.ok ? 'Passed' : 'Review'} · {check.label}: {check.detail}</span>
+                  <span key={check.label} data-ok={check.ok}>{check.ok ? 'Passed' : 'Review'} - {check.label}: {check.detail}</span>
                 ))}
               </div>
             </details>

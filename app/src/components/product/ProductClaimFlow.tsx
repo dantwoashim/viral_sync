@@ -20,8 +20,9 @@ export function ProductClaimFlow({
   const [error, setError] = useState<string | null>(null);
   const terminalHref = useMemo(() => {
     const code = pass?.passCode ?? '';
-    return `/merchant/scan?slug=${encodeURIComponent(campaign.slug)}&pass=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}`;
-  }, [campaign.slug, pass?.passCode, token]);
+    const mac = pass?.passMac ?? '';
+    return `/merchant/scan?slug=${encodeURIComponent(campaign.slug)}&pass=${encodeURIComponent(code)}&mac=${encodeURIComponent(mac)}&token=${encodeURIComponent(token)}`;
+  }, [campaign.slug, pass?.passCode, pass?.passMac, token]);
 
   async function createPass() {
     setStage('creating');
@@ -108,7 +109,7 @@ export function ProductClaimFlow({
           <p>Open the counter view with this pass code preloaded, then inspect the resulting receipt.</p>
           <div className="proof-check-list">
             {(pass?.checks ?? []).map((check) => (
-              <span key={check.label} data-ok={check.ok}>{check.ok ? 'Passed' : 'Review'} · {check.label}</span>
+              <span key={check.label} data-ok={check.ok}>{check.ok ? 'Passed' : 'Review'} - {check.label}</span>
             ))}
           </div>
           <Link className={`product-button primary ${pass ? '' : 'is-disabled'}`} href={pass ? terminalHref : '#show-pass'} aria-disabled={!pass}>

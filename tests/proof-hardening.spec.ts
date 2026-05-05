@@ -79,8 +79,9 @@ describe('proof hardening regressions', () => {
     const pass = createVisitPassPacket(slug, slug);
     expect(pass?.ok).to.equal(true);
     expect(pass?.passCode).to.match(/^VS-[0-9A-F]{4}-[0-9A-F]{4}$/);
+    expect(pass?.passMac).to.match(/^[0-9a-f]{64}$/);
 
-    const accepted = confirmVisitPass({ slug, token: slug, passCode: pass?.passCode });
+    const accepted = confirmVisitPass({ slug, token: slug, passCode: pass?.passCode, passMac: pass?.passMac });
     expect(accepted.ok).to.equal(true);
     expect(accepted.status).to.equal('verified');
     expect(accepted.checks.every((check) => check.ok)).to.equal(true);
@@ -88,6 +89,17 @@ describe('proof hardening regressions', () => {
     const rejected = confirmVisitPass({ slug, token: slug, passCode: 'VS-USED-PASS' });
     expect(rejected.ok).to.equal(false);
     expect(rejected.status).to.equal('rejected');
+    const missingMac = confirmVisitPass({ slug, token: slug, passCode: pass?.passCode });
+    expect(missingMac.ok).to.equal(false);
+  });
+
+  it('does not publish unsigned terminal confirmation links from campaign actions', () => {
+    const actionRoute = fs.readFileSync('app/src/app/api/actions/campaign/[slug]/route.ts', 'utf8');
+
+    expect(actionRoute).to.include('const terminalUrl =');
+    expect(actionRoute).to.include('mac=${encodeURIComponent(pass.passMac)}');
+    expect(actionRoute).to.include('terminal: terminalUrl');
+    expect(actionRoute).to.include('terminalSigned: terminalUrl');
   });
 
   it('keeps phase 2 and phase 3 protocol hardening wired into the on-chain surface', () => {
@@ -127,6 +139,8 @@ describe('proof hardening regressions', () => {
     expect(toolByName.get('agent_receipt_context')?.endpoint).to.equal('GET /api/agent/receipt/{id}');
     expect(toolByName.get('x402_create_campaign')?.payment).to.deep.include({ protocol: 'x402', amount: '0.10', asset: 'USDC' });
     expect(toolByName.get('x402_verify_receipt')?.payment).to.deep.include({ protocol: 'x402', amount: '0.001', asset: 'USDC' });
+    expect(toolByName.get('x402_create_campaign')).to.deep.include({ baseUrlEnv: 'RELAYER_PUBLIC_URL' });
+    expect(toolByName.get('x402_verify_receipt')).to.deep.include({ baseUrlEnv: 'RELAYER_PUBLIC_URL' });
     expect(mcp.proofContract?.currentFraudGauntlet).to.equal('19/19');
 
     expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/receipt/*')).to.equal(true);

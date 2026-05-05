@@ -1,7 +1,7 @@
 {
   "type": "viral-sync-fraud-gauntlet",
   "version": "2.0.0",
-  "generatedAt": "2026-05-04T17:48:06.619Z",
+  "generatedAt": "2026-05-05T00:44:17.789Z",
   "network": "solana-devnet",
   "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
   "proofStatus": "verified",
@@ -407,13 +407,13 @@
       "evidence": "Simulation failed. "
     }
   ],
-  "gauntletHash": "a0d8d8c69855f98e561ea67f5f1f996c0650f5947ee067be8f6d976fc35a5b1b",
+  "gauntletHash": "0a79be185b53e6db415dfd0b327130df27fb216601601237821d6df3baa63e82",
   "programSourceHash": "eafdd1ef6a245b220232a37c7a5c6e09b1124c16a392b10a389c3a1d23f00f27",
   "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-  "proofGeneratorHash": "1a8e8783830beb12c90ee48bd1e9a67b1951c81d1a1990e018955883ce9c587d",
-  "verifierHash": "1763f87732702b69347f2bc8be6b701f261531b65b9a4ab87d8877236a4f3624",
+  "proofGeneratorHash": "26f6c77d143d2bc4b581d28d89b1c85d6be2924be8dfe785d25127d674ef43c7",
+  "verifierHash": "53ea183533be921fbee0be8021150543b27875caadd62a77868446baf3969817",
   "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "stampMode": "final-candidate",
-  "artifactHash": "728fa9bfc92029d50304c248d107bd4abc1503b52d956c5eaba707776bc28293"
+  "artifactHash": "7eaa4271888349224ffb123b39457fca10405dbbdc285ae65b90c8c28cd506db"
 }

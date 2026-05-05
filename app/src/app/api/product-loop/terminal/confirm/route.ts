@@ -17,9 +17,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null) as { passCode?: string; slug?: string; token?: string } | null;
+  const body = await request.json().catch(() => null) as { passCode?: string; passMac?: string; slug?: string; token?: string } | null;
   const result = confirmVisitPass({
     passCode: body?.passCode,
+    passMac: body?.passMac,
     slug: body?.slug,
     token: body?.token,
   });

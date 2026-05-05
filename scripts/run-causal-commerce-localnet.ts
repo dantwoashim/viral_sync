@@ -2383,6 +2383,18 @@ async function main() {
   };
 
   const resolvedOutput = options.outputPath ? writeManifest(options.outputPath, manifest) : undefined;
+  if (options.attackCheck) {
+    writeManifest('tmp/anchor-attack-results.json', {
+      artifactType: 'viral_sync_anchor_attack_results',
+      generatedAt: new Date().toISOString(),
+      summary: {
+        totalCases: attackEvidence.length,
+        blocked: attackEvidence.filter((entry) => entry.observed === 'rejected').length,
+        failed: attackEvidence.filter((entry) => entry.observed !== 'rejected' || entry.expectedErrorMatched !== true).length,
+      },
+      cases: attackEvidence,
+    });
+  }
   console.log(JSON.stringify({ ...manifest, outputPath: resolvedOutput }, null, 2));
 }
 

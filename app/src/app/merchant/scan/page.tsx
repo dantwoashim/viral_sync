@@ -6,7 +6,7 @@ import { defaultProductLoopCampaign, findProductLoopCampaign } from '@/lib/produ
 export default async function MerchantScanPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ pass?: string; slug?: string; token?: string }>;
+  searchParams?: Promise<{ pass?: string; mac?: string; slug?: string; token?: string }>;
 }) {
   const query = await searchParams;
   const slug = query?.slug ? decodeURIComponent(query.slug) : undefined;
@@ -19,6 +19,7 @@ export default async function MerchantScanPage({
       <MerchantTerminalFlow
         campaign={campaign}
         initialPassCode={query?.pass ? decodeURIComponent(query.pass) : undefined}
+        initialPassMac={query?.mac ? decodeURIComponent(query.mac) : undefined}
         token={query?.token ? decodeURIComponent(query.token) : campaign.slug}
       />
     </PremiumShell>

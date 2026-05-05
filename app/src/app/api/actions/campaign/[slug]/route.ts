@@ -86,10 +86,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return actionHeaders(NextResponse.json({ ok: false, error: 'proof_backed_campaign_not_found' }, { status: 404 }));
   }
   const baseUrl = appBaseUrl(request);
+  const terminalUrl = `${baseUrl}/merchant/scan?slug=${encodeURIComponent(slug)}&pass=${encodeURIComponent(pass.passCode)}&mac=${encodeURIComponent(pass.passMac)}&token=${encodeURIComponent(pass.token)}`;
   return actionHeaders(NextResponse.json({
     ...pass,
     links: {
-      terminal: `${baseUrl}/merchant/scan?slug=${encodeURIComponent(slug)}&pass=${encodeURIComponent(pass.passCode)}&token=${encodeURIComponent(pass.token)}`,
+      terminal: terminalUrl,
+      terminalSigned: terminalUrl,
       receipt: `${baseUrl}${pass.campaign.receiptPath}`,
       proof: `${baseUrl}/proof`,
     },

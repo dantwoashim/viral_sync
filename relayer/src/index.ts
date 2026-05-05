@@ -127,6 +127,15 @@ const app = express();
 const x402TreasuryWallet = TREASURY_WALLET || relayerKeypair.publicKey.toBase58();
 const X402_CREATE_CAMPAIGN_PRICE = '$0.10';
 const X402_VERIFY_RECEIPT_PRICE = '$0.001';
+const createdCampaigns = new Map<string, {
+  id: string;
+  orgIdHash: string;
+  campaignBudget: string;
+  rewardPerVisit: string;
+  campaignIntent: string;
+  createdAt: string;
+  status: 'created';
+}>();
 
 function readJsonIfExists(filePath: string): unknown | null {
   const resolved = path.resolve(filePath);
@@ -583,14 +592,22 @@ app.post('/campaigns/create', requireRateLimit, async (req, res) => {
   const campaignIntent = createHash('sha256')
     .update(JSON.stringify({ orgIdHash, campaignBudget: String(campaignBudget), rewardPerVisit: String(rewardPerVisit) }))
     .digest('hex');
-
-  res.json({
-    ok: true,
-    artifactType: 'x402_paid_campaign_creation_intent',
-    campaignIntent,
+  const campaignId = `x402_${campaignIntent.slice(0, 20)}`;
+  const campaign = {
+    id: campaignId,
     orgIdHash,
     campaignBudget: String(campaignBudget),
     rewardPerVisit: String(rewardPerVisit),
+    campaignIntent,
+    createdAt: new Date().toISOString(),
+    status: 'created' as const,
+  };
+  createdCampaigns.set(campaignId, campaign);
+
+  res.json({
+    ok: true,
+    artifactType: 'x402_paid_campaign_creation',
+    campaign,
     payment: {
       protocol: 'x402',
       amount: '0.10',
@@ -599,6 +616,15 @@ app.post('/campaigns/create', requireRateLimit, async (req, res) => {
       payTo: x402TreasuryWallet,
     },
   });
+});
+
+app.get('/campaigns/:campaignId', requireApiKey, requireRateLimit, async (req, res) => {
+  const campaign = createdCampaigns.get(req.params.campaignId);
+  if (!campaign) {
+    res.status(404).json({ ok: false, error: 'Campaign not found.' });
+    return;
+  }
+  res.json({ ok: true, campaign });
 });
 
 app.get('/receipts/:receiptPda/verify', requireRateLimit, async (req, res) => {
@@ -682,8 +708,18 @@ app.post('/relay', requireApiKey, requireRateLimit, async (req, res) => {
         skipPreflight: true,
         maxRetries: 3,
       });
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      if (confirmation.value.err) {
+        await releaseReplayFingerprint(decoded.fingerprint);
+        res.status(400).json({
+          error: 'Transaction confirmation failed.',
+          signature,
+          confirmationError: confirmation.value.err,
+        });
+        return;
+      }
 
-      res.json({ signature, status: 'success' });
+      res.json({ signature, status: 'confirmed' });
     } catch (error) {
       await releaseReplayFingerprint(decoded.fingerprint);
       throw error;

@@ -39,6 +39,26 @@ export interface CausalGraphPayload {
   edges: Array<{ source: string; target: string; label: string }>;
 }
 
+type AgentReceiptContext = {
+  receipt?: {
+    id?: string;
+    pda?: string;
+    merchantName?: string;
+    programId?: string;
+    status?: string;
+  };
+  verifier?: {
+    flags?: Record<string, boolean>;
+  };
+  lineage?: {
+    childLineageProof?: {
+      parentReceipt?: string;
+      childReceipt?: string;
+      childClaimPass?: string;
+    } | null;
+  };
+};
+
 export interface InviteAction {
   label: string;
   href: string;
@@ -60,11 +80,36 @@ export function verifyReceipt(payload: ReceiptVerification): boolean {
 }
 
 export async function fetchGraph(baseUrl: string, fetcher: typeof fetch = fetch): Promise<CausalGraphPayload> {
-  const response = await fetcher(new URL('/proof', baseUrl));
+  const response = await fetcher(new URL('/api/agent/receipt/latest', baseUrl));
   if (!response.ok) {
-    throw new Error(`Proof center fetch failed: ${response.status}`);
+    throw new Error(`Receipt graph fetch failed: ${response.status}`);
   }
-  return { nodes: [], edges: [] };
+  const context = await response.json() as AgentReceiptContext;
+  const receipt = context.receipt ?? {};
+  const nodes: CausalGraphPayload['nodes'] = [];
+  const edges: CausalGraphPayload['edges'] = [];
+
+  if (receipt.programId) nodes.push({ id: receipt.programId, label: 'Viral Sync program', kind: 'program' });
+  if (receipt.merchantName) nodes.push({ id: `merchant:${receipt.merchantName}`, label: receipt.merchantName, kind: 'merchant' });
+  if (receipt.pda) nodes.push({ id: receipt.pda, label: receipt.id ?? 'Verified receipt', kind: 'receipt' });
+
+  if (receipt.programId && receipt.pda) edges.push({ source: receipt.programId, target: receipt.pda, label: 'settles' });
+  if (receipt.merchantName && receipt.pda) edges.push({ source: `merchant:${receipt.merchantName}`, target: receipt.pda, label: 'issued' });
+
+  const child = context.lineage?.childLineageProof;
+  if (child?.parentReceipt && child.childReceipt) {
+    nodes.push({ id: child.parentReceipt, label: 'Parent receipt', kind: 'receipt' });
+    nodes.push({ id: child.childReceipt, label: 'Child receipt', kind: 'receipt' });
+    edges.push({ source: child.parentReceipt, target: child.childReceipt, label: 'refers' });
+  }
+
+  for (const [flag, ok] of Object.entries(context.verifier?.flags ?? {})) {
+    const id = `check:${flag}`;
+    nodes.push({ id, label: `${flag}: ${ok ? 'passed' : 'pending'}`, kind: 'check' });
+    if (receipt.pda) edges.push({ source: receipt.pda, target: id, label: 'verified by' });
+  }
+
+  return { nodes, edges };
 }
 
 export async function fetchCausalGraph(baseUrl: string, fetcher: typeof fetch = fetch): Promise<CausalGraphPayload> {

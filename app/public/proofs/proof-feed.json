@@ -2,7 +2,7 @@
   "type": "viral-sync-proof-feed",
   "version": "1.0.0",
   "network": "solana-devnet",
-  "generatedAt": "2026-05-04T17:48:15.779Z",
+  "generatedAt": "2026-05-05T00:44:22.736Z",
   "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
   "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
@@ -73,7 +73,7 @@
       "kind": "security",
       "status": "verified",
       "detail": "19/19 expected fraud cases blocked by proof artifacts.",
-      "object": "a0d8d8c69855f98e561ea67f5f1f996c0650f5947ee067be8f6d976fc35a5b1b",
+      "object": "0a79be185b53e6db415dfd0b327130df27fb216601601237821d6df3baa63e82",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -103,7 +103,7 @@
       "kind": "orderbook",
       "status": "verified",
       "detail": "1/3 campaigns are proof-backed.",
-      "object": "5bc148684a3d6c1823905eb63d0055e00836e0c1e2924190e7db980e1ac8d648",
+      "object": "3544138b8c88213428c84289848c5680cace95751ab48fdb643136fed3a6ab5a",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -118,7 +118,7 @@
       "kind": "campaign-link",
       "status": "verified",
       "detail": "3 public campaign links generated for proof-of-conversion routing.",
-      "object": "832c9adab83d770817ddc31812a7d3f8e4b7e510dbb3a142f4ec2e0b76e0035e",
+      "object": "cf5ec7046b8e27dae5408700df0747c10c2da787887b58511de9649e195b7648",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -130,10 +130,10 @@
   ],
   "programSourceHash": "eafdd1ef6a245b220232a37c7a5c6e09b1124c16a392b10a389c3a1d23f00f27",
   "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-  "proofGeneratorHash": "1a8e8783830beb12c90ee48bd1e9a67b1951c81d1a1990e018955883ce9c587d",
-  "verifierHash": "1763f87732702b69347f2bc8be6b701f261531b65b9a4ab87d8877236a4f3624",
+  "proofGeneratorHash": "26f6c77d143d2bc4b581d28d89b1c85d6be2924be8dfe785d25127d674ef43c7",
+  "verifierHash": "53ea183533be921fbee0be8021150543b27875caadd62a77868446baf3969817",
   "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "stampMode": "final-candidate",
-  "artifactHash": "cd71ce47d5cfdb29cca5156d8378ae963562425c538313fcc7d71cea17595862"
+  "artifactHash": "be52835a925fa151f43b17dd78118cf94b6ebcdf22ab56e744ee59600c6f28d1"
 }

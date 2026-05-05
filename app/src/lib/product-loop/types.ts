@@ -42,6 +42,7 @@ export type VisitPassPacket = {
   token: string;
   passId: string;
   passCode: string;
+  passMac: string;
   qrPayload: string;
   issuedAt: string;
   expiresAt: string | null;
