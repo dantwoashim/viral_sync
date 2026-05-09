@@ -23,7 +23,6 @@ The project includes a live interface, a public proof surface, devnet settlement
 | Live app | [https://viralsync1.vercel.app](https://viralsync1.vercel.app) |
 | Proof center | [https://viralsync1.vercel.app/proof](https://viralsync1.vercel.app/proof) |
 | Pitch video | [https://youtu.be/XwmII_F0LWM](https://youtu.be/XwmII_F0LWM) |
-| GitHub repo | [https://github.com/dantwoashim/viral_sync](https://github.com/dantwoashim/viral_sync) |
 
 ## Screenshots
 
