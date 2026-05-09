@@ -1,39 +1,162 @@
 # Viral Sync
 
-Viral Sync is the Solana settlement layer for outcome-based marketing: merchants escrow bounties, creators or agents route customers, and payouts only release when the customer actually converts.
+Outcome-based referral settlement for local merchants on Solana.
 
-Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by the merchant, an enrolled terminal, and the visitor, with nullifier replay protection and settlement-time intent checks.
+Viral Sync helps local merchants pay for verified outcomes instead of unverifiable clicks. A merchant funds a reward campaign, a visitor claims a pass, the merchant terminal confirms the visit at the counter, and payout only releases after the receipt path is valid.
 
-Each receipt commits to the invite hash, campaign nullifier, visit attestation hash, and intent manifest hash. The point is not to reward clicks. The point is to make offline referral spend verifiable.
+This repository is a **Devnet POC-1**. It demonstrates the core settlement loop with an Anchor program, proof artifacts, a product-facing Next.js app, an SDK verifier, and a negative-path test suite. It is not claiming production readiness or live merchant traction.
 
-The only way to create this receipt is for the merchant, enrolled terminal, and visitor to sign the same conversion.
+The POC-1 receipt is counter-attested by the merchant authority, an enrolled terminal, and the visitor. Replay is blocked with campaign nullifiers, and settlement is tied to campaign state, reward escrow, and receipt verification.
+
+Judges and technical reviewers can inspect the live app, proof center, devnet transactions, generated proof artifacts, and validation commands below.
+
+<p>
+  <strong>Devnet POC-1</strong> ·
+  <strong>Solana / Anchor</strong> ·
+  <strong>19/19 negative-path checks rejected</strong> ·
+  <strong>280 tests passing</strong> ·
+  <strong>Not production-ready</strong>
+</p>
+
+## Primary Links
+
+| Resource | Link |
+|---|---|
+| Live app | [https://viralsync1.vercel.app](https://viralsync1.vercel.app) |
+| Proof center | [https://viralsync1.vercel.app/proof](https://viralsync1.vercel.app/proof) |
+| Pitch video | [https://youtu.be/XwmII_F0LWM](https://youtu.be/XwmII_F0LWM) |
+| GitHub repo | [https://github.com/dantwoashim/viral_sync](https://github.com/dantwoashim/viral_sync) |
+| Sprint hardening commit | [`44f337a`](https://github.com/dantwoashim/viral_sync/commit/44f337adaaddc1afb64435004848cb0c25684853) |
+
+## Screenshots
+
+| Landing / outcome flow | Proof center overview |
+|---|---|
+| ![Viral Sync landing page](docs/assets/readme/viral-sync-home.png) | ![Viral Sync proof center overview](docs/assets/readme/viral-sync-proof-overview.png) |
+
+| Negative-path suite | Devnet evidence |
+|---|---|
+| ![Negative-path suite showing rejected invalid flows](docs/assets/readme/viral-sync-negative-tests.png) | ![Devnet evidence with program identity and transaction links](docs/assets/readme/viral-sync-devnet-evidence.png) |
+
+## Weekend Sprint Progress
+
+The sprint focused on hardening the existing Devnet POC-1 and making the public proof surface clearer for judges.
+
+Before:
+
+- The hosted flow was primarily a proof-backed demo path.
+- Demo and production pass-signing boundaries were weaker.
+- Failed terminal confirmation could expose expected values.
+- SDK verifier requirements could drift from the current proof artifact.
+- The frontend and proof surface needed a fresh public deployment.
+
+After:
+
+- Production pass signing requires a real `PRODUCT_LOOP_PASS_SECRET`.
+- Demo fallback is explicit and marked as demo-only.
+- Invalid terminal confirmations no longer leak expected pass codes, MACs, tokens, or derived values.
+- Passes include nonce, expiry, campaign binding, terminal binding, merchant binding, and one-time-use state.
+- SDK verifier is aligned with the current 19-case negative-path artifact.
+- Child-lineage payout binding is strengthened in the Anchor program.
+- Devnet proof artifacts were regenerated from a fresh final proof run.
+- The updated frontend is deployed to Vercel.
+
+## How It Works
+
+1. Merchant funds campaign escrow.
+2. Visitor claims a pass.
+3. Merchant terminal confirms the visit at the counter.
+4. A counter-attested receipt is recorded.
+5. A campaign nullifier prevents replay.
+6. Escrow settles the payout after the valid receipt path exists.
+
+The product loop is intentionally narrow for POC-1:
 
 ```text
-Pay for counter-attested outcomes, not unverifiable clicks.
+Campaign link -> Claim pass -> Merchant terminal -> Counter-attested receipt -> Nullifier check -> Escrow settlement -> Public proof
 ```
 
-## What It Proves
+## Technical Evidence
 
-The core path is deliberately narrow:
+Important files for review:
+
+| Area | File |
+|---|---|
+| Product pass lifecycle | `app/src/lib/product-loop/productLoop.ts` |
+| Claim-pass API | `app/src/app/api/product-loop/claim-pass/route.ts` |
+| Terminal confirmation API | `app/src/app/api/product-loop/terminal/confirm/route.ts` |
+| Anchor settlement path | `programs/viral_sync/src/instructions/causal_commerce.rs` |
+| SDK verifier helpers | `sdk/src/index.ts` |
+| Hardening regressions | `tests/proof-hardening.spec.ts` |
+| Negative-path artifact | `app/public/proofs/fraud-gauntlet.json` |
+| Devnet proof manifest | `app/public/proofs/devnet-causal-commerce.json` |
+
+The reduced public IDL for the POC-1 surface is available at:
 
 ```text
-merchant registers
-terminal device is enrolled
-campaign is created
-claim pass is issued
-bounty is funded
-terminal + visitor counter-attested receipt is recorded
-reward is settled from escrow
+idl/viral_sync_poc1.json
 ```
 
-The public app is intentionally small: one landing page, one claim flow, one merchant terminal, one merchant today view, one receipt page, and one proof center.
+## Validation Commands
 
-The current public product is the POC-1 outcome settlement path. Experimental Token-2022 and reputation modules are excluded from the live demo and are not required for receipt settlement; see `docs/program-scope.md`.
-For integrations and judging, use the reduced public IDL at `idl/viral_sync_poc1.json`; it contains only the POC-1 receipt-settlement surface.
+Install dependencies:
+
+```bash
+npm ci
+```
+
+Run the protocol and hardening tests:
+
+```bash
+npm run test:protocol
+```
+
+Expected current result:
+
+```text
+280 passing
+1 pending
+```
+
+The pending test is the gated live localnet validator attack test. It is skipped unless the explicit validator environment is enabled.
+
+Assert final proof artifacts:
+
+```bash
+npm run frontier:assert-final
+```
+
+Expected current result:
+
+```json
+{
+  "ok": true,
+  "failures": []
+}
+```
+
+Build the workspace:
+
+```bash
+npm run build
+```
+
+For the app-only build:
+
+```bash
+npm run build --workspace app
+```
+
+Current validation summary:
+
+- Protocol and hardening tests: 280 passing.
+- Negative-path suite: 19/19 invalid flows rejected.
+- Final artifact assertion: `ok: true`, `failures: []`.
+- Next.js frontend build: passed.
 
 ## Devnet Proof
 
-This submission includes a devnet proof path:
+The POC-1 proof path executes:
 
 1. `register_merchant`
 2. `enroll_terminal_device`
@@ -43,73 +166,22 @@ This submission includes a devnet proof path:
 6. `record_causal_receipt`
 7. `settle_receipt_reward`
 
-The generated proof manifest lives at:
+Primary proof artifact:
 
 ```text
 app/public/proofs/devnet-causal-commerce.json
 ```
 
-The final proof command uses a pre-funded devnet wallet and does not request faucet SOL:
-
-```bash
-npm run frontier:offline-preflight
-npm run frontier:mock-final
-# fund the configured devnet wallet
-npm run frontier:final
-```
-
-`frontier:mock-final` only tests the artifact pipeline using fixtures. It is not submission evidence, and the real final assertion rejects mock artifacts.
-
-The final command writes the judge-facing manifest to:
+Published verifier artifact:
 
 ```text
-app/public/proofs/devnet-causal-commerce.json
+app/public/proofs/devnet-causal-commerce-verifier.json
 ```
 
-`tmp/devnet-causal-commerce-verifier.json` is the raw verifier output. `app/public/proofs/devnet-causal-commerce-verifier.json` is the published verifier copy with publication metadata.
-
-The proof page is:
+Negative-path artifact:
 
 ```text
-/proof
-```
-
-It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, intent manifest hash, and the valid-vs-malicious Causal Receipt Intent Validator results.
-
-The negative-path suite is intentionally technical: 19 invalid flows tested, 19 rejected, expected errors matched, and account mutation checks passed. It is a deterministic proof artifact, not a claim of live production fraud traffic.
-
-The Merchant Proof Passport packages the same verifier-backed facts into a portable merchant-owned proof object without customer personal data.
-
-## Why Solana
-
-Viral Sync needs cheap settlement, account-level proof objects, escrow custody, nullifier replay protection, and public receipt state. Solana is a good fit because the protocol can make reward movement fast, inspectable, and bounded by campaign state.
-
-## Product Loop
-
-```text
-Campaign link -> Claim pass -> Merchant scan -> Co-signed receipt -> Escrow settlement -> Public proof
-```
-
-The product loop now has server-backed pass and terminal endpoints, so the public claim and counter screens call the same proof packet instead of rendering a timer-only walkthrough:
-
-```text
-POST /api/product-loop/claim-pass
-POST /api/product-loop/terminal/confirm
-POST /api/actions/campaign/[slug]
-```
-
-Those endpoints are still POC-1 devnet proof operations, not an unrestricted production terminal. The important change is that the judge-facing user journey now creates a deterministic pass packet, carries its code into the merchant terminal, checks that code against the proof-backed campaign, and opens the verified receipt only after server confirmation.
-
-Useful routes:
-
-```text
-/                     Outcome settlement landing
-/campaign/[slug]     Campaign offer
-/claim/[token]       Customer claim flow
-/merchant/scan       Terminal confirmation
-/merchant/today      Merchant operations view
-/receipt/[id]        Canonical receipt proof
-/proof               Judge and developer proof center
+app/public/proofs/fraud-gauntlet.json
 ```
 
 ## Repository Structure
@@ -119,75 +191,48 @@ app/                  Next.js product app
 programs/viral_sync/  Anchor program
 relayer/              Sponsored transaction relayer
 sdk/                  Verification and PDA helper package
+schemas/              Proof artifact schemas
+scripts/              Proof, verifier, packaging, and generation scripts
 tests/                Protocol and security regression tests
+docs/                 Scope, limitations, and review material
 ```
 
-## Current Status
+## Useful Routes
 
-Viral Sync is a devnet and capped-pilot prototype. It is not an audited mainnet protocol for unrestricted real value.
-
-Implemented hardening includes:
-
-- Merchant authority gates for receipt recording and settlement.
-- Beneficiary-bound reward destinations.
-- Campaign time-window and reward-pool accounting checks.
-- Nullifier replay protection.
-- Intent manifest hash committed on receipt accounts.
-- Relayer authentication, payload caps, replay controls, and allowlists.
-- Security regression tests for the highest-risk paths.
-
-The localnet smoke path exercises the Causal Commerce loop with merchant registration, campaign creation, escrow funding, receipt recording, settlement, replay rejection, and vault close behavior.
-
-The proof scripts document escrow funding, receipt recording, settlement, replay rejection, computed Causal Receipt Intent Validator checks, and optional close-check output before judge use.
-
-## Current Limitations
-
-- The public app includes a local commitment preview for merchant UX.
-- The hosted claim flow is a proof-backed demo replay. It does not create a fresh on-chain claim pass and receipt for every visitor yet.
-- The judge-facing proof page uses devnet transaction output from the proof manifest.
-- The current Causal Receipt Intent Validator is Viral Sync-specific. It validates constrained receipt intent fields before settlement/sponsorship, but it is not yet a generic Solana transaction firewall and does not deeply inspect arbitrary serialized transaction effects.
-- The program has not been externally audited.
-- The current intent manifest is committed on-chain by hash; full manifest storage remains off-chain.
-- Some advanced modules are intentionally disabled until their value-flow models are complete.
-
-## Running Locally
-
-Install dependencies:
-
-```bash
-npm ci
+```text
+/                     Product landing page
+/campaign/[slug]     Campaign offer
+/claim/[token]       Visitor claim flow
+/merchant/scan       Merchant terminal confirmation
+/merchant/today      Merchant operations view
+/receipt/[id]        Receipt proof page
+/proof               Public proof center
 ```
 
-Start the app:
+## Honest Scope
 
-```bash
-npm run dev --workspace app
-```
+Viral Sync is a **Devnet POC-1**, not a production-ready protocol.
 
-Build the Anchor program:
+It does not claim:
 
-```bash
-anchor build
-```
+- production readiness
+- independent physical-world truth
+- GPS or POS-verified purchase proof
+- live merchant traction
+- audit completion
+- unrestricted mainnet readiness
 
-Run the full verification suite:
+POC-1 proves a narrower claim: the devnet program can record and settle a merchant, terminal, and visitor counter-attested receipt with escrow custody, nullifier replay protection, and proof artifacts that bind to the current source, IDL, proof generator, and verifier.
 
-```bash
-npm run verify
-```
+Production readiness requires:
 
-## Useful Commands
-
-```bash
-npm run typecheck
-npm run verify
-npm run frontier:verify-submitted-artifacts
-npm run localnet:causal-commerce -- --replay-check --attack-check
-npm run devnet:causal-commerce:frontier-final
-npm run devnet:verify-receipt -- --output tmp/devnet-causal-commerce-verifier.json
-npm run frontier:verify-artifacts
-npm run frontier:final
-```
+- external audit or security review
+- persistent pass/replay storage with atomic consume semantics
+- POS/payment or receipt binding
+- upgrade authority governance
+- monitoring and incident response
+- key management
+- capped real merchant pilots
 
 ## Environment
 
@@ -199,10 +244,8 @@ NEXT_PUBLIC_PROGRAM_ID
 NEXT_PUBLIC_APP_URL
 NEXT_PUBLIC_MERCHANT_PUBKEY
 NEXT_PUBLIC_RELAYER_URL
-LAUNCH_DATABASE_URL
-LAUNCH_CAUSAL_SECRET
-LAUNCH_MERCHANT_ACCESS_TOKEN
-LAUNCH_STAFF_PIN
+PRODUCT_LOOP_PASS_SECRET
+VIRAL_SYNC_ALLOW_DEMO_PASS_FALLBACK
 LAUNCH_ALLOWED_ORIGINS
 ```
 
@@ -219,6 +262,4 @@ ALLOWED_WRITABLE_ACCOUNTS
 MAX_TRANSACTION_BYTES=2048
 ```
 
-After any future protocol, verifier, schema, or proof-generator change, rerun `frontier:final` before submission or deployment.
-
-The honest version: Viral Sync is not claiming production readiness. It is claiming a concrete, inspectable devnet path for merchant-funded causal receipts.
+After any protocol, verifier, schema, proof-generator, or proof artifact change, rerun the final proof and assertion pipeline before submission.

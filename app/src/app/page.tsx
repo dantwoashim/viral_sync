@@ -54,7 +54,7 @@ export default function HomePage() {
               <Link className="inline-flex items-center justify-center gap-2 h-16 px-10 rounded-full bg-black text-white text-lg font-bold shadow-2xl shadow-black/20 shadow-hairline hover:-translate-y-1 hover:shadow-black/30 transition-all w-full sm:w-auto" href={`/receipt/${encodeURIComponent(proof.receiptId)}`}>
                 View verified receipt <ArrowRight size={20} weight="bold" />
               </Link>
-              <Link className="inline-flex items-center justify-center gap-2 h-16 px-10 rounded-full bg-white text-gray-900 text-lg font-bold shadow-lg shadow-gray-200/50 shadow-hairline hover:bg-gray-50 transition-all w-full sm:w-auto" href={campaign ? `/claim/${encodeURIComponent(campaign.slug)}` : '/merchant/scan'}>
+              <Link className="inline-flex items-center justify-center gap-2 h-16 px-10 rounded-full bg-white text-gray-900 text-lg font-bold shadow-lg shadow-gray-200/50 shadow-hairline hover:bg-gray-50 transition-all w-full sm:w-auto" href="/merchant/scan">
                 Try merchant terminal
               </Link>
             </div>
@@ -107,7 +107,7 @@ export default function HomePage() {
             <span className="text-rose-600 font-bold tracking-widest uppercase text-xs inline-flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500" /> The Problem</span>
             <h2 className="text-4xl lg:text-[4.5rem] leading-[0.95] font-bold tracking-tighter text-gray-900 font-serif">Clicks and coupon opens are not <span className="italic text-gray-400">conversions</span>.</h2>
             <p className="text-xl text-gray-500 leading-relaxed font-medium">
-              Viral Sync turns the expensive moment into the verified moment: a customer arrives, a terminal confirms, a visitor wallet signs, and the reward settles from escrow.
+              Viral Sync turns the expensive moment into the verified moment: a customer arrives, a terminal confirms the pass, the visitor confirms presence, and the reward settles from escrow.
             </p>
           </div>
           <div className="col-span-4 md:col-span-8 lg:col-span-7 lg:col-start-6 mt-12 lg:mt-0">
@@ -131,7 +131,7 @@ export default function HomePage() {
         <div className="layout-grid">
           <div className="flex flex-col gap-4 text-center col-span-4 md:col-span-8 lg:col-span-8 lg:col-start-3 mb-16 lg:mb-24">
             <span className="text-indigo-600 font-bold tracking-widest uppercase text-xs">Customer flow</span>
-            <h2 className="text-4xl md:text-5xl lg:text-[5.5rem] font-bold tracking-tighter leading-[0.95] text-gray-900 font-serif px-2">Apple Wallet simple.<br/><span className="text-gray-400">No protocol words.</span></h2>
+            <h2 className="text-4xl md:text-5xl lg:text-[5.5rem] font-bold tracking-tighter leading-[0.95] text-gray-900 font-serif px-2">Visit pass simple.<br/><span className="text-gray-400">No crypto at checkout.</span></h2>
           </div>
           <div className="col-span-4 md:col-span-8 lg:col-span-12">
             <div className="grid md:grid-cols-3 gap-8 lg:gap-12 perspective-[2000px]">
