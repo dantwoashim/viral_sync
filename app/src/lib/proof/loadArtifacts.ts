@@ -1,6 +1,31 @@
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
+import campaignLinksArtifact from '../../../public/proofs/campaign-links.json';
+import conversionOrderbookArtifact from '../../../public/proofs/conversion-orderbook.json';
+import devnetCausalCommerceVerifierArtifact from '../../../public/proofs/devnet-causal-commerce-verifier.json';
+import devnetCausalCommerceArtifact from '../../../public/proofs/devnet-causal-commerce.json';
+import fraudGauntletArtifact from '../../../public/proofs/fraud-gauntlet.json';
+import frontierReadinessArtifact from '../../../public/proofs/frontier-readiness.json';
+import invariantMatrixArtifact from '../../../public/proofs/invariant-matrix.json';
+import merchantPassportArtifact from '../../../public/proofs/merchant-passport.json';
+import merchantValidationKitArtifact from '../../../public/proofs/merchant-validation-kit.json';
+import programIdConsistencyArtifact from '../../../public/proofs/program-id-consistency.json';
+import proofFeedArtifact from '../../../public/proofs/proof-feed.json';
 import type { FraudGauntlet, FrontierReadiness, ProgramIdConsistency, ProofManifest, VerifierArtifact } from './types';
+
+const bundledArtifacts: Record<string, unknown> = {
+  'campaign-links.json': campaignLinksArtifact,
+  'conversion-orderbook.json': conversionOrderbookArtifact,
+  'devnet-causal-commerce-verifier.json': devnetCausalCommerceVerifierArtifact,
+  'devnet-causal-commerce.json': devnetCausalCommerceArtifact,
+  'fraud-gauntlet.json': fraudGauntletArtifact,
+  'frontier-readiness.json': frontierReadinessArtifact,
+  'invariant-matrix.json': invariantMatrixArtifact,
+  'merchant-passport.json': merchantPassportArtifact,
+  'merchant-validation-kit.json': merchantValidationKitArtifact,
+  'program-id-consistency.json': programIdConsistencyArtifact,
+  'proof-feed.json': proofFeedArtifact,
+};
 
 function proofCandidates(file: string) {
   return [
@@ -29,26 +54,35 @@ export function loadJsonArtifact<T>(candidates: string[], fallback: T): T {
   return fallback;
 }
 
+function bundledArtifact<T>(file: string, fallback: T): T {
+  return (bundledArtifacts[file] as T | undefined) ?? fallback;
+}
+
 export function loadProofManifest() {
-  return loadJsonArtifact<ProofManifest>(proofCandidates('devnet-causal-commerce.json'), {});
+  const file = 'devnet-causal-commerce.json';
+  return loadJsonArtifact<ProofManifest>(proofCandidates(file), bundledArtifact<ProofManifest>(file, {}));
 }
 
 export function loadVerifierArtifact() {
-  return loadJsonArtifact<VerifierArtifact>(tmpCandidates('devnet-causal-commerce-verifier.json'), {});
+  const file = 'devnet-causal-commerce-verifier.json';
+  return loadJsonArtifact<VerifierArtifact>(tmpCandidates(file), bundledArtifact<VerifierArtifact>(file, {}));
 }
 
 export function loadFraudGauntlet() {
-  return loadJsonArtifact<FraudGauntlet>(proofCandidates('fraud-gauntlet.json'), {});
+  const file = 'fraud-gauntlet.json';
+  return loadJsonArtifact<FraudGauntlet>(proofCandidates(file), bundledArtifact<FraudGauntlet>(file, {}));
 }
 
 export function loadProgramIdConsistency() {
-  return loadJsonArtifact<ProgramIdConsistency>(proofCandidates('program-id-consistency.json'), {});
+  const file = 'program-id-consistency.json';
+  return loadJsonArtifact<ProgramIdConsistency>(proofCandidates(file), bundledArtifact<ProgramIdConsistency>(file, {}));
 }
 
 export function loadFrontierReadiness() {
-  return loadJsonArtifact<FrontierReadiness>(proofCandidates('frontier-readiness.json'), {});
+  const file = 'frontier-readiness.json';
+  return loadJsonArtifact<FrontierReadiness>(proofCandidates(file), bundledArtifact<FrontierReadiness>(file, {}));
 }
 
 export function loadProofSidecar<T>(file: string, fallback: T) {
-  return loadJsonArtifact<T>(proofCandidates(file), fallback);
+  return loadJsonArtifact<T>(proofCandidates(file), bundledArtifact<T>(file, fallback));
 }
