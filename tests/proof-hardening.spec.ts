@@ -355,8 +355,9 @@ describe('proof hardening regressions', () => {
     expect(claimable.tractionClaimAllowed).to.equal(true);
     expect(claimable.claimStatus).to.equal('claimable');
 
-    expect(proofPage).to.include('id="validation"');
-    expect(proofPage).to.include('Traction not claimed');
+    expect(proofPage).not.to.include('id="validation"');
+    expect(proofPage).not.to.include('Traction not claimed');
+    expect(proofPage).to.include('What this proof does not claim.');
     expect(validationRoute).to.include('technical_proof_only_do_not_claim_live_traction');
     expect(mcp.tools.some((tool) => tool.name === 'merchant_validation_context' && tool.endpoint === 'GET /api/agent/validation')).to.equal(true);
     expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/validation')).to.equal(true);
@@ -388,8 +389,11 @@ describe('proof hardening regressions', () => {
     expect(readiness.finalGate.submitToJudges).to.equal(true);
     expect(readiness.score).to.be.greaterThan(50);
 
-    expect(proofPage).to.include('id="readiness"');
-    expect(proofPage).to.include('/api/agent/readiness');
+    expect(proofPage).not.to.include('id="readiness"');
+    expect(proofPage).not.to.include('/api/agent/readiness');
+    expect(proofPage).not.to.include('World-class readiness gate');
+    expect(proofPage).not.to.include('Submit to judges');
+    expect(proofPage).to.include('Public evidence for one POC-1 receipt');
     expect(merchantToday).to.include('Operating readiness gate');
     expect(readinessRoute).to.include('getWorldClassReadiness');
     expect(mcp.tools.some((tool) => tool.name === 'world_class_readiness' && tool.endpoint === 'GET /api/agent/readiness')).to.equal(true);
@@ -437,8 +441,9 @@ describe('proof hardening regressions', () => {
     expect(audit.phases[10].title).to.equal('Submission and dependency risk gate');
     expect(audit.phases[11].title).to.equal('Final founder proof and launch posture');
 
-    expect(proofPage).to.include('id="execution-audit"');
-    expect(proofPage).to.include('/api/agent/execution-audit');
+    expect(proofPage).not.to.include('id="execution-audit"');
+    expect(proofPage).not.to.include('/api/agent/execution-audit');
+    expect(proofPage).to.include('Devnet Evidence');
     expect(merchantToday).to.include('Execution audit');
     expect(executionAuditRoute).to.include('getExecutionAudit');
     expect(mcp.tools.some((tool) => tool.name === 'execution_audit' && tool.endpoint === 'GET /api/agent/execution-audit')).to.equal(true);
