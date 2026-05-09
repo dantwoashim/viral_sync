@@ -8,15 +8,13 @@ This repository is a **Devnet POC-1**. It demonstrates the core settlement loop 
 
 The POC-1 receipt is counter-attested by the merchant authority, an enrolled terminal, and the visitor. Replay is blocked with campaign nullifiers, and settlement is tied to campaign state, reward escrow, and receipt verification.
 
-Judges and technical reviewers can inspect the live app, proof center, devnet transactions, generated proof artifacts, and validation commands below.
+The project includes a live interface, a public proof surface, devnet settlement evidence, generated verification artifacts, and reproducible validation commands.
 
-<p>
-  <strong>Devnet POC-1</strong> ·
-  <strong>Solana / Anchor</strong> ·
-  <strong>19/19 negative-path checks rejected</strong> ·
-  <strong>280 tests passing</strong> ·
-  <strong>Not production-ready</strong>
-</p>
+![Solana](https://img.shields.io/badge/Solana-Devnet-9945FF)
+![Anchor](https://img.shields.io/badge/Anchor-Program-14F195)
+![Status](https://img.shields.io/badge/Status-POC--1-blue)
+![Negative Paths](https://img.shields.io/badge/Negative%20Paths-19%2F19%20Rejected-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-280%20Passing-brightgreen)
 
 ## Primary Links
 
@@ -26,7 +24,6 @@ Judges and technical reviewers can inspect the live app, proof center, devnet tr
 | Proof center | [https://viralsync1.vercel.app/proof](https://viralsync1.vercel.app/proof) |
 | Pitch video | [https://youtu.be/XwmII_F0LWM](https://youtu.be/XwmII_F0LWM) |
 | GitHub repo | [https://github.com/dantwoashim/viral_sync](https://github.com/dantwoashim/viral_sync) |
-| Sprint hardening commit | [`44f337a`](https://github.com/dantwoashim/viral_sync/commit/44f337adaaddc1afb64435004848cb0c25684853) |
 
 ## Screenshots
 
@@ -38,28 +35,21 @@ Judges and technical reviewers can inspect the live app, proof center, devnet tr
 |---|---|
 | ![Negative-path suite showing rejected invalid flows](docs/assets/readme/viral-sync-negative-tests.png) | ![Devnet evidence with program identity and transaction links](docs/assets/readme/viral-sync-devnet-evidence.png) |
 
-## Weekend Sprint Progress
+## Recent Protocol Hardening
 
-The sprint focused on hardening the existing Devnet POC-1 and making the public proof surface clearer for judges.
+The latest implementation pass focused on making the proof-backed settlement path safer, easier to verify, and closer to a controlled merchant pilot.
 
-Before:
+Improvements include:
 
-- The hosted flow was primarily a proof-backed demo path.
-- Demo and production pass-signing boundaries were weaker.
-- Failed terminal confirmation could expose expected values.
-- SDK verifier requirements could drift from the current proof artifact.
-- The frontend and proof surface needed a fresh public deployment.
-
-After:
-
-- Production pass signing requires a real `PRODUCT_LOOP_PASS_SECRET`.
-- Demo fallback is explicit and marked as demo-only.
-- Invalid terminal confirmations no longer leak expected pass codes, MACs, tokens, or derived values.
-- Passes include nonce, expiry, campaign binding, terminal binding, merchant binding, and one-time-use state.
-- SDK verifier is aligned with the current 19-case negative-path artifact.
-- Child-lineage payout binding is strengthened in the Anchor program.
-- Devnet proof artifacts were regenerated from a fresh final proof run.
-- The updated frontend is deployed to Vercel.
+- Hardened pass issuance and terminal confirmation
+- Production pass signing now requires a real server-side secret
+- Demo fallback behavior is explicitly isolated
+- Invalid confirmations return generic errors without exposing expected values
+- Passes now include nonce, expiry, campaign binding, merchant binding, terminal binding, and one-time-use state
+- SDK verification is aligned with the current 19-case negative-path artifact
+- Child-lineage payout beneficiary binding is strengthened in the Anchor program
+- Devnet proof artifacts were regenerated from the current implementation
+- The live frontend and proof surface were updated
 
 ## How It Works
 
@@ -209,9 +199,9 @@ docs/                 Scope, limitations, and review material
 /proof               Public proof center
 ```
 
-## Honest Scope
+## Scope
 
-Viral Sync is a **Devnet POC-1**, not a production-ready protocol.
+Viral Sync is currently scoped as a Devnet POC-1. It demonstrates merchant-funded, counter-attested outcome settlement with replay protection and public verification artifacts.
 
 It does not claim:
 
@@ -224,7 +214,7 @@ It does not claim:
 
 POC-1 proves a narrower claim: the devnet program can record and settle a merchant, terminal, and visitor counter-attested receipt with escrow custody, nullifier replay protection, and proof artifacts that bind to the current source, IDL, proof generator, and verifier.
 
-Production readiness requires:
+Mainnet deployment would require:
 
 - external audit or security review
 - persistent pass/replay storage with atomic consume semantics
