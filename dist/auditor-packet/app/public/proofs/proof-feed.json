@@ -2,7 +2,7 @@
   "type": "viral-sync-proof-feed",
   "version": "1.0.0",
   "network": "solana-devnet",
-  "generatedAt": "2026-05-05T00:44:22.736Z",
+  "generatedAt": "2026-05-09T11:03:33.285Z",
   "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
   "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
   "sourcePassport": "app/public/proofs/merchant-passport.json",
@@ -69,11 +69,11 @@
     },
     {
       "id": "fraud-gauntlet",
-      "title": "Fraud Gauntlet executed",
+      "title": "Negative-path suite executed",
       "kind": "security",
       "status": "verified",
-      "detail": "19/19 expected fraud cases blocked by proof artifacts.",
-      "object": "0a79be185b53e6db415dfd0b327130df27fb216601601237821d6df3baa63e82",
+      "detail": "19/19 invalid flows rejected by the deterministic proof artifact.",
+      "object": "06b1e2b307c70410a88e17fb500c589908ecf9ed556081224d5ce8c0e06b9701",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -103,7 +103,7 @@
       "kind": "orderbook",
       "status": "verified",
       "detail": "1/3 campaigns are proof-backed.",
-      "object": "3544138b8c88213428c84289848c5680cace95751ab48fdb643136fed3a6ab5a",
+      "object": "c33bee5e4189473c24ac168b22da8bfeb138823b82a4d1f5d3714766069eff25",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -118,7 +118,7 @@
       "kind": "campaign-link",
       "status": "verified",
       "detail": "3 public campaign links generated for proof-of-conversion routing.",
-      "object": "cf5ec7046b8e27dae5408700df0747c10c2da787887b58511de9649e195b7648",
+      "object": "80e56ef4e98dc8cb24ac3a754f2cedbacba94d144a8ce35f74b95f5116b010eb",
       "verification": {
         "terminalVerified": true,
         "visitorVerified": true,
@@ -128,12 +128,12 @@
       }
     }
   ],
-  "programSourceHash": "eafdd1ef6a245b220232a37c7a5c6e09b1124c16a392b10a389c3a1d23f00f27",
+  "programSourceHash": "b90eaf47606f426c4531e94eacc40aa5912490bbe895736be2bdd3e3c277946b",
   "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-  "proofGeneratorHash": "26f6c77d143d2bc4b581d28d89b1c85d6be2924be8dfe785d25127d674ef43c7",
-  "verifierHash": "53ea183533be921fbee0be8021150543b27875caadd62a77868446baf3969817",
+  "proofGeneratorHash": "570e6ffc12e6ebf6fc0dc2dc68c1801c8601818e163c61c7025ff727499ce1d0",
+  "verifierHash": "36cc54b76f917839d7334cb2a4d4e43d48f6f66f0d41be182ae40686496529c4",
   "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "stampMode": "final-candidate",
-  "artifactHash": "be52835a925fa151f43b17dd78118cf94b6ebcdf22ab56e744ee59600c6f28d1"
+  "artifactHash": "c614ce22a86f008695a71199ae1193297132ba8d9a64010fb280f4e2344975ab"
 }

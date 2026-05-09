@@ -7,7 +7,7 @@ Status: **GO**
 - PASS — Artifact schema gate: POC-1 schema exists.
 - PASS — Counter-attestation manifest: Manifest is fresh and counter-attested.
 - PASS — Verifier output: Verifier ok=true with terminal/visitor/lineage/settlement/nullifier flags.
-- PASS — Fraud Gauntlet: 19/19 attacks blocked with expected error evidence.
+- PASS — Negative-path suite: 19/19 invalid flows rejected with expected error evidence.
 - PASS — Merchant Passport: Passport facts are all verified.
 - PASS — Orderbook proof-backed slot: Orderbook has verified proof-backed campaign.
 - PASS — Campaign links: At least one campaign link is proof-backed and verified.

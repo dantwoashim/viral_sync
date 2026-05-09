@@ -1,6 +1,6 @@
 # Frontier Final Go/No-Go
 
-Generated: 2026-05-05T00:44:30.075Z
+Generated: 2026-05-09T11:03:45.418Z
 
 ## Decision
 
@@ -19,7 +19,7 @@ GO: submit this build for Frontier judging.
 | Required verifier | PASS |
 | Counter-attestation fields | PASS |
 | Merchant Proof Passport | PASS |
-| Fraud Gauntlet artifact | PASS |
+| Negative-path suite artifact | PASS |
 | Proof feed artifact | PASS |
 | Hosted receipt proof page | PASS |
 | Hosted proof page | PASS |

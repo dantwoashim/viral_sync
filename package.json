@@ -23,7 +23,7 @@
     "test:protocol": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "verify": "npm run verify:core",
-    "verify:core": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-sdk && cargo check --manifest-path programs/viral_sync/Cargo.toml && npm run build:program && npm run test:protocol",
+    "verify:core": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-sdk && cargo check --manifest-path programs/viral_sync/Cargo.toml && npm run build:program && npm run frontier:verify-artifacts && npm run auditor:packet && npm run frontier:assert-final && npm run test:protocol",
     "verify:relayer": "npm run build --workspace relayer",
     "devnet:verify-receipt": "ts-node scripts/verify-causal-receipt-localnet.ts --manifest app/public/proofs/devnet-causal-commerce.json",
     "test:protocol:attack": "cross-env RUN_ANCHOR_ATTACK_TESTS=1 ts-mocha -p ./tsconfig.json -t 1000000 tests/anchor-attack-localnet.spec.ts",
@@ -60,9 +60,6 @@
   },
   "overrides": {
     "axios": "1.16.0",
-    "@coinbase/cdp-sdk@1.48.2": {
-      "axios": "1.16.0"
-    },
     "postcss": "8.5.10",
     "mocha": {
       "diff": "8.0.3",

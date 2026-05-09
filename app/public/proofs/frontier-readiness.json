@@ -1,6 +1,6 @@
 {
   "type": "viral-sync-frontier-readiness",
-  "generatedAt": "2026-05-05T00:44:26.377Z",
+  "generatedAt": "2026-05-09T11:03:38.958Z",
   "status": "GO",
   "gates": [
     {
@@ -35,9 +35,9 @@
     },
     {
       "id": "fraud-gauntlet",
-      "label": "Fraud Gauntlet",
+      "label": "Negative-path suite",
       "status": "PASS",
-      "detail": "19/19 attacks blocked with expected error evidence."
+      "detail": "19/19 invalid flows rejected with expected error evidence."
     },
     {
       "id": "merchant-passport",
@@ -96,12 +96,12 @@
     "deployKeypair": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
     "matches": true
   },
-  "programSourceHash": "eafdd1ef6a245b220232a37c7a5c6e09b1124c16a392b10a389c3a1d23f00f27",
+  "programSourceHash": "b90eaf47606f426c4531e94eacc40aa5912490bbe895736be2bdd3e3c277946b",
   "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-  "proofGeneratorHash": "26f6c77d143d2bc4b581d28d89b1c85d6be2924be8dfe785d25127d674ef43c7",
-  "verifierHash": "53ea183533be921fbee0be8021150543b27875caadd62a77868446baf3969817",
+  "proofGeneratorHash": "570e6ffc12e6ebf6fc0dc2dc68c1801c8601818e163c61c7025ff727499ce1d0",
+  "verifierHash": "36cc54b76f917839d7334cb2a4d4e43d48f6f66f0d41be182ae40686496529c4",
   "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
   "stampMode": "final-candidate",
-  "artifactHash": "bb82253486bb190f9c5284e7c284bd75ec8b093535de973bb011e975059be4b2"
+  "artifactHash": "dc6c9202b8d94622cc187250777096bc67a56ae8bb5d493976289fe647dbb3cf"
 }

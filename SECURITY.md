@@ -43,7 +43,7 @@ Viral Sync is a devnet/prototype project. It is not audited for mainnet funds.
 
 ## Current Dependency Audit Note
 
-`npm audit fix` has been applied. The remaining audit finding is upstream: `@coinbase/cdp-sdk@1.48.2`, pulled by the relayer's x402 packages, pins `axios@1.13.6`. Viral Sync no longer advertises paid x402 campaign creation as implemented, and the relayer build remains isolated from the core proof gate. Upgrade or remove the Coinbase x402 dependency before treating paid relayer routes as production security surface.
+`npm audit fix` has been applied and the unused relayer x402/Coinbase dependencies were removed because paid campaign creation is not implemented in the submitted proof path. `npm audit --audit-level=low` currently reports zero known npm vulnerabilities.
 
 ## Reporting a vulnerability
 
