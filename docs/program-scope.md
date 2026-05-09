@@ -2,6 +2,8 @@
 
 The current public product is the POC-1 outcome settlement path. Experimental Token-2022 and reputation modules are excluded from the live demo and are not required for receipt settlement.
 
+The reduced public IDL for this scope is `idl/viral_sync_poc1.json`. It intentionally excludes legacy and experimental instructions so reviewers can inspect the live proof surface without treating older modules as product claims.
+
 | Instruction or module | Status | Used in proof? | Reason |
 |---|---|---:|---|
 | `register_merchant` | Core | Yes | Creates merchant-owned POC-1 config. |

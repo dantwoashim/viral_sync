@@ -6,6 +6,8 @@ Viral Sync is proof-of-outcome infrastructure for Solana commerce: merchants esc
 
 A POC-1 conversion is valid when a merchant-funded campaign, enrolled terminal signer, visitor signer, claim-pass account lineage, nullifier PDA, causal receipt PDA, settlement record, and `intent_manifest_hash` all agree.
 
+The current submitted proof should be described as counter-attested settlement, not independent proof that a human physically appeared. Production wallet UX must display or preimage-bind payout beneficiaries before the system is marketed as fully protecting creators, referrers, or visitors from payout redirection.
+
 ## Minimum fields
 
 ```json

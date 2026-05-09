@@ -1,7 +1,7 @@
 {
   "name": "viral-sync-poc1",
   "version": "1.0.0",
-  "description": "Agent-readable POC-1 proof endpoints for receipt-backed Solana payouts and x402-paid outcome settlement tools.",
+  "description": "Agent-readable POC-1 proof endpoints for receipt-backed Solana payouts and submission-safe proof inspection.",
   "tools": [
     {
       "name": "campaign_action_metadata",
@@ -27,7 +27,7 @@
       "name": "agent_receipt_context",
       "endpoint": "GET /api/agent/receipt/{id}",
       "payment": "none",
-      "description": "Returns the receipt, verifier, fraud gauntlet, lineage, artifact, and x402 routing context an agent needs before trusting a payout."
+      "description": "Returns the receipt, verifier, negative-path suite, lineage, and artifact context an agent needs before trusting a payout."
     },
     {
       "name": "merchant_validation_context",
@@ -46,30 +46,6 @@
       "endpoint": "GET /api/agent/execution-audit",
       "payment": "none",
       "description": "Returns the execution audit, including code-complete status and founder-only personal action gates."
-    },
-    {
-      "name": "x402_create_campaign",
-      "service": "viral-sync-relayer",
-      "baseUrlEnv": "RELAYER_PUBLIC_URL",
-      "endpoint": "POST /campaigns/create",
-      "payment": {
-        "protocol": "x402",
-        "amount": "0.10",
-        "asset": "USDC",
-        "network": "solana-devnet"
-      }
-    },
-    {
-      "name": "x402_verify_receipt",
-      "service": "viral-sync-relayer",
-      "baseUrlEnv": "RELAYER_PUBLIC_URL",
-      "endpoint": "GET /receipts/{receiptPda}/verify",
-      "payment": {
-        "protocol": "x402",
-        "amount": "0.001",
-        "asset": "USDC",
-        "network": "solana-devnet"
-      }
     }
   ],
   "proofContract": {

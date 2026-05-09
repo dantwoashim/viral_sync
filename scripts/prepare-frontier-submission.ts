@@ -410,7 +410,7 @@ ${decision}
 | Required verifier | ${verifier ? (verifier.ok ? 'PASS' : 'FAIL') : 'MISSING'} |
 | Counter-attestation fields | ${proofAttestationVerdict(manifest, verifier)} |
 | Merchant Proof Passport | ${passportVerdict(passport)} |
-| Fraud Gauntlet artifact | ${existsSync(path.resolve(DEFAULT_GAUNTLET_PATH)) ? 'PASS' : 'FAIL'} |
+| Negative-path suite artifact | ${existsSync(path.resolve(DEFAULT_GAUNTLET_PATH)) ? 'PASS' : 'FAIL'} |
 | Proof feed artifact | ${existsSync(path.resolve(DEFAULT_FEED_PATH)) ? 'PASS' : 'FAIL'} |
 | Hosted receipt proof page | ${existsSync(path.resolve('app/src/app/receipt/[id]/page.tsx')) ? 'PASS' : 'FAIL'} |
 | Hosted proof page | ${existsSync(path.resolve('app/src/app/proof/page.tsx')) ? 'PASS' : 'FAIL'} |
@@ -474,7 +474,7 @@ async function main() {
   if (manifest.cluster && manifest.cluster !== 'devnet') failures.push(`Proof manifest cluster is ${manifest.cluster}, expected devnet`);
   if (staleStatus(manifest.proofStatus)) failures.push(`Proof manifest is marked stale: ${manifest.proofStatus}${manifest.proofStatusNote ? ` — ${manifest.proofStatusNote}` : ''}`);
   if (staleStatus(passport?.proofStatus)) failures.push(`Merchant Proof Passport is marked stale: ${passport?.proofStatus}${passport?.proofStatusNote ? ` — ${passport.proofStatusNote}` : ''}`);
-  if (staleStatus(gauntlet?.proofStatus)) failures.push(`Fraud Gauntlet is marked stale: ${gauntlet?.proofStatus}`);
+  if (staleStatus(gauntlet?.proofStatus)) failures.push(`Negative-path suite is marked stale: ${gauntlet?.proofStatus}`);
   if (staleStatus(feed?.proofStatus)) failures.push(`Proof Feed is marked stale: ${feed?.proofStatus}`);
   if (staleStatus(orderbook?.proofStatus)) failures.push(`Conversion Orderbook is marked stale: ${orderbook?.proofStatus}`);
 
@@ -526,18 +526,18 @@ async function main() {
 
 
 
-  if (!gauntlet) failures.push(`Required Fraud Gauntlet is missing: ${gauntletPath}`);
+  if (!gauntlet) failures.push(`Required negative-path suite is missing: ${gauntletPath}`);
   else {
     const total = gauntlet.summary?.totalCases ?? gauntlet.cases?.length ?? 0;
     const blocked = gauntlet.summary?.blocked ?? gauntlet.cases?.filter((item) => item.status === 'blocked').length ?? 0;
-    if (total < 16) failures.push(`Fraud Gauntlet has only ${total} cases, expected at least 16`);
-    if (blocked !== total) failures.push(`Fraud Gauntlet blocked ${blocked}/${total} cases`);
-    if ((gauntlet.summary?.missing ?? 0) !== 0) failures.push(`Fraud Gauntlet missing ${gauntlet.summary?.missing} cases`);
-    if ((gauntlet.summary?.failed ?? 0) !== 0) failures.push(`Fraud Gauntlet failed ${gauntlet.summary?.failed} cases`);
+    if (total < 16) failures.push(`Negative-path suite has only ${total} cases, expected at least 16`);
+    if (blocked !== total) failures.push(`Negative-path suite rejected ${blocked}/${total} cases`);
+    if ((gauntlet.summary?.missing ?? 0) !== 0) failures.push(`Negative-path suite missing ${gauntlet.summary?.missing} cases`);
+    if ((gauntlet.summary?.failed ?? 0) !== 0) failures.push(`Negative-path suite failed ${gauntlet.summary?.failed} cases`);
     (gauntlet.cases ?? []).forEach((item, index) => {
-      if (item.observed !== 'rejected') failures.push(`Fraud Gauntlet case ${index} observed ${item.observed}, expected rejected`);
-      if (item.expectedErrorMatched !== true) failures.push(`Fraud Gauntlet case ${index} did not match expected error`);
-      if (item.accountsMutated !== false || item.accountsMutationVerified !== true) failures.push(`Fraud Gauntlet case ${index} did not verify no account mutation`);
+      if (item.observed !== 'rejected') failures.push(`Negative-path suite case ${index} observed ${item.observed}, expected rejected`);
+      if (item.expectedErrorMatched !== true) failures.push(`Negative-path suite case ${index} did not match expected error`);
+      if (item.accountsMutated !== false || item.accountsMutationVerified !== true) failures.push(`Negative-path suite case ${index} did not verify no account mutation`);
     });
   }
 

@@ -37,6 +37,7 @@ const files = [
   'app/public/proofs/invariant-matrix.json',
   'tmp/devnet-causal-commerce-verifier.json',
   'idl/viral_sync.json',
+  'idl/viral_sync_poc1.json',
   'sdk/src/index.ts',
   'scripts/verify-causal-receipt-localnet.ts',
   'scripts/generate-fraud-gauntlet.ts',

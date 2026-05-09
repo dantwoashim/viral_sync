@@ -8,6 +8,7 @@ import { confirmVisitPass, createVisitPassPacket } from '../app/src/lib/product-
 import { getWorldClassReadiness } from '../app/src/lib/readiness/operatingReadiness';
 import { getExecutionAudit } from '../app/src/lib/readiness/executionAudit';
 import { getMerchantValidationState, normalizeMerchantValidation } from '../app/src/lib/traction/merchantValidation';
+import { verifyFraudGauntlet } from '../sdk/src/index';
 
 describe('proof hardening regressions', () => {
   it('binds the published manifest to current source, IDL, generator, and verifier', () => {
@@ -123,7 +124,7 @@ describe('proof hardening regressions', () => {
     expect(errors).to.include('InvalidLineageProof');
   });
 
-  it('publishes agent and x402 discovery surfaces without overstating payment-free access', () => {
+  it('publishes agent discovery surfaces without advertising disabled paid x402 flows', () => {
     const mcp = JSON.parse(fs.readFileSync('app/public/.well-known/mcp.json', 'utf8')) as {
       tools: Array<{ name: string; endpoint?: string; payment?: string | Record<string, unknown> }>;
       proofContract?: { currentFraudGauntlet?: string };
@@ -137,25 +138,28 @@ describe('proof hardening regressions', () => {
 
     const toolByName = new Map(mcp.tools.map((tool) => [tool.name, tool]));
     expect(toolByName.get('agent_receipt_context')?.endpoint).to.equal('GET /api/agent/receipt/{id}');
-    expect(toolByName.get('x402_create_campaign')?.payment).to.deep.include({ protocol: 'x402', amount: '0.10', asset: 'USDC' });
-    expect(toolByName.get('x402_verify_receipt')?.payment).to.deep.include({ protocol: 'x402', amount: '0.001', asset: 'USDC' });
-    expect(toolByName.get('x402_create_campaign')).to.deep.include({ baseUrlEnv: 'RELAYER_PUBLIC_URL' });
-    expect(toolByName.get('x402_verify_receipt')).to.deep.include({ baseUrlEnv: 'RELAYER_PUBLIC_URL' });
+    expect(toolByName.has('x402_create_campaign')).to.equal(false);
+    expect(toolByName.has('x402_verify_receipt')).to.equal(false);
     expect(mcp.proofContract?.currentFraudGauntlet).to.equal('19/19');
 
     expect(blink.rules?.some((rule) => rule.pathPattern === '/api/agent/receipt/*')).to.equal(true);
-    expect(blink.x402?.relayer?.verifyReceipt).to.equal('GET /receipts/{receiptPda}/verify');
+    expect(blink.x402).to.equal(undefined);
 
     expect(agentRoute).to.include('viral_sync_agent_receipt_context');
     expect(agentRoute).to.include('childLineageProof');
     expect(agentRoute).to.include('fraudGauntletBlockedAllCases');
     expect(agentRoute).to.include('sourceHashesMatched');
-    expect(agentRoute).to.include('x402_verify_receipt');
 
     expect(relayer).to.include("app.get('/.well-known/mcp.json'");
-    expect(relayer).to.include('X402_CREATE_CAMPAIGN_PRICE');
-    expect(relayer).to.include('X402_VERIFY_RECEIPT_PRICE');
+    expect(relayer).to.include('campaign_creation_not_enabled');
+    expect(relayer).not.to.include('x402_paid_campaign_creation');
     expect(relayer).to.include('relay_sponsored_transaction');
+  });
+
+  it('SDK verifies the currently published negative-path suite', () => {
+    const gauntlet = readJson<Record<string, unknown>>('app/public/proofs/fraud-gauntlet.json');
+    const result = verifyFraudGauntlet(gauntlet);
+    expect(result.ok).to.equal(true);
   });
 
   it('keeps merchant validation honest until required evidence is verified', () => {

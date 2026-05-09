@@ -29,19 +29,21 @@ Remaining production work:
 - move upgrade authority to multisig before uncapped beta.
 - keep `docs/production-readiness.md` and `docs/auditor-start-here.md` current for every release candidate.
 
-## Day 134-144 Security Gate
+## Inspectable Security Materials
 
-The repository now includes:
+The repository includes the security materials that are currently inspectable:
 
-- threat model v2 in `docs/threat-model-v2-day-134.md`;
-- baseline CSRF/XSS/session notes in `docs/csrf-xss-session-tests-day-135.md`;
 - GitHub security scanning workflow in `.github/workflows/security-scan.yml`;
-- program security review notes in `docs/program-security-review-day-137.md`;
-- relayer abuse drill in `docs/relayer-abuse-drill-day-138.md`;
-- incident runbooks in `docs/incident-runbooks-day-139.md`;
-- mainnet beta scope and upgrade authority policies in `docs/mainnet-beta-scope-day-141.md` and `docs/upgrade-authority-policy-day-142.md`.
+- production readiness gates in `docs/production-readiness.md`;
+- auditor entrypoint in `docs/auditor-start-here.md`;
+- scoped POC-1 program surface in `docs/program-scope.md`;
+- current proof limitations in `docs/KNOWN_LIMITATIONS.md`.
 
 Viral Sync is a devnet/prototype project. It is not audited for mainnet funds.
+
+## Current Dependency Audit Note
+
+`npm audit fix` has been applied. The remaining audit finding is upstream: `@coinbase/cdp-sdk@1.48.2`, pulled by the relayer's x402 packages, pins `axios@1.13.6`. Viral Sync no longer advertises paid x402 campaign creation as implemented, and the relayer build remains isolated from the core proof gate. Upgrade or remove the Coinbase x402 dependency before treating paid relayer routes as production security surface.
 
 ## Reporting a vulnerability
 

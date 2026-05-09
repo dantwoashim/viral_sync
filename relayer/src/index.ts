@@ -7,7 +7,6 @@ import {
   Transaction,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { paymentMiddleware, type SolanaAddress } from 'x402-express';
 import bs58 from 'bs58';
 import { createHash, timingSafeEqual } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
@@ -49,7 +48,6 @@ const MAX_COMPUTE_UNITS = Number(process.env.MAX_COMPUTE_UNITS || 200_000);
 const allowAddressLookupTables = process.env.RELAYER_ALLOW_ADDRESS_LOOKUP_TABLES === 'true';
 const allowUnauthenticated = process.env.RELAYER_ALLOW_UNAUTHENTICATED === 'true';
 const COMPUTE_BUDGET_PROGRAM_ID = 'ComputeBudget111111111111111111111111111111';
-const TREASURY_WALLET = process.env.TREASURY_WALLET || '';
 
 if (MAX_TRANSACTION_BYTES > 2_048) {
   throw new Error('MAX_TRANSACTION_BYTES must not exceed 2048 for the production relayer.');
@@ -87,10 +85,6 @@ if (isProduction && (!REPLAY_CACHE_REST_URL || !REPLAY_CACHE_REST_TOKEN)) {
   throw new Error('RELAYER_REPLAY_CACHE_REST_URL and RELAYER_REPLAY_CACHE_REST_TOKEN are required in production.');
 }
 
-if (isProduction && !TREASURY_WALLET) {
-  throw new Error('TREASURY_WALLET is required for x402 paid API routes in production.');
-}
-
 function assertPositiveInteger(value: number, name: string) {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer.`);
@@ -124,18 +118,6 @@ function parseSecretKey(secret: string) {
 const relayerKeypair = parseSecretKey(RELAYER_SECRET);
 const connection = new Connection(RPC_URL, 'confirmed');
 const app = express();
-const x402TreasuryWallet = TREASURY_WALLET || relayerKeypair.publicKey.toBase58();
-const X402_CREATE_CAMPAIGN_PRICE = '$0.10';
-const X402_VERIFY_RECEIPT_PRICE = '$0.001';
-const createdCampaigns = new Map<string, {
-  id: string;
-  orgIdHash: string;
-  campaignBudget: string;
-  rewardPerVisit: string;
-  campaignIntent: string;
-  createdAt: string;
-  status: 'created';
-}>();
 
 function readJsonIfExists(filePath: string): unknown | null {
   const resolved = path.resolve(filePath);
@@ -193,29 +175,6 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '16kb', type: 'application/json' }));
 
-app.use(paymentMiddleware(
-  x402TreasuryWallet as SolanaAddress,
-  {
-    '/campaigns/create': {
-      price: X402_CREATE_CAMPAIGN_PRICE,
-      network: 'solana-devnet',
-      config: {
-        description: 'POC-1 campaign creation',
-        mimeType: 'application/json',
-      },
-    },
-    '/receipts/:receiptPda/verify': {
-      price: X402_VERIFY_RECEIPT_PRICE,
-      network: 'solana-devnet',
-      config: {
-        description: 'POC-1 receipt verification',
-        mimeType: 'application/json',
-      },
-    },
-  },
-  { url: 'https://api.cdp.coinbase.com/platform/x402/solana/facilitation' },
-));
-
 const rateLimitMap = new Map<string, number[]>();
 const replayCache = new Map<string, number>();
 
@@ -223,43 +182,15 @@ app.get('/.well-known/mcp.json', (_req, res) => {
   res.json({
     name: 'viral-sync-relayer',
     version: '1.0.0',
-    description: 'x402-paid Viral Sync relayer tools for agent-created campaigns and paid receipt verification.',
-    treasuryWallet: x402TreasuryWallet,
-    facilitatorUrl: 'https://api.cdp.coinbase.com/platform/x402/solana/facilitation',
+    description: 'Viral Sync sponsored transaction relay and published POC-1 receipt proof lookup.',
     tools: [
       {
-        name: 'x402_create_campaign',
-        endpoint: 'POST /campaigns/create',
-        payment: {
-          protocol: 'x402',
-          amount: '0.10',
-          asset: 'USDC',
-          network: 'solana-devnet',
-          payTo: x402TreasuryWallet,
-        },
-        inputSchema: {
-          type: 'object',
-          required: ['orgIdHash', 'campaignBudget', 'rewardPerVisit'],
-          properties: {
-            orgIdHash: { type: 'string' },
-            campaignBudget: { type: ['string', 'number'] },
-            rewardPerVisit: { type: ['string', 'number'] },
-          },
-        },
-      },
-      {
-        name: 'x402_verify_receipt',
+        name: 'published_poc1_receipt_lookup',
         endpoint: 'GET /receipts/{receiptPda}/verify',
-        payment: {
-          protocol: 'x402',
-          amount: '0.001',
-          asset: 'USDC',
-          network: 'solana-devnet',
-          payTo: x402TreasuryWallet,
-        },
+        payment: 'none',
         outputContract: {
           ok: 'boolean',
-          proof: 'Published receipt proof with verifier flags, settlement checks, token checks, explorer links, and proof status.',
+          proof: 'Published POC-1 receipt proof with verifier flags, settlement checks, token checks, explorer links, and proof status.',
         },
       },
       {
@@ -575,56 +506,21 @@ setInterval(() => {
 }, 30_000).unref();
 
 app.post('/campaigns/create', requireRateLimit, async (req, res) => {
-  const { orgIdHash, campaignBudget, rewardPerVisit } = req.body ?? {};
-  if (typeof orgIdHash !== 'string' || !orgIdHash) {
-    res.status(400).json({ error: 'orgIdHash is required.' });
-    return;
-  }
-  if (typeof campaignBudget !== 'string' && typeof campaignBudget !== 'number') {
-    res.status(400).json({ error: 'campaignBudget is required.' });
-    return;
-  }
-  if (typeof rewardPerVisit !== 'string' && typeof rewardPerVisit !== 'number') {
-    res.status(400).json({ error: 'rewardPerVisit is required.' });
-    return;
-  }
-
-  const campaignIntent = createHash('sha256')
-    .update(JSON.stringify({ orgIdHash, campaignBudget: String(campaignBudget), rewardPerVisit: String(rewardPerVisit) }))
-    .digest('hex');
-  const campaignId = `x402_${campaignIntent.slice(0, 20)}`;
-  const campaign = {
-    id: campaignId,
-    orgIdHash,
-    campaignBudget: String(campaignBudget),
-    rewardPerVisit: String(rewardPerVisit),
-    campaignIntent,
-    createdAt: new Date().toISOString(),
-    status: 'created' as const,
-  };
-  createdCampaigns.set(campaignId, campaign);
-
-  res.json({
-    ok: true,
-    artifactType: 'x402_paid_campaign_creation',
-    campaign,
-    payment: {
-      protocol: 'x402',
-      amount: '0.10',
-      asset: 'USDC',
-      network: 'solana-devnet',
-      payTo: x402TreasuryWallet,
-    },
+  res.status(501).json({
+    ok: false,
+    artifactType: 'campaign_creation_not_enabled',
+    error: 'This route no longer returns a paid campaign-creation intent because it does not submit create_growth_campaign on-chain yet.',
+    nextStep: 'Use the Next.js campaign action metadata for the submission demo, or implement a real create_growth_campaign transaction before enabling paid campaign creation.',
   });
 });
 
 app.get('/campaigns/:campaignId', requireApiKey, requireRateLimit, async (req, res) => {
-  const campaign = createdCampaigns.get(req.params.campaignId);
-  if (!campaign) {
-    res.status(404).json({ ok: false, error: 'Campaign not found.' });
-    return;
-  }
-  res.json({ ok: true, campaign });
+  res.status(501).json({
+    ok: false,
+    artifactType: 'campaign_lookup_not_enabled',
+    campaignId: req.params.campaignId,
+    error: 'Campaign lookup is disabled because this relayer does not create on-chain campaigns yet.',
+  });
 });
 
 app.get('/receipts/:receiptPda/verify', requireRateLimit, async (req, res) => {
@@ -638,7 +534,7 @@ app.get('/receipts/:receiptPda/verify', requireRateLimit, async (req, res) => {
   if (!publishedProof) {
     res.status(404).json({
       ok: false,
-      artifactType: 'x402_paid_poc1_receipt_verification',
+      artifactType: 'published_poc1_receipt_lookup',
       receiptPda,
       error: 'No published POC-1 proof artifact found for this receipt PDA.',
     });
@@ -647,15 +543,9 @@ app.get('/receipts/:receiptPda/verify', requireRateLimit, async (req, res) => {
 
   res.json({
     ok: publishedProof.verifier.ok,
-    artifactType: 'x402_paid_poc1_receipt_verification',
+    artifactType: 'published_poc1_receipt_lookup',
     receiptPda,
-    payment: {
-      protocol: 'x402',
-      amount: '0.001',
-      asset: 'USDC',
-      network: 'solana-devnet',
-      payTo: x402TreasuryWallet,
-    },
+    scope: 'Reads the currently published POC-1 proof packet. It is not a general on-chain receipt verifier for arbitrary receipt PDAs.',
     proof: publishedProof,
   });
 });

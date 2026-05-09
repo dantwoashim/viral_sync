@@ -350,7 +350,7 @@ export function verifyFraudGauntlet(gauntlet: FraudGauntletArtifact): Poc1Verifi
     'visitor-beneficiary-mismatch',
     'claim-pass-reused',
     'claim-pass-campaign-mismatch',
-    'claim-pass-depth-exceeded',
+    'claim-pass-depth-exceeds-max-depth',
     'duplicate-nullifier',
     'inflated-reward-amount',
     'inflated-split-bps',

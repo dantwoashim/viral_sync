@@ -9,7 +9,7 @@ Each receipt commits to the invite hash, campaign nullifier, visit attestation h
 The only way to create this receipt is for the merchant, enrolled terminal, and visitor to sign the same conversion.
 
 ```text
-Pay for verified visits, not unverifiable clicks.
+Pay for counter-attested outcomes, not unverifiable clicks.
 ```
 
 ## What It Proves
@@ -29,6 +29,7 @@ reward is settled from escrow
 The public app is intentionally small: one landing page, one claim flow, one merchant terminal, one merchant today view, one receipt page, and one proof center.
 
 The current public product is the POC-1 outcome settlement path. Experimental Token-2022 and reputation modules are excluded from the live demo and are not required for receipt settlement; see `docs/program-scope.md`.
+For integrations and judging, use the reduced public IDL at `idl/viral_sync_poc1.json`; it contains only the POC-1 receipt-settlement surface.
 
 ## Devnet Proof
 
@@ -75,7 +76,7 @@ The proof page is:
 
 It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, intent manifest hash, and the valid-vs-malicious Causal Receipt Intent Validator results.
 
-The fraud gauntlet is intentionally technical: 16 fraud attempts tested, 16 rejected, expected errors matched, and account mutation checks passed.
+The negative-path suite is intentionally technical: 16 invalid flows tested, 16 rejected, expected errors matched, and account mutation checks passed. It is a deterministic proof artifact, not a claim of live production fraud traffic.
 
 The Merchant Proof Passport packages the same verifier-backed facts into a portable merchant-owned proof object without customer personal data.
 
@@ -142,6 +143,7 @@ The proof scripts document escrow funding, receipt recording, settlement, replay
 ## Current Limitations
 
 - The public app includes a local commitment preview for merchant UX.
+- The hosted claim flow is a proof-backed demo replay. It does not create a fresh on-chain claim pass and receipt for every visitor yet.
 - The judge-facing proof page uses devnet transaction output from the proof manifest.
 - The current Causal Receipt Intent Validator is Viral Sync-specific. It validates constrained receipt intent fields before settlement/sponsorship, but it is not yet a generic Solana transaction firewall and does not deeply inspect arbitrary serialized transaction effects.
 - The program has not been externally audited.

@@ -122,10 +122,10 @@ function main() {
     },
     {
       id: 'fraud-gauntlet',
-      title: 'Fraud Gauntlet executed',
+      title: 'Negative-path suite executed',
       kind: 'security',
       status: gauntletReady ? 'verified' : 'attention',
-      detail: `${gauntlet.summary?.blocked ?? 0}/${gauntlet.summary?.totalCases ?? 0} expected fraud cases blocked by proof artifacts.`,
+      detail: `${gauntlet.summary?.blocked ?? 0}/${gauntlet.summary?.totalCases ?? 0} invalid flows rejected by the deterministic proof artifact.`,
       object: gauntlet.gauntletHash ?? '',
       verification,
     },
