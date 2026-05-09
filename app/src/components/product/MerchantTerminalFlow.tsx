@@ -19,11 +19,19 @@ export function MerchantTerminalFlow({
   campaign,
   initialPassCode,
   initialPassMac,
+  initialPassId,
+  initialNonce,
+  terminalDevicePda,
+  merchantAlias,
   token,
 }: {
   campaign: ProductLoopCampaign;
   initialPassCode?: string;
   initialPassMac?: string;
+  initialPassId?: string;
+  initialNonce?: string;
+  terminalDevicePda?: string;
+  merchantAlias?: string;
   token?: string;
 }) {
   const [state, setState] = useState<TerminalState>(
@@ -91,6 +99,10 @@ export function MerchantTerminalFlow({
           slug: campaign.slug,
           passCode: code,
           passMac: initialPassMac,
+          passId: initialPassId,
+          nonce: initialNonce,
+          terminalDevicePda: terminalDevicePda ?? campaign.terminalDevicePda,
+          merchantAlias: merchantAlias ?? campaign.merchantAlias,
           token: token || campaign.slug,
         }),
       });

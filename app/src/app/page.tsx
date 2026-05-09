@@ -4,18 +4,18 @@ import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
 import MouseTilt from '@/components/ui/MouseTilt';
 import { TerminalPanel } from '@/components/product/TerminalPanel';
 import { VisitPass } from '@/components/product/VisitPass';
-import { defaultProductLoopCampaign, expectedPassCodeForCampaign } from '@/lib/product-loop/productLoop';
+import { defaultProductLoopCampaign } from '@/lib/product-loop/productLoop';
 import { gauntletLabel, getProofState } from '@/lib/proof/getProofState';
 
 export default function HomePage() {
   const proof = getProofState();
   const campaign = defaultProductLoopCampaign();
-  const passCode = campaign ? expectedPassCodeForCampaign(campaign.slug) : undefined;
+  const samplePassCode = 'Issued after claim';
   const trust = [
     'Terminal signed',
     'Visitor signed',
     'Reward settled',
-    `${gauntletLabel(proof.gauntlet)} fraud attempts blocked`,
+    `${gauntletLabel(proof.gauntlet)} negative-path tests rejected`,
   ];
   const flow = [
     { title: 'Share link', desc: 'Creator routes demand', icon: CursorClick },
@@ -39,15 +39,15 @@ export default function HomePage() {
 
         <div className="max-w-7xl mx-auto px-6 relative z-10 w-full pt-20 pb-32 flex flex-col items-center text-center">
             <div className="inline-flex items-center gap-2 rounded-full px-5 py-2 bg-white/60 backdrop-blur-md text-gray-800 text-sm font-bold tracking-widest uppercase shadow-sm shadow-hairline mb-10">
-              <ShieldCheck size={18} weight="bold" className="text-indigo-600" /> Verified pay-per-visit
+              <ShieldCheck size={18} weight="bold" className="text-indigo-600" /> Counter-attested outcome settlement
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-7xl xl:text-[7.5rem] font-bold tracking-tighter leading-[0.9] text-gray-900 font-serif max-w-6xl mx-auto">
-              Pay only when the customer <span className="relative whitespace-nowrap"><span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800">actually shows up.</span><span className="absolute bottom-2 left-0 w-full h-6 bg-indigo-100/50 -z-0 transform -rotate-1 rounded-full blur-sm"></span></span>
+              Pay only after the customer and terminal <span className="relative whitespace-nowrap"><span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800">co-sign the outcome.</span><span className="absolute bottom-2 left-0 w-full h-6 bg-indigo-100/50 -z-0 transform -rotate-1 rounded-full blur-sm"></span></span>
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-500 leading-relaxed max-w-3xl mx-auto font-medium mt-10">
-              Viral Sync lets merchants escrow rewards, creators route customers, and Solana release payouts only after the customer and counter terminal co-sign the visit.
+              Viral Sync lets merchants escrow rewards, creators route customers, and Solana release payouts only after a POC-1 receipt is counter-attested and valid.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mt-14 w-full">
@@ -136,8 +136,8 @@ export default function HomePage() {
           <div className="col-span-4 md:col-span-8 lg:col-span-12">
             <div className="grid md:grid-cols-3 gap-8 lg:gap-12 perspective-[2000px]">
               <MouseTilt className="w-full"><VisitPass stage="claim" merchant={campaign?.merchantAlias} visitorReward={campaign?.visitorRewardLabel} routerReward={campaign?.routerRewardLabel} /></MouseTilt>
-              <MouseTilt className="w-full"><VisitPass stage="show" merchant={campaign?.merchantAlias} visitorReward={campaign?.visitorRewardLabel} routerReward={campaign?.routerRewardLabel} passCode={passCode} expiresAt={campaign?.expiresAt} /></MouseTilt>
-              <MouseTilt className="w-full"><VisitPass stage="verified" merchant={campaign?.merchantAlias} visitorReward={campaign?.visitorRewardLabel} routerReward={campaign?.routerRewardLabel} passCode={passCode} /></MouseTilt>
+              <MouseTilt className="w-full"><VisitPass stage="show" merchant={campaign?.merchantAlias} visitorReward={campaign?.visitorRewardLabel} routerReward={campaign?.routerRewardLabel} passCode={samplePassCode} expiresAt={campaign?.expiresAt} /></MouseTilt>
+              <MouseTilt className="w-full"><VisitPass stage="verified" merchant={campaign?.merchantAlias} visitorReward={campaign?.visitorRewardLabel} routerReward={campaign?.routerRewardLabel} passCode={samplePassCode} /></MouseTilt>
             </div>
           </div>
         </div>
@@ -152,7 +152,7 @@ export default function HomePage() {
                 state="detected"
                 merchant={campaign?.merchantAlias}
                 campaignTitle={campaign?.title}
-                passCode={passCode}
+                passCode={samplePassCode}
                 visitorReward={campaign?.visitorRewardLabel}
                 routerReward={campaign?.routerRewardLabel}
               />

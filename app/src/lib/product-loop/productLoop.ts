@@ -24,6 +24,24 @@ type OrderbookCampaign = {
 };
 
 type Orderbook = { campaigns?: OrderbookCampaign[] };
+type PassMode = 'demo_replay' | 'pilot_server_issued' | 'on_chain_claim_pass';
+type StoredPass = {
+  passId: string;
+  nonce: string;
+  slug: string;
+  token: string;
+  passCode: string;
+  passMac: string;
+  expiresAt: number;
+  campaignSlug: string;
+  terminalDevicePda: string;
+  merchantAlias: string;
+  consumed: boolean;
+  mode: PassMode;
+};
+
+const DEFAULT_PASS_TTL_MS = 15 * 60_000;
+const passStore = new Map<string, StoredPass>();
 
 function loadOrderbook(): Orderbook {
   return loadProofSidecar<Orderbook>('conversion-orderbook.json', { campaigns: [] });
@@ -45,9 +63,17 @@ function humanCode(value: string) {
   return `VS-${raw.slice(0, 4)}-${raw.slice(4)}`;
 }
 
+function allowDemoPassFallback() {
+  return process.env.NODE_ENV !== 'production' || process.env.VIRAL_SYNC_ALLOW_DEMO_PASS_FALLBACK === 'true';
+}
+
 function passSigningKey() {
   const configured = process.env.PRODUCT_LOOP_PASS_SECRET;
   if (configured && configured.length >= 32) return configured;
+  if (!allowDemoPassFallback()) {
+    throw new Error('PRODUCT_LOOP_PASS_SECRET is required for production pass signing.');
+  }
+  // Demo-only fallback: this keeps the devnet proof replay usable without presenting public artifact data as a production secret.
   const proof = getProofState();
   return [
     proof.manifest.programSourceHash,
@@ -64,6 +90,38 @@ function constantTimeEqual(left: string, right: string) {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function randomNonce(seed: string) {
+  return createHash('sha256')
+    .update(`${seed}:${Date.now()}:${Math.random()}`)
+    .digest('hex')
+    .slice(0, 24);
+}
+
+function passTtlMs() {
+  const configured = Number(process.env.PRODUCT_LOOP_PASS_TTL_MS ?? DEFAULT_PASS_TTL_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_PASS_TTL_MS;
+}
+
+function expiresAtIso(now = Date.now()) {
+  return new Date(now + passTtlMs()).toISOString();
+}
+
+function storePass(pass: StoredPass) {
+  passStore.set(pass.passId, pass);
+}
+
+function findStoredPass(passId: string | undefined, slug: string, token: string) {
+  if (passId && passStore.has(passId)) return passStore.get(passId) ?? null;
+  for (const pass of passStore.values()) {
+    if (pass.slug === slug && pass.token === token && !pass.consumed) return pass;
+  }
+  return null;
+}
+
+export function resetProductLoopPassStoreForTests() {
+  passStore.clear();
 }
 
 export function productLoopCampaigns(): ProductLoopCampaign[] {
@@ -152,10 +210,10 @@ function proofChecks(campaign: ProductLoopCampaign): ProductLoopCheck[] {
       detail: `Nullifier ${proof.manifest.pdas?.nullifierRecord ?? 'missing'} recorded.`,
     },
     {
-      label: 'Fraud gauntlet passed',
+      label: 'Negative-path suite passed',
       ok: proof.health === 'verified',
       source: 'fraud_gauntlet',
-      detail: `${gauntletLabel(proof.gauntlet)} strict fraud cases blocked.`,
+      detail: `${gauntletLabel(proof.gauntlet)} invalid flows rejected with strict error matching.`,
     },
   ];
 }
@@ -163,7 +221,10 @@ function proofChecks(campaign: ProductLoopCampaign): ProductLoopCheck[] {
 export function createVisitPassPacket(slug: string, token = slug): VisitPassPacket | null {
   const campaign = findProductLoopCampaign(slug);
   if (!campaign || !campaign.proofBacked) return null;
-  const passSeed = `${campaign.slug}:${token}:${campaign.claimPassPda}:${campaign.receiptPda}`;
+  const nonce = randomNonce(`${campaign.slug}:${token}:${campaign.claimPassPda}:${campaign.receiptPda}`);
+  const expiresAt = expiresAtIso();
+  const mode: PassMode = process.env.VIRAL_SYNC_PILOT_PASS_MODE === 'true' ? 'pilot_server_issued' : 'demo_replay';
+  const passSeed = `${campaign.slug}:${token}:${campaign.claimPassPda}:${campaign.receiptPda}:${campaign.terminalDevicePda}:${nonce}:${expiresAt}`;
   const passCode = humanCode(passSeed);
   const mac = passMac(passSeed);
   const passId = `pass_${hashText(passSeed, 18)}`;
@@ -172,10 +233,29 @@ export function createVisitPassPacket(slug: string, token = slug): VisitPassPack
     version: 1,
     campaign: campaign.slug,
     token,
+    passId,
+    nonce,
     passCode,
     passMac: mac,
+    terminalDevicePda: campaign.terminalDevicePda,
+    merchantAlias: campaign.merchantAlias,
     claimPassPda: campaign.claimPassPda,
     receiptPda: campaign.receiptPda,
+    expiresAt,
+  });
+  storePass({
+    passId,
+    nonce,
+    slug: campaign.slug,
+    token,
+    passCode,
+    passMac: mac,
+    expiresAt: new Date(expiresAt).getTime(),
+    campaignSlug: campaign.slug,
+    terminalDevicePda: campaign.terminalDevicePda,
+    merchantAlias: campaign.merchantAlias,
+    consumed: false,
+    mode,
   });
 
   return {
@@ -185,11 +265,13 @@ export function createVisitPassPacket(slug: string, token = slug): VisitPassPack
     campaign,
     token,
     passId,
+    nonce,
+    mode,
     passCode,
     passMac: mac,
     qrPayload,
     issuedAt: new Date().toISOString(),
-    expiresAt: campaign.expiresAt,
+    expiresAt,
     checks: proofChecks(campaign),
   };
 }
@@ -199,7 +281,7 @@ export function expectedPassCodeForCampaign(slug: string) {
   return pass?.passCode ?? '';
 }
 
-export function confirmVisitPass(input: { slug?: string; passCode?: string; passMac?: string; token?: string }): TerminalConfirmation {
+export function confirmVisitPass(input: { slug?: string; passCode?: string; passMac?: string; token?: string; passId?: string; nonce?: string; terminalDevicePda?: string; merchantAlias?: string; nowMs?: number }): TerminalConfirmation {
   const campaign = input.slug ? findProductLoopCampaign(input.slug) : defaultProductLoopCampaign();
   const emptyCampaign = campaign ?? {
     slug: 'missing',
@@ -230,27 +312,67 @@ export function confirmVisitPass(input: { slug?: string; passCode?: string; pass
     expiresAt: null,
   };
   const token = input.token ?? emptyCampaign.slug;
-  const pass = campaign ? createVisitPassPacket(campaign.slug, token) : null;
   const normalizedInput = String(input.passCode ?? '').trim().toUpperCase();
-  const expected = pass?.passCode ?? '';
   const suppliedMac = String(input.passMac ?? '').trim().toLowerCase();
-  const expectedMac = pass?.passMac ?? '';
+  const stored = campaign ? findStoredPass(input.passId, campaign.slug, token) : null;
+  const now = input.nowMs ?? Date.now();
+  const storedMac = stored?.passMac ?? '';
+  const storedCode = stored?.passCode ?? '';
+  const lifecycleOk = Boolean(stored) && stored?.consumed === false && now <= (stored?.expiresAt ?? 0);
+  const campaignBound = Boolean(stored) && stored?.campaignSlug === emptyCampaign.slug && stored?.slug === emptyCampaign.slug;
+  const nonceBound = Boolean(stored) && (!input.nonce || stored?.nonce === input.nonce);
+  const terminalBound = Boolean(stored) && (!input.terminalDevicePda || stored?.terminalDevicePda === input.terminalDevicePda);
+  const merchantBound = Boolean(stored) && (!input.merchantAlias || stored?.merchantAlias === input.merchantAlias);
   const checks: ProductLoopCheck[] = [
     {
+      label: 'Pass is active and unused',
+      ok: lifecycleOk,
+      source: 'pass_lifecycle',
+      detail: lifecycleOk ? 'Pass is active for this confirmation.' : 'Invalid or expired pass.',
+    },
+    {
+      label: 'Pass is bound to campaign',
+      ok: campaignBound,
+      source: 'pass_lifecycle',
+      detail: campaignBound ? 'Pass campaign binding matched.' : 'Invalid or expired pass.',
+    },
+    {
+      label: 'Pass nonce matches issued packet',
+      ok: nonceBound,
+      source: 'pass_lifecycle',
+      detail: nonceBound ? 'Pass nonce matched.' : 'Invalid or expired pass.',
+    },
+    {
+      label: 'Pass is bound to terminal',
+      ok: terminalBound,
+      source: 'pass_lifecycle',
+      detail: terminalBound ? 'Terminal binding matched.' : 'Invalid or expired pass.',
+    },
+    {
+      label: 'Pass is bound to merchant',
+      ok: merchantBound,
+      source: 'pass_lifecycle',
+      detail: merchantBound ? 'Merchant binding matched.' : 'Invalid or expired pass.',
+    },
+    {
       label: 'Pass code matches claim pass',
-      ok: normalizedInput.length > 0 && normalizedInput === expected,
+      ok: normalizedInput.length > 0 && normalizedInput === storedCode,
       source: 'terminal_request',
-      detail: expected ? `Expected ${expected}` : 'No proof-backed campaign is available.',
+      detail: normalizedInput.length > 0 && normalizedInput === storedCode ? 'Pass code matched.' : 'Invalid or expired pass.',
     },
     {
       label: 'Pass packet signature matches',
-      ok: suppliedMac.length > 0 && expectedMac.length > 0 && constantTimeEqual(suppliedMac, expectedMac),
+      ok: suppliedMac.length > 0 && storedMac.length > 0 && constantTimeEqual(suppliedMac, storedMac),
       source: 'terminal_request',
       detail: suppliedMac.length > 0 ? 'Pass packet MAC verified by server.' : 'Pass packet MAC missing.',
     },
     ...proofChecks(emptyCampaign),
   ];
   const verified = checks.every((check) => check.ok);
+  if (verified && stored) {
+    stored.consumed = true;
+    passStore.set(stored.passId, stored);
+  }
 
   return {
     ok: verified,
@@ -258,8 +380,10 @@ export function confirmVisitPass(input: { slug?: string; passCode?: string; pass
     status: verified ? 'verified' : 'rejected',
     reason: verified
       ? 'Terminal confirmation matched the proof-backed pass and current POC-1 artifact.'
-      : 'Pass could not be matched to the active proof-backed campaign.',
-    passCode: normalizedInput,
+      : 'Invalid or expired pass.',
+    passCode: verified ? normalizedInput : '',
+    passId: stored?.passId,
+    mode: stored?.mode,
     campaign: emptyCampaign,
     receiptPath: emptyCampaign.receiptPath,
     receiptPda: emptyCampaign.receiptPda,

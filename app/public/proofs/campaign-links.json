@@ -1,9 +1,9 @@
 {
   "type": "viral-sync-campaign-links",
   "version": "1.0.0",
-  "generatedAt": "2026-05-09T11:03:29.873Z",
+  "generatedAt": "2026-05-09T11:52:51.917Z",
   "sourceOrderbook": "app/public/proofs/conversion-orderbook.json",
-  "orderbookHash": "c33bee5e4189473c24ac168b22da8bfeb138823b82a4d1f5d3714766069eff25",
+  "orderbookHash": "6743c90fea02fe8139b295a0a23d4a9161eef88ccb7eb4952165ab228159dffa",
   "proofStatus": "ready",
   "links": [
     {
@@ -71,13 +71,13 @@
     "The API route returns a Blink-style preview object; it does not submit a production payment transaction.",
     "Only proofBacked=true campaigns are backed by the current devnet proof artifact."
   ],
-  "campaignLinksHash": "80e56ef4e98dc8cb24ac3a754f2cedbacba94d144a8ce35f74b95f5116b010eb",
-  "programSourceHash": "b90eaf47606f426c4531e94eacc40aa5912490bbe895736be2bdd3e3c277946b",
+  "campaignLinksHash": "45f85df979565c21e307fa8a4259eba365d2612c90c850c6d4c6791e067ef93b",
+  "programSourceHash": "d32e45cff047e254ef928e1978eed5b85b46f4b37ab47fe9b1c4a774fe1d72fe",
   "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-  "proofGeneratorHash": "570e6ffc12e6ebf6fc0dc2dc68c1801c8601818e163c61c7025ff727499ce1d0",
-  "verifierHash": "36cc54b76f917839d7334cb2a4d4e43d48f6f66f0d41be182ae40686496529c4",
-  "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
-  "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
+  "proofGeneratorHash": "e69ef8930b15bad61d4dc1ed7b26845912c025cffabbfde2107eea88740a0443",
+  "verifierHash": "66a6f12a5d1b98886862580608a131ab2fb32b5a6484b2aa8e0b4962503fe31c",
+  "rawVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
+  "publishedVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "stampMode": "final-candidate",
-  "artifactHash": "0c4daf474f9cab8b0b9cfc1c1c1d8b83dbd9e324b87884f29a598e5acc9beef9"
+  "artifactHash": "6cc5ffb46fa19e5840b879ac92029b954703fcd72275ee3b2464e9a824f928b7"
 }

@@ -1,6 +1,6 @@
 # Fraud Model
 
-The fraud gauntlet is a machine-readable POC-1 artifact, not a marketing page. A final proof must reject every required case with expected errors, exact proof sources, and account mutation checks.
+The negative-path suite is a machine-readable POC-1 artifact, not a marketing page. A final proof must reject every required case with expected errors, exact proof sources, and account mutation checks.
 
 | Threat | Status | Mechanism | Remaining risk |
 |---|---|---|---|

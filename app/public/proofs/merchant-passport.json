@@ -6,7 +6,7 @@
   "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
   "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
   "sourceVerifier": "tmp/devnet-causal-commerce-verifier.json",
-  "sourceManifestGeneratedAt": "2026-05-04T17:47:55.817Z",
+  "sourceManifestGeneratedAt": "2026-05-09T11:51:29.981Z",
   "proofStatus": "ready",
   "proofStatusNote": "Generated from passing counter-attested manifest and verifier output.",
   "proofLevel": "counter_attested",
@@ -37,37 +37,37 @@
     "duplicateReplayChecks": 19
   },
   "proofObjects": {
-    "merchantConfig": "6ypisEVjpdaizZKskr81VK477ne1BDBUBR5UdLg2bAE9",
-    "growthCampaign": "6JBQesdPSFJ6rPPMgTNAqVGW6y5GzTsHQxkrrmWaXmYu",
-    "rewardEscrow": "64pbedivLxw36iWwQpwbHSfv934nLqKVwmfHBay3fMhG",
-    "rewardVault": "6s9gxHpQiSsXzc7nQ3igNt2etsK7Ryv4XY4ZCFNviyr5",
-    "receiptPda": "7EUshkEVxJLiVS2NuGLSBqiGyKr6r8pALpFnUHPxuYAK",
-    "nullifierPda": "b3HQW1N19kP9pd97BPQtM4ucxMihfiYYZzYdfdJMFQF",
-    "settlementRecord": "EgSQfmyxb7w1Eb3Wx75qUv8aip6dDbxxG985G1rnQTHi",
-    "intentManifestHash": "430031a3346388cd307468345b264ac816dd42eda8dbb6c8677d8f1589479cbc",
-    "visitAttestationHash": "cd3f2064d7be480c4f2e09e2fd51a36aa886342af318c0f851809527b0b11e33"
+    "merchantConfig": "CHhM3BTLb8ruSSdNkUgL4f5966LLFU2qejPPRBKX9btj",
+    "growthCampaign": "c7WBeYQTf6TXPWvEQoKiWp59vKFupASBkRHun1JAPmw",
+    "rewardEscrow": "2D9yt6aFE1C2zCgtw1xnSsWi11e3F5Zz5wsFjwUS9QGU",
+    "rewardVault": "FSS5zwGWmH8DQRfBwhkuRUkfCmMBb8n96qgM8WNEvfKw",
+    "receiptPda": "6i9UeRN1s9tA3qxZ3PQvCseoVFAWNGia6NsLieorJRxK",
+    "nullifierPda": "E3kT3UT9XEKhxLY8p22YLFtiQ3aZJ1USRJPFt8WU5eEB",
+    "settlementRecord": "5FUTwyEP1UanmtxJNECfEiieczAKEahH4Tb81JPvyVpy",
+    "intentManifestHash": "2f3c2b6f98cf59ddcc603ac52c75f0c81059ef7ad333bba76877caacfa1d7c60",
+    "visitAttestationHash": "22bb3dc3118d92d3293d16bdaabd0758b4216961c912b67bd95ebc3750e3bf5c"
   },
   "explorerLinks": {
-    "recordCausalReceipt": "https://explorer.solana.com/tx/3ZvR2WMtG6XnPXcuvBGXVjnEmfmptXw4BXUbiNeYR7iSB3U5vo4B54aNn5gPotWa7Gw59aFmTm7rCoJvsVTmXu1?cluster=devnet",
-    "settleReceiptReward": "https://explorer.solana.com/tx/mRq3RerMgQvwtqqjcujHJFn2WWTwNUtvuj4ztE1XRWogCvFV3ErnioiNCzsRQPHfguaR3uL7GuENXzia4tvJRM6?cluster=devnet",
-    "receiptPda": "https://explorer.solana.com/address/7EUshkEVxJLiVS2NuGLSBqiGyKr6r8pALpFnUHPxuYAK?cluster=devnet",
-    "nullifierPda": "https://explorer.solana.com/address/b3HQW1N19kP9pd97BPQtM4ucxMihfiYYZzYdfdJMFQF?cluster=devnet",
-    "settlementRecord": "https://explorer.solana.com/address/EgSQfmyxb7w1Eb3Wx75qUv8aip6dDbxxG985G1rnQTHi?cluster=devnet",
-    "rewardEscrow": "https://explorer.solana.com/address/64pbedivLxw36iWwQpwbHSfv934nLqKVwmfHBay3fMhG?cluster=devnet"
+    "recordCausalReceipt": "https://explorer.solana.com/tx/2TeXV39HGnU3Go2z1uXyQefCmE28hhKKsXFoVSmxF1JygaPbw92f7bNkKD8Desg9b4hnBLvDacAxggeQWGkkC64U?cluster=devnet",
+    "settleReceiptReward": "https://explorer.solana.com/tx/byiQwdijWYUuwj3SD7qEMx1R4ADFfHTCdrm9ZfmRr2fX5u9ihDj4nhzPy6t9vXrLfiHfqEqCKHdyp4VXbeH83Xx?cluster=devnet",
+    "receiptPda": "https://explorer.solana.com/address/6i9UeRN1s9tA3qxZ3PQvCseoVFAWNGia6NsLieorJRxK?cluster=devnet",
+    "nullifierPda": "https://explorer.solana.com/address/E3kT3UT9XEKhxLY8p22YLFtiQ3aZJ1USRJPFt8WU5eEB?cluster=devnet",
+    "settlementRecord": "https://explorer.solana.com/address/5FUTwyEP1UanmtxJNECfEiieczAKEahH4Tb81JPvyVpy?cluster=devnet",
+    "rewardEscrow": "https://explorer.solana.com/address/2D9yt6aFE1C2zCgtw1xnSsWi11e3F5Zz5wsFjwUS9QGU?cluster=devnet"
   },
-  "passportHash": "fd06956f4a17c0b018c2a878f0a4a29e15045c0686047fc2ad7c7009f44716c5",
-  "generatedAt": "2026-05-09T11:03:24.347Z",
+  "passportHash": "74371f2683e695e01bbe5c7bc2d14102fe46387f542b8eff64412b5658666303",
+  "generatedAt": "2026-05-09T11:52:47.000Z",
   "limitations": [
     "This passport proves counter-attested receipt and settlement artifacts, not GPS/location truth.",
     "Mainnet use requires external audit, funded relayer operations, and production incident coverage.",
     "Passport generated from current proof manifest and verifier output."
   ],
-  "programSourceHash": "b90eaf47606f426c4531e94eacc40aa5912490bbe895736be2bdd3e3c277946b",
+  "programSourceHash": "d32e45cff047e254ef928e1978eed5b85b46f4b37ab47fe9b1c4a774fe1d72fe",
   "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
-  "proofGeneratorHash": "570e6ffc12e6ebf6fc0dc2dc68c1801c8601818e163c61c7025ff727499ce1d0",
-  "verifierHash": "36cc54b76f917839d7334cb2a4d4e43d48f6f66f0d41be182ae40686496529c4",
-  "rawVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
-  "publishedVerifierHash": "a77cfd480f71249221e0476887858c6a170d75f42d08963eb0205a974de49867",
+  "proofGeneratorHash": "e69ef8930b15bad61d4dc1ed7b26845912c025cffabbfde2107eea88740a0443",
+  "verifierHash": "66a6f12a5d1b98886862580608a131ab2fb32b5a6484b2aa8e0b4962503fe31c",
+  "rawVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
+  "publishedVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "stampMode": "final-candidate",
-  "artifactHash": "6c31b91d61a02fc39d727d6f9705ef06faeaad57bc18395fb17e8580a2ba153e"
+  "artifactHash": "0f8a2b9aa019a32f0be7ed52944d2e2b10a0087aded5ba74fbf2b59379354549"
 }

@@ -22,8 +22,10 @@ export function ProductClaimFlow({
   const terminalHref = useMemo(() => {
     const code = pass?.passCode ?? '';
     const mac = pass?.passMac ?? '';
-    return `/merchant/scan?slug=${encodeURIComponent(campaign.slug)}&pass=${encodeURIComponent(code)}&mac=${encodeURIComponent(mac)}&token=${encodeURIComponent(token)}`;
-  }, [campaign.slug, pass?.passCode, pass?.passMac, token]);
+    const passId = pass?.passId ?? '';
+    const nonce = pass?.nonce ?? '';
+    return `/merchant/scan?slug=${encodeURIComponent(campaign.slug)}&pass=${encodeURIComponent(code)}&mac=${encodeURIComponent(mac)}&token=${encodeURIComponent(token)}&passId=${encodeURIComponent(passId)}&nonce=${encodeURIComponent(nonce)}&terminal=${encodeURIComponent(campaign.terminalDevicePda)}&merchant=${encodeURIComponent(campaign.merchantAlias)}`;
+  }, [campaign.merchantAlias, campaign.slug, campaign.terminalDevicePda, pass?.nonce, pass?.passCode, pass?.passId, pass?.passMac, token]);
 
   async function createPass() {
     setStage('creating');

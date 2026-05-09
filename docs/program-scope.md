@@ -4,6 +4,8 @@ The current public product is the POC-1 outcome settlement path. Experimental To
 
 The reduced public IDL for this scope is `idl/viral_sync_poc1.json`. It intentionally excludes legacy and experimental instructions so reviewers can inspect the live proof surface without treating older modules as product claims.
 
+The full Anchor program still contains older experimental instructions. They are not part of the submitted POC-1 proof contract, are excluded from the reduced public IDL, and must be treated as unsupported for merchant pilots unless separately reviewed, tested, and documented. The current hardening stance is isolation by scope and reduced IDL rather than deleting historical modules immediately before submission.
+
 | Instruction or module | Status | Used in proof? | Reason |
 |---|---|---:|---|
 | `register_merchant` | Core | Yes | Creates merchant-owned POC-1 config. |
@@ -21,3 +23,9 @@ The reduced public IDL for this scope is `idl/viral_sync_poc1.json`. It intentio
 | Session keys | Experimental | No | Future delegated terminal/router UX. |
 
 If a proof artifact claims POC-1 verification, only the core rows above are in scope.
+
+## Beneficiary Binding Boundary
+
+For child lineage receipts, the program requires the child receipt referrer payout beneficiary to match the parent receipt visitor beneficiary. This prevents a merchant or terminal from routing a child referral payout away from the parent visitor wallet that created the lineage.
+
+Root receipts remain a POC-1 boundary: their referrer beneficiary is stored on the receipt and settlement token accounts must match it, but production UX must display and sign the full beneficiary manifest preimage before claiming full creator/referrer payout protection. The SDK helper `buildBeneficiaryIntentManifestHash` defines the v2 manifest shape for that wallet-facing commitment.

@@ -1,6 +1,6 @@
 # Auditor Start Here
 
-Viral Sync is the Solana settlement layer for outcome-based marketing: merchants escrow bounties, creators or agents route customers, and payouts only release when the customer actually converts.
+Viral Sync is a devnet POC-1 settlement protocol for outcome-based local merchant campaigns: merchants escrow rewards, a customer/referral claim is created, a merchant terminal confirms the conversion, replay is prevented through nullifiers, and settlement only occurs after the receipt path is valid.
 
 Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by the merchant, an enrolled terminal, and the visitor, with nullifier replay protection and settlement-time intent checks. This packet is the first pass for an external reviewer. Viral Sync is still not cleared for uncapped mainnet funds.
 
@@ -12,7 +12,9 @@ Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by th
 - Focused public app routes: `/`, `/campaign/[slug]`, `/claim/[token]`, `/merchant/scan`, `/merchant/today`, `/receipt/[id]`, `/proof`
 - Action APIs: `/api/actions/campaign/[slug]` and `/api/actions/causal-receipt/[id]`
 - Test baseline: `tests/viral_sync.ts`
-- Production gates: `docs/production-readiness.md`, `scripts/validate-production-readiness.mjs`
+- Mainnet gates: `docs/mainnet-readiness-gates.md`
+- Threat model and incident boundaries: `docs/threat-model.md`, `docs/incident-runbook.md`
+- Upgrade and relayer controls: `docs/upgrade-authority-policy.md`, `docs/relayer-abuse-controls.md`
 - Production schema/read models: `docs/migrations/001_launch_core.sql`, `docs/migrations/002_production_rbac_and_ops.sql`
 
 ## Critical Invariants
@@ -31,10 +33,12 @@ Every payout is backed by a POC-1 receipt: a PDA-based Solana proof signed by th
 ## Known Limits
 
 - External audit is not complete.
-- The hosted app keeps a legacy JSON ledger fallback for local development; normalized tables are the intended production read/write path.
+- The hosted app can issue demo/pilot pass packets with nonce, expiration, and one-time-use state, but does not create a fresh on-chain receipt for every public visitor yet.
+- Product-loop pass state is in-memory in this repo; production requires durable storage.
 - Production login is token-backed pilot RBAC, not full enterprise SSO.
 - Staff-device signatures use enrolled terminal keys in the hosted app; hardware-backed non-extractable keys remain a hardening step.
 - POS webhook depth is still import-first for capped pilots.
+- POC-1 proves counter-attestation, not independent physical-world truth or purchase proof.
 - Uncapped mainnet reward custody remains blocked.
 
 ## Suggested Review Order

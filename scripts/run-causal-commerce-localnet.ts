@@ -1661,7 +1661,7 @@ async function main() {
       Array.from(visitAttestationHash),
       Array.from(intentManifestHash),
       Array.from(riskScoreCommitment),
-      referrerAuthority.publicKey,
+      visitorAuthority.publicKey,
       visitorAuthority.publicKey,
     )
       .accounts({
@@ -1938,7 +1938,7 @@ async function main() {
     Array.from(visitAttestationHash),
     Array.from(intentManifestHash),
     Array.from(riskScoreCommitment),
-    referrerAuthority.publicKey,
+    visitorAuthority.publicKey,
     visitorAuthority.publicKey,
   )
     .accounts({

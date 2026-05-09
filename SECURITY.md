@@ -22,20 +22,23 @@ Remaining production work:
 
 - replace pilot access-token login with SSO/passwordless auth before broad enterprise rollout;
 - store sessions and staff devices in normalized Postgres tables;
+- store product-loop pass issuance and consumption in persistent storage before production;
 - use enrolled device signatures instead of demo HMAC signatures;
 - complete external audit before mainnet funds;
 - wire live on-chain receipt submission and settlement monitoring.
-- keep the Day 140 security gate blocked while unresolved P0/P1 issues remain;
 - move upgrade authority to multisig before uncapped beta.
-- keep `docs/production-readiness.md` and `docs/auditor-start-here.md` current for every release candidate.
+- keep `docs/mainnet-readiness-gates.md`, `docs/threat-model.md`, and `docs/incident-runbook.md` current for every release candidate.
 
 ## Inspectable Security Materials
 
 The repository includes the security materials that are currently inspectable:
 
 - GitHub security scanning workflow in `.github/workflows/security-scan.yml`;
-- production readiness gates in `docs/production-readiness.md`;
-- auditor entrypoint in `docs/auditor-start-here.md`;
+- current threat model in `docs/threat-model.md`;
+- incident response boundaries in `docs/incident-runbook.md`;
+- mainnet readiness gates in `docs/mainnet-readiness-gates.md`;
+- upgrade authority policy in `docs/upgrade-authority-policy.md`;
+- relayer abuse controls in `docs/relayer-abuse-controls.md`;
 - scoped POC-1 program surface in `docs/program-scope.md`;
 - current proof limitations in `docs/KNOWN_LIMITATIONS.md`.
 

@@ -76,7 +76,7 @@ The proof page is:
 
 It shows the five transaction steps, receipt PDA, nullifier PDA, reward escrow, visit attestation hash, intent manifest hash, and the valid-vs-malicious Causal Receipt Intent Validator results.
 
-The negative-path suite is intentionally technical: 16 invalid flows tested, 16 rejected, expected errors matched, and account mutation checks passed. It is a deterministic proof artifact, not a claim of live production fraud traffic.
+The negative-path suite is intentionally technical: 19 invalid flows tested, 19 rejected, expected errors matched, and account mutation checks passed. It is a deterministic proof artifact, not a claim of live production fraud traffic.
 
 The Merchant Proof Passport packages the same verifier-backed facts into a portable merchant-owned proof object without customer personal data.
 

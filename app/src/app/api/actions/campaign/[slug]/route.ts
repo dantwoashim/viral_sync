@@ -18,14 +18,31 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const ACTIONS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, Content-Encoding, Accept-Encoding',
   'X-Action-Version': '2.4',
 };
 
-function actionHeaders(response: NextResponse) {
+function allowedOrigins() {
+  return [process.env.NEXT_PUBLIC_APP_URL, process.env.LAUNCH_ALLOWED_ORIGINS]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(','))
+    .map((value) => value.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+}
+
+function corsOrigin(request: Request, publicRead = false) {
+  if (publicRead && request.method === 'GET') return '*';
+  const origin = request.headers.get('origin')?.replace(/\/$/, '');
+  if (!origin) return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'http://localhost:3000';
+  if (process.env.NODE_ENV !== 'production' && allowedOrigins().length === 0) return origin;
+  return allowedOrigins().includes(origin) ? origin : 'null';
+}
+
+function actionHeaders(response: NextResponse, request: Request, options: { publicRead?: boolean } = {}) {
+  response.headers.set('Access-Control-Allow-Origin', corsOrigin(request, options.publicRead === true));
   for (const [key, value] of Object.entries(ACTIONS_HEADERS)) response.headers.set(key, value);
+  response.headers.set('Vary', 'Origin');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   return response;
@@ -45,14 +62,14 @@ function appBaseUrl(request: Request) {
   return new URL(request.url).origin || 'http://localhost:3000';
 }
 
-export async function OPTIONS() {
-  return actionHeaders(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(request: Request) {
+  return actionHeaders(new NextResponse(null, { status: 204 }), request);
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const campaign = findCampaign(slug);
-  if (!campaign) return actionHeaders(NextResponse.json({ error: 'campaign_not_found' }, { status: 404 }));
+  if (!campaign) return actionHeaders(NextResponse.json({ error: 'campaign_not_found' }, { status: 404 }), request, { publicRead: true });
   const baseUrl = appBaseUrl(request);
   const campaignPath = campaign.publicPath ?? `/campaign/${slug}`;
   return actionHeaders(NextResponse.json({
@@ -75,18 +92,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       status: campaign.status,
       productLoop: findProductLoopCampaign(slug),
     },
-  }));
+  }), request, { publicRead: true });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const body = await request.json().catch(() => null) as { token?: string } | null;
-  const pass = createVisitPassPacket(slug, body?.token?.trim() || slug);
+  let pass = null;
+  try {
+    pass = createVisitPassPacket(slug, body?.token?.trim() || slug);
+  } catch {
+    return actionHeaders(NextResponse.json({ ok: false, error: 'pass_issuance_not_available' }, { status: 503 }), request);
+  }
   if (!pass) {
-    return actionHeaders(NextResponse.json({ ok: false, error: 'proof_backed_campaign_not_found' }, { status: 404 }));
+    return actionHeaders(NextResponse.json({ ok: false, error: 'proof_backed_campaign_not_found' }, { status: 404 }), request);
   }
   const baseUrl = appBaseUrl(request);
-  const terminalUrl = `${baseUrl}/merchant/scan?slug=${encodeURIComponent(slug)}&pass=${encodeURIComponent(pass.passCode)}&mac=${encodeURIComponent(pass.passMac)}&token=${encodeURIComponent(pass.token)}`;
+  const terminalUrl = `${baseUrl}/merchant/scan?slug=${encodeURIComponent(slug)}&pass=${encodeURIComponent(pass.passCode)}&mac=${encodeURIComponent(pass.passMac)}&token=${encodeURIComponent(pass.token)}&passId=${encodeURIComponent(pass.passId)}&nonce=${encodeURIComponent(pass.nonce)}&terminal=${encodeURIComponent(pass.campaign.terminalDevicePda)}&merchant=${encodeURIComponent(pass.campaign.merchantAlias)}`;
   return actionHeaders(NextResponse.json({
     ...pass,
     links: {
@@ -95,5 +117,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       receipt: `${baseUrl}${pass.campaign.receiptPath}`,
       proof: `${baseUrl}/proof`,
     },
-  }));
+  }), request);
 }

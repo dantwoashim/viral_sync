@@ -1,7 +1,7 @@
 export type ProductLoopCheck = {
   label: string;
   ok: boolean;
-  source: 'proof_manifest' | 'verifier_artifact' | 'fraud_gauntlet' | 'terminal_request';
+  source: 'proof_manifest' | 'verifier_artifact' | 'fraud_gauntlet' | 'terminal_request' | 'pass_lifecycle';
   detail: string;
 };
 
@@ -41,6 +41,8 @@ export type VisitPassPacket = {
   campaign: ProductLoopCampaign;
   token: string;
   passId: string;
+  nonce: string;
+  mode: 'demo_replay' | 'pilot_server_issued' | 'on_chain_claim_pass';
   passCode: string;
   passMac: string;
   qrPayload: string;
@@ -55,6 +57,8 @@ export type TerminalConfirmation = {
   status: 'verified' | 'rejected';
   reason: string;
   passCode: string;
+  passId?: string;
+  mode?: 'demo_replay' | 'pilot_server_issued' | 'on_chain_claim_pass';
   campaign: ProductLoopCampaign;
   receiptPath: string;
   receiptPda: string;

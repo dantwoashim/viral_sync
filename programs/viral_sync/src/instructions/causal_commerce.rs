@@ -618,6 +618,11 @@ pub fn record_causal_receipt<'info>(
                 == Some(claim_pass.depth),
             ViralSyncError::InvalidLineageProof
         );
+        require_keys_eq!(
+            referrer_beneficiary,
+            parent_receipt.visitor_beneficiary,
+            ViralSyncError::IntentMismatch
+        );
     }
     let claim_pass = &mut ctx.accounts.claim_pass;
 

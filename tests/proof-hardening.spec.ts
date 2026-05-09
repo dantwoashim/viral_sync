@@ -4,13 +4,21 @@ import { canonicalArtifactHash, readJson, computeProofHashes } from '../scripts/
 import { expectedErrorMatched, expectedPatternsFor } from '../scripts/fraud-error-matching';
 import { isPublicDemoRoute } from '../app/src/lib/demo-mode';
 import { gauntletLabel, getProofState } from '../app/src/lib/proof/getProofState';
-import { confirmVisitPass, createVisitPassPacket } from '../app/src/lib/product-loop/productLoop';
+import { confirmVisitPass, createVisitPassPacket, resetProductLoopPassStoreForTests } from '../app/src/lib/product-loop/productLoop';
 import { getWorldClassReadiness } from '../app/src/lib/readiness/operatingReadiness';
 import { getExecutionAudit } from '../app/src/lib/readiness/executionAudit';
 import { getMerchantValidationState, normalizeMerchantValidation } from '../app/src/lib/traction/merchantValidation';
-import { verifyFraudGauntlet } from '../sdk/src/index';
+import { buildBeneficiaryIntentManifestHash, verifyFraudGauntlet } from '../sdk/src/index';
 
 describe('proof hardening regressions', () => {
+  const originalEnv = { ...process.env };
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) delete process.env[key];
+    Object.assign(process.env, originalEnv);
+    resetProductLoopPassStoreForTests();
+  });
+
   it('binds the published manifest to current source, IDL, generator, and verifier', () => {
     const manifest = readJson<Record<string, unknown>>('app/public/proofs/devnet-causal-commerce.json');
     const current = computeProofHashes();
@@ -81,8 +89,19 @@ describe('proof hardening regressions', () => {
     expect(pass?.ok).to.equal(true);
     expect(pass?.passCode).to.match(/^VS-[0-9A-F]{4}-[0-9A-F]{4}$/);
     expect(pass?.passMac).to.match(/^[0-9a-f]{64}$/);
+    expect(pass?.passId).to.match(/^pass_[0-9a-f]{18}$/);
+    expect(pass?.nonce).to.match(/^[0-9a-f]{24}$/);
 
-    const accepted = confirmVisitPass({ slug, token: slug, passCode: pass?.passCode, passMac: pass?.passMac });
+    const accepted = confirmVisitPass({
+      slug,
+      token: slug,
+      passId: pass?.passId,
+      nonce: pass?.nonce,
+      terminalDevicePda: pass?.campaign.terminalDevicePda,
+      merchantAlias: pass?.campaign.merchantAlias,
+      passCode: pass?.passCode,
+      passMac: pass?.passMac,
+    });
     expect(accepted.ok).to.equal(true);
     expect(accepted.status).to.equal('verified');
     expect(accepted.checks.every((check) => check.ok)).to.equal(true);
@@ -90,8 +109,98 @@ describe('proof hardening regressions', () => {
     const rejected = confirmVisitPass({ slug, token: slug, passCode: 'VS-USED-PASS' });
     expect(rejected.ok).to.equal(false);
     expect(rejected.status).to.equal('rejected');
+    expect(JSON.stringify(rejected)).not.to.include('Expected ');
+    expect(JSON.stringify(rejected)).not.to.include(pass?.passCode);
     const missingMac = confirmVisitPass({ slug, token: slug, passCode: pass?.passCode });
     expect(missingMac.ok).to.equal(false);
+  });
+
+  it('requires a real pass signing secret in production unless demo fallback is explicit', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.PRODUCT_LOOP_PASS_SECRET;
+    delete process.env.VIRAL_SYNC_ALLOW_DEMO_PASS_FALLBACK;
+    expect(() => createVisitPassPacket('thamel-brew-counter-attested-visits')).to.throw(/PRODUCT_LOOP_PASS_SECRET/);
+
+    process.env.VIRAL_SYNC_ALLOW_DEMO_PASS_FALLBACK = 'true';
+    const fallbackPass = createVisitPassPacket('thamel-brew-counter-attested-visits');
+    expect(fallbackPass?.ok).to.equal(true);
+
+    resetProductLoopPassStoreForTests();
+    process.env.PRODUCT_LOOP_PASS_SECRET = 'x'.repeat(32);
+    delete process.env.VIRAL_SYNC_ALLOW_DEMO_PASS_FALLBACK;
+    const productionPass = createVisitPassPacket('thamel-brew-counter-attested-visits');
+    expect(productionPass?.ok).to.equal(true);
+  });
+
+  it('enforces pass expiration, one-time use, campaign binding, and terminal binding', () => {
+    process.env.PRODUCT_LOOP_PASS_TTL_MS = '1000';
+    const slug = 'thamel-brew-counter-attested-visits';
+    const pass = createVisitPassPacket(slug, slug);
+    expect(pass).to.not.equal(null);
+
+    const expired = confirmVisitPass({
+      slug,
+      token: slug,
+      passId: pass?.passId,
+      nonce: pass?.nonce,
+      terminalDevicePda: pass?.campaign.terminalDevicePda,
+      merchantAlias: pass?.campaign.merchantAlias,
+      passCode: pass?.passCode,
+      passMac: pass?.passMac,
+      nowMs: Date.now() + 60_000,
+    });
+    expect(expired.ok).to.equal(false);
+    expect(expired.reason).to.equal('Invalid or expired pass.');
+
+    resetProductLoopPassStoreForTests();
+    const fresh = createVisitPassPacket(slug, slug);
+    const wrongTerminal = confirmVisitPass({
+      slug,
+      token: slug,
+      passId: fresh?.passId,
+      nonce: fresh?.nonce,
+      terminalDevicePda: 'wrong-terminal',
+      merchantAlias: fresh?.campaign.merchantAlias,
+      passCode: fresh?.passCode,
+      passMac: fresh?.passMac,
+    });
+    expect(wrongTerminal.ok).to.equal(false);
+
+    const wrongCampaign = confirmVisitPass({
+      slug: 'missing-campaign',
+      token: slug,
+      passId: fresh?.passId,
+      nonce: fresh?.nonce,
+      terminalDevicePda: fresh?.campaign.terminalDevicePda,
+      merchantAlias: fresh?.campaign.merchantAlias,
+      passCode: fresh?.passCode,
+      passMac: fresh?.passMac,
+    });
+    expect(wrongCampaign.ok).to.equal(false);
+
+    const accepted = confirmVisitPass({
+      slug,
+      token: slug,
+      passId: fresh?.passId,
+      nonce: fresh?.nonce,
+      terminalDevicePda: fresh?.campaign.terminalDevicePda,
+      merchantAlias: fresh?.campaign.merchantAlias,
+      passCode: fresh?.passCode,
+      passMac: fresh?.passMac,
+    });
+    expect(accepted.ok).to.equal(true);
+
+    const reused = confirmVisitPass({
+      slug,
+      token: slug,
+      passId: fresh?.passId,
+      nonce: fresh?.nonce,
+      terminalDevicePda: fresh?.campaign.terminalDevicePda,
+      merchantAlias: fresh?.campaign.merchantAlias,
+      passCode: fresh?.passCode,
+      passMac: fresh?.passMac,
+    });
+    expect(reused.ok).to.equal(false);
   });
 
   it('does not publish unsigned terminal confirmation links from campaign actions', () => {
@@ -99,8 +208,23 @@ describe('proof hardening regressions', () => {
 
     expect(actionRoute).to.include('const terminalUrl =');
     expect(actionRoute).to.include('mac=${encodeURIComponent(pass.passMac)}');
+    expect(actionRoute).to.include('passId=${encodeURIComponent(pass.passId)}');
+    expect(actionRoute).to.include('nonce=${encodeURIComponent(pass.nonce)}');
     expect(actionRoute).to.include('terminal: terminalUrl');
     expect(actionRoute).to.include('terminalSigned: terminalUrl');
+  });
+
+  it('restricts mutation route CORS in production instead of using wildcard origins', () => {
+    for (const file of [
+      'app/src/app/api/product-loop/claim-pass/route.ts',
+      'app/src/app/api/product-loop/terminal/confirm/route.ts',
+      'app/src/app/api/actions/campaign/[slug]/route.ts',
+    ]) {
+      const source = fs.readFileSync(file, 'utf8');
+      expect(source).to.include('LAUNCH_ALLOWED_ORIGINS');
+      expect(source).to.include("return allowedOrigins().includes(origin) ? origin : 'null'");
+      expect(source).not.to.include("response.headers.set('Access-Control-Allow-Origin', '*');");
+    }
   });
 
   it('keeps protocol and lineage hardening wired into the on-chain surface', () => {
@@ -160,6 +284,46 @@ describe('proof hardening regressions', () => {
     const gauntlet = readJson<Record<string, unknown>>('app/public/proofs/fraud-gauntlet.json');
     const result = verifyFraudGauntlet(gauntlet);
     expect(result.ok).to.equal(true);
+
+    const cases = (gauntlet.cases as Array<{ id: string }>).map((item) => item.id);
+    for (const id of [
+      'root-parent-lineage-mismatch',
+      'child-parent-receipt-hash-mismatch',
+      'paused-terminal-device',
+      'claim-pass-depth-exceeds-max-depth',
+    ]) {
+      expect(cases).to.include(id);
+      expect(result.checks[`${id}:present`]).to.equal(true);
+    }
+    expect(result.checks['claim-pass-depth-exceeded:present']).to.equal(undefined);
+  });
+
+  it('keeps beneficiary binding explicit for v2 manifests and child lineage receipts', () => {
+    const hash = buildBeneficiaryIntentManifestHash({
+      receiptIdHashHex: 'a'.repeat(64),
+      referrerBeneficiary: '11111111111111111111111111111111',
+      visitorBeneficiary: '22222222222222222222222222222222',
+      rewardAmount: '1000',
+      rewardMint: '33333333333333333333333333333333',
+      referrerSplitBps: 8000,
+    });
+    const changed = buildBeneficiaryIntentManifestHash({
+      receiptIdHashHex: 'a'.repeat(64),
+      referrerBeneficiary: '44444444444444444444444444444444',
+      visitorBeneficiary: '22222222222222222222222222222222',
+      rewardAmount: '1000',
+      rewardMint: '33333333333333333333333333333333',
+      referrerSplitBps: 8000,
+    });
+    const program = fs.readFileSync('programs/viral_sync/src/instructions/causal_commerce.rs', 'utf8');
+
+    expect(hash).to.match(/^[0-9a-f]{64}$/);
+    expect(hash).not.to.equal(changed);
+    expect(program).to.include('referrer_beneficiary');
+    expect(program).to.include('parent_receipt.visitor_beneficiary');
+    expect(program).to.include('ViralSyncError::IntentMismatch');
+    const runner = fs.readFileSync('scripts/run-causal-commerce-localnet.ts', 'utf8');
+    expect(runner).to.include('visitorAuthority.publicKey,\n    visitorAuthority.publicKey,');
   });
 
   it('keeps merchant validation honest until required evidence is verified', () => {

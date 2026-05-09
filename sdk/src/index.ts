@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { timingSafeEqual } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 
 export type ReceiptVerificationStatus = 'verified' | 'pending' | 'failed' | 'not_found';
 
@@ -256,6 +256,26 @@ export function deriveNullifierSeed(campaign: string, nullifierHash: string) {
   return ['campaign_nullifier', campaign, nullifierHash] as const;
 }
 
+export function buildBeneficiaryIntentManifestHash(params: {
+  receiptIdHashHex: string;
+  referrerBeneficiary: string;
+  visitorBeneficiary: string;
+  rewardAmount: string | number;
+  rewardMint: string;
+  referrerSplitBps: number;
+}) {
+  const payload = JSON.stringify({
+    version: 2,
+    receiptIdHashHex: params.receiptIdHashHex,
+    referrerBeneficiary: params.referrerBeneficiary,
+    visitorBeneficiary: params.visitorBeneficiary,
+    rewardAmount: String(params.rewardAmount),
+    rewardMint: params.rewardMint,
+    referrerSplitBps: params.referrerSplitBps,
+  });
+  return createHash('sha256').update(payload).digest('hex');
+}
+
 export function isValidWebhookSignature(params: { payload: string; signature: string; expectedSignature: string }) {
   const signature = Buffer.from(params.signature);
   const expected = Buffer.from(params.expectedSignature);
@@ -352,11 +372,14 @@ export function verifyFraudGauntlet(gauntlet: FraudGauntletArtifact): Poc1Verifi
     'claim-pass-campaign-mismatch',
     'claim-pass-depth-exceeds-max-depth',
     'duplicate-nullifier',
+    'root-parent-lineage-mismatch',
+    'child-parent-receipt-hash-mismatch',
     'inflated-reward-amount',
     'inflated-split-bps',
     'wrong-reward-mint',
     'wrong-reward-vault',
     'settlement-replay',
+    'paused-terminal-device',
     'paused-or-expired-campaign',
   ];
   const cases = gauntlet.cases ?? [];
