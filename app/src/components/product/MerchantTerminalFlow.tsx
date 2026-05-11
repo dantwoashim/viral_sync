@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CheckCircle, QrCode, WarningCircle, ArrowRight } from "@phosphor-icons/react";
+import { CheckCircle, QrCode, WarningCircle, ArrowRight, ArrowLeft } from "@phosphor-icons/react";
 import { TerminalPanel } from "./TerminalPanel";
 import type {
   ProductLoopCampaign,
@@ -13,7 +13,6 @@ type TerminalState = "idle" | "detected" | "signing" | "success" | "error";
 
 import { PremiumShell, PremiumNav } from '@/components/premium/PremiumUi';
 import { BottomSheet } from "./BottomSheet";
-import { useVisualViewport } from "@/hooks/useVisualViewport";
 
 export function MerchantTerminalFlow({
   campaign,
@@ -42,8 +41,6 @@ export function MerchantTerminalFlow({
   const [confirmation, setConfirmation] = useState<TerminalConfirmation | null>(
     null,
   );
-
-  const viewport = useVisualViewport();
 
   // Controls bottom sheet visibility
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -312,54 +309,152 @@ export function MerchantTerminalFlow({
         </PremiumShell>
       </div>
 
-      {/* Mobile True Native View */}
-      <div className="md:hidden flex flex-col h-[100dvh] bg-black text-white overflow-hidden relative">
-        {/* Simulated Camera Feed Background */}
-        <div className="absolute inset-0 z-0 bg-[#050505] pointer-events-none flex flex-col items-center justify-center overflow-hidden">
-          {/* Faint grid background */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
+      <div className="md:hidden min-h-[100dvh] bg-zinc-950 text-white overflow-y-auto overflow-x-hidden relative">
+        <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:36px_36px]" />
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(79,70,229,0.18),transparent_40%),linear-gradient(180deg,rgba(24,24,27,0)_0%,#09090b_72%)]" />
 
-          <div className="w-72 h-72 border-2 border-white/10 rounded-[40px] relative flex items-center justify-center shadow-[inset_0_0_100px_rgba(0,0,0,0.8)] bg-white/[0.02]">
-            {/* Viewfinder corners */}
-            <div className="absolute w-12 h-12 border-t-4 border-l-4 border-white/50 top-0 left-0 -translate-x-[2px] -translate-y-[2px] rounded-tl-[40px]" />
-            <div className="absolute w-12 h-12 border-t-4 border-r-4 border-white/50 top-0 right-0 translate-x-[2px] -translate-y-[2px] rounded-tr-[40px]" />
-            <div className="absolute w-12 h-12 border-b-4 border-l-4 border-white/50 bottom-0 left-0 -translate-x-[2px] translate-y-[2px] rounded-bl-[40px]" />
-            <div className="absolute w-12 h-12 border-b-4 border-r-4 border-white/50 bottom-0 right-0 translate-x-[2px] translate-y-[2px] rounded-br-[40px]" />
-
-            {/* Scanning Laser Line */}
-            <div className="absolute left-4 right-4 h-0.5 shadow-[0_0_15px_3px_rgba(99,102,241,0.5)] bg-indigo-500 rounded-full animate-scan-beam" />
-          </div>
-          <div className="mt-8 text-white/30 text-xs font-bold tracking-[0.2em] font-mono uppercase">Align code within frame</div>
-        </div>
-
-        {/* Camera Flash overlay */}
         <div
-          className="absolute inset-0 z-[60] bg-white pointer-events-none transition-opacity duration-150"
+          className="fixed inset-0 z-[60] bg-white pointer-events-none transition-opacity duration-150"
           style={{ opacity: flash ? 1 : 0 }}
         />
 
-        {/* Dynamic Island / Pill Status */}
-        <div className="absolute top-[calc(env(safe-area-inset-top)+1rem)] left-1/2 -translate-x-1/2 z-20 w-[90%] max-w-[300px]">
-          <div className="flex flex-col items-center justify-center bg-black/60 backdrop-blur-2xl border border-white/10 rounded-full px-5 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.5)] transition-all duration-300">
-            <div className="flex items-center gap-3">
-              {state === 'idle' && <QrCode size={18} className="text-white/70 shadow-sm" weight="bold" />}
-              {state === 'signing' && <div className="w-4 h-4 rounded-full border-[3px] border-indigo-500 border-t-transparent animate-spin shadow-sm" />}
-              {state === 'detected' && <CheckCircle size={18} className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" weight="fill" />}
-              <span className="text-sm font-bold tracking-wide text-white drop-shadow-sm">{stateCopy[0]}</span>
+        <main className="relative z-10 flex min-h-[100dvh] flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-[calc(env(safe-area-inset-top)+1rem)]">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-5">
+            <div className="flex items-center justify-between gap-3">
+              <Link
+                href="/"
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-white/85 backdrop-blur-xl transition-colors active:scale-[0.98]"
+              >
+                <ArrowLeft size={18} weight="bold" />
+                Back
+              </Link>
+              <Link
+                href="/merchant/today"
+                className="inline-flex h-11 items-center rounded-full border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-white/70 backdrop-blur-xl transition-colors active:scale-[0.98]"
+              >
+                Dashboard
+              </Link>
             </div>
-            {state === 'detected' && (
-              <div className="text-[11px] text-gray-400 mt-1 font-medium text-center animate-fade-in truncate max-w-full">
-                {campaign.visitorRewardLabel} reward detected
-              </div>
-            )}
-          </div>
-        </div>
 
-        <main className="flex-1 w-full relative pointer-events-none">
-           {/* If we needed to render anything else over the camera */}
+            <section className="rounded-[32px] border border-white/10 bg-white/[0.06] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white">
+                  {state === "detected" ? <CheckCircle size={22} weight="fill" /> : <QrCode size={22} weight="bold" />}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/45">
+                    Terminal active
+                  </p>
+                  <h1 className="mt-1 text-2xl font-bold leading-tight tracking-tight text-white">
+                    {stateCopy[0]}
+                  </h1>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-zinc-300">
+                {stateCopy[1]}
+              </p>
+            </section>
+
+            <section className="relative flex min-h-[280px] items-center justify-center overflow-hidden rounded-[36px] border border-white/10 bg-[#09090b] p-6 shadow-[inset_0_0_80px_rgba(255,255,255,0.035)]">
+              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:28px_28px]" />
+              <div className="relative flex aspect-square w-[min(68vw,260px)] items-center justify-center rounded-[36px] border border-white/15 bg-white/[0.03]">
+                <div className="absolute left-0 top-0 h-12 w-12 -translate-x-px -translate-y-px rounded-tl-[36px] border-l-4 border-t-4 border-white/55" />
+                <div className="absolute right-0 top-0 h-12 w-12 -translate-y-px translate-x-px rounded-tr-[36px] border-r-4 border-t-4 border-white/55" />
+                <div className="absolute bottom-0 left-0 h-12 w-12 -translate-x-px translate-y-px rounded-bl-[36px] border-b-4 border-l-4 border-white/55" />
+                <div className="absolute bottom-0 right-0 h-12 w-12 translate-x-px translate-y-px rounded-br-[36px] border-b-4 border-r-4 border-white/55" />
+                <div className="absolute left-5 right-5 h-0.5 rounded-full bg-indigo-400 shadow-[0_0_18px_rgba(129,140,248,0.55)] animate-scan-beam" />
+                <span className="px-6 text-center text-xs font-bold uppercase tracking-[0.18em] text-white/35">
+                  Align visit pass
+                </span>
+              </div>
+            </section>
+
+            <section className="rounded-[32px] border border-white/10 bg-zinc-900/90 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
+              <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500" htmlFor="mobile-pass-code">
+                Visit pass code
+              </label>
+              <div className="relative mt-3">
+                <input
+                  id="mobile-pass-code"
+                  className="w-full rounded-[24px] border border-white/10 bg-zinc-950 px-5 py-4 pr-14 text-center font-mono text-[clamp(1.25rem,8vw,2rem)] font-bold text-white shadow-inner outline-none transition-colors placeholder:text-zinc-700 focus:border-indigo-400"
+                  aria-label="Visit pass code"
+                  inputMode="text"
+                  value={code}
+                  onChange={(event) => {
+                    const next = event.target.value.toUpperCase();
+                    setCode(next);
+                    if (next.length >= 4 && state === "idle") {
+                      performFlash();
+                      setState("detected");
+                    }
+                  }}
+                  placeholder="VS-"
+                />
+                <button
+                  type="button"
+                  aria-label="Paste from clipboard"
+                  className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-zinc-500 transition-colors active:scale-[0.98]"
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      const next = text.toUpperCase();
+                      setCode(next);
+                      if (next.length >= 4) {
+                        performFlash();
+                        setState("detected");
+                      }
+                    } catch (err) {
+                      console.error("Failed to paste", err);
+                    }
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 256 256"><path d="M216,40H176V32a24,24,0,0,0-24-24H104A24,24,0,0,0,80,32v8H40A16,16,0,0,0,24,56V208a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM96,32a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,208H40V56h40v16a8,8,0,0,0,8,8h80a8,8,0,0,0,8-8V56h40V208Z"></path></svg>
+                </button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-[1fr_auto] gap-3">
+                <button
+                  className="inline-flex h-14 min-w-0 items-center justify-center gap-2 rounded-[22px] bg-indigo-600 px-5 text-[15px] font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-45 disabled:active:scale-100"
+                  type="button"
+                  onClick={confirm}
+                  disabled={state === "idle" || state === "signing" || state === "success"}
+                >
+                  Confirm visit <ArrowRight size={18} weight="bold" />
+                </button>
+                <button
+                  className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] border border-rose-500/25 bg-rose-500/10 text-rose-300 transition-transform active:scale-[0.98]"
+                  type="button"
+                  onClick={() => {
+                    setCode("VS-USED-PASS");
+                    performFlash();
+                    setState("detected");
+                  }}
+                  aria-label="Test used pass"
+                >
+                  <WarningCircle size={24} weight="fill" />
+                </button>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-1 gap-3 pb-4 text-sm text-zinc-300">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                <span className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">Campaign</span>
+                <strong className="mt-1 block text-white">{campaign.title}</strong>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                  <span className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">Remaining</span>
+                  <strong className="mt-1 block text-emerald-300">{campaign.rewardPoolRemainingLabel}</strong>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                  <span className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">Visits</span>
+                  <strong className="mt-1 block text-white">{campaign.settledCount}</strong>
+                </div>
+              </div>
+            </section>
+          </div>
         </main>
 
-        {/* Success / Error Sheet */}
         <BottomSheet open={isSheetOpen} onOpenChange={setIsSheetOpen} snapPoints={["0.5", "0.9"]}>
           <div className="flex flex-col gap-6 w-full max-w-sm mx-auto p-4 flex-1">
              {state === "success" && confirmation ? (
@@ -432,82 +527,6 @@ export function MerchantTerminalFlow({
              ) : null}
           </div>
         </BottomSheet>
-
-        {/* Absolute positioning to pin to bottom above keyboard visually using visualViewport tricks or fixed with bottom inset */}
-        <div
-          className="fixed left-0 w-full p-5 bg-[#0A0A0A]/80 backdrop-blur-2xl border-t border-white/10 z-40 transition-all duration-300 rounded-t-[32px] shadow-[0_-20px_40px_rgba(0,0,0,0.5)]"
-          style={{
-            bottom: viewport.keyboardOpen ? `${window.innerHeight - viewport.height}px` : 'calc(4rem + env(safe-area-inset-bottom))'
-          }}
-        >
-           <div className="flex flex-col gap-4 relative max-w-sm mx-auto w-full">
-             <div className="flex justify-center mb-1">
-               <div className="w-10 h-1.5 rounded-full bg-white/20" />
-             </div>
-             <div className="relative group w-full">
-                <input
-                  className="w-full bg-black/40 px-5 py-4 text-3xl text-center font-mono font-bold text-white placeholder:text-gray-600 focus:outline-none rounded-[24px] border border-white/10 focus:border-indigo-500 transition-all block ring-0 pr-14 shadow-inner"
-                  aria-label="Visit pass code"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={code}
-                  onChange={(event) => {
-                    const next = event.target.value.toUpperCase();
-                    setCode(next);
-                    if (next.length >= 4 && state === 'idle') {
-                      performFlash();
-                      setState("detected");
-                    }
-                  }}
-                  placeholder="VS-"
-                  style={{ fontSize: viewport.keyboardOpen ? '20px' : '30px' }} // Attempt to prevent iOS Zoom while allowing large text
-                />
-                <button
-                  type="button"
-                  aria-label="Paste from clipboard"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100 p-2 text-gray-400 transition-colors pointer-events-auto"
-                  onClick={async () => {
-                    try {
-                      const text = await navigator.clipboard.readText();
-                      const next = text.toUpperCase();
-                      setCode(next);
-                      if (next.length >= 4) {
-                        performFlash();
-                        setState("detected");
-                      }
-                    } catch (err) {
-                      console.error('Failed to paste', err);
-                    }
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M216,40H176V32a24,24,0,0,0-24-24H104A24,24,0,0,0,80,32v8H40A16,16,0,0,0,24,56V208a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM96,32a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,208H40V56h40v16a8,8,0,0,0,8,8h80a8,8,0,0,0,8-8V56h40V208Z"></path></svg>
-                </button>
-             </div>
-
-             <div className="flex gap-3 w-full">
-               <button
-                  className="flex-1 inline-flex items-center justify-center gap-2 h-[64px] rounded-[24px] bg-indigo-600 focus:bg-indigo-500 text-white font-bold text-[17px] active:scale-[0.97] transition-all disabled:opacity-50 disabled:active:scale-100 shadow-[0_0_40px_rgba(79,70,229,0.3)] shadow-indigo-500/30"
-                  type="button"
-                  onClick={confirm}
-                  disabled={state === "idle" || state === "signing" || state === "success"}
-                >
-                  Confirm Visit <ArrowRight size={20} weight="bold" />
-               </button>
-               <button
-                  className="w-[64px] h-[64px] shrink-0 inline-flex items-center justify-center rounded-[24px] bg-white/5 text-rose-500 font-bold active:scale-[0.97] transition-transform border border-rose-500/20 hover:bg-rose-500/10"
-                  type="button"
-                  onClick={() => {
-                    setCode("VS-USED-PASS");
-                    performFlash();
-                    setState("detected");
-                  }}
-                  aria-label="Test Error"
-                >
-                  <WarningCircle size={26} weight="fill" />
-               </button>
-             </div>
-           </div>
-        </div>
       </div>
     </>
   );
