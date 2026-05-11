@@ -177,8 +177,8 @@ export default function HomePage() {
           <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-indigo-500/10 blur-[120px] rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
 
           <div className="col-span-4 md:col-span-8 lg:col-span-5 relative z-10 flex flex-col gap-6">
-             <span className="text-indigo-400 font-bold tracking-widest uppercase text-xs inline-flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" /> Developer proof</span>
-             <h2 className="text-4xl md:text-5xl lg:text-[5rem] font-bold tracking-tighter leading-[0.95] font-serif">Judges can verify<br/><span className="text-gray-400">without trusting us.</span></h2>
+             <span className="text-indigo-400 font-bold tracking-widest uppercase text-xs inline-flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" /> Public proof</span>
+             <h2 className="text-4xl md:text-5xl lg:text-[5rem] font-bold tracking-tighter leading-[0.95] font-serif">Verify the proof<br/><span className="text-gray-400">without trusting the app.</span></h2>
              <p className="text-lg text-gray-400 leading-relaxed max-w-xl font-medium mt-4">
                 The proof center consolidates receipt state, fraud evidence, verifier checks, program identity, artifacts, and limitations into one dense surface.
              </p>

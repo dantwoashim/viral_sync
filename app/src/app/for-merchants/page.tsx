@@ -10,7 +10,7 @@ export default function ForMerchantsPage() {
     { title: 'Customers Claim', desc: 'They save a simple pass to their phone.', icon: Tag },
     { title: 'Staff Confirm', desc: 'Scan at the counter in 5 seconds.', icon: HandCoins },
     { title: 'Receipt Generated', desc: 'Secure settlement validates the visit.', icon: ShieldCheck },
-    { title: 'See ROI', desc: 'Check your daily dashboard for guaranteed conversions.', icon: ChartLineUp }
+    { title: 'Review outcomes', desc: 'Track counter-confirmed visits and reward settlement.', icon: ChartLineUp }
   ];
 
   return (
@@ -31,7 +31,7 @@ export default function ForMerchantsPage() {
               Pay only when customers <span className="relative whitespace-nowrap"><span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">actually visit.</span><span className="absolute bottom-1 left-0 w-full h-3 bg-indigo-100 -z-0 transform -rotate-1"></span></span>
             </h1>
             <p className="text-lg lg:text-xl text-gray-500 leading-relaxed max-w-xl mx-auto lg:mx-0 font-medium">
-              Stop paying for impressions or clicks. With Viral Sync, you only pay a reward when a customer physically arrives and your staff confirms the visit.
+              Stop paying for impressions or clicks alone. With Viral Sync, rewards settle only after a customer reaches the counter and your staff confirms the visit.
             </p>
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-4">
               <Link className="inline-flex items-center justify-center gap-2 h-16 px-10 rounded-full bg-indigo-600 text-white font-semibold shadow-[var(--shadow-diffuse-light)] hover:-translate-y-1 transition-transform w-full sm:w-auto text-lg shadow-hairline" href="/merchant/scan">
@@ -43,7 +43,7 @@ export default function ForMerchantsPage() {
              {/* Abstract illustration of merchant savings */}
              <div className="w-full max-w-[420px] bg-[#0a0a0a] text-white p-10 rounded-[40px] shadow-[var(--shadow-diffuse-gray)] shadow-hairline-dark transition-transform duration-700 hover:-translate-y-4 hover:rotate-y-[-5deg] hover:rotate-x-[5deg] border border-white/5 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-32 bg-indigo-500/20 blur-[80px] rounded-full translate-x-1/2 -translate-y-1/2" />
-                <h2 className="text-2xl font-bold tracking-tight mb-2 relative z-10">Zero Risk Marketing</h2>
+                <h2 className="text-2xl font-bold tracking-tight mb-2 relative z-10">Outcome-Based Rewards</h2>
                 <p className="text-gray-400 font-medium leading-relaxed mb-8 relative z-10">Escrow rewards securely. If they don&apos;t show up, you don&apos;t pay.</p>
                 <div className="flex flex-col gap-4 relative z-10">
                   <div className="flex justify-between items-center w-full border-b border-white/10 pb-4">
@@ -102,12 +102,12 @@ export default function ForMerchantsPage() {
             <span className="text-indigo-600 font-bold tracking-widest uppercase text-xs inline-flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500" /> Merchant Economics</span>
             <h2 className="text-4xl lg:text-[4.5rem] leading-[0.95] font-bold tracking-tighter text-gray-900 font-serif">Reward real visits, not clicks.</h2>
             <p className="text-xl text-gray-500 leading-relaxed font-medium">
-              Traditional ads charge you regardless of outcome. Viral Sync guarantees performance.
-              You set a campaign budget, we escrow it, and payouts only trigger upon a co-signed verified visit.
+              Traditional ads charge before the merchant sees a clear outcome. Viral Sync ties reward settlement to a counter-confirmed event.
+              You set a campaign budget, escrow it, and payouts trigger only after the receipt path is valid.
             </p>
             <div className="flex flex-wrap items-center gap-4 mt-6">
                <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100"><CheckCircle size={18} weight="fill" className="text-emerald-500" /> No upfront ad spend</span>
-               <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100"><CheckCircle size={18} weight="fill" className="text-emerald-500" /> 100% conversion tracking</span>
+               <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100"><CheckCircle size={18} weight="fill" className="text-emerald-500" /> Counter-confirmed outcomes</span>
             </div>
           </div>
           <div className="col-span-4 md:col-span-8 lg:col-span-7 lg:col-start-6 mt-12 lg:mt-0 relative overflow-hidden">

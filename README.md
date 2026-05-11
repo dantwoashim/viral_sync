@@ -2,11 +2,11 @@
 
 Outcome-based referral settlement for local merchants on Solana.
 
-Viral Sync helps local merchants pay for verified outcomes instead of unverifiable clicks. A merchant funds a reward campaign, a visitor claims a pass, the merchant terminal confirms the visit at the counter, and payout only releases after the receipt path is valid.
+Viral Sync helps merchants and platforms settle rewards against verified outcomes instead of weak attribution signals.
 
-This repository is a **Devnet POC-1**. It demonstrates the core settlement loop with an Anchor program, proof artifacts, a product-facing Next.js app, an SDK verifier, and a negative-path test suite. It is not claiming production readiness or live merchant traction.
+A merchant funds a reward campaign, a visitor claims a pass, a merchant terminal confirms the counter event, and payout releases only after a valid counter-attested receipt path exists.
 
-The POC-1 receipt is counter-attested by the merchant authority, an enrolled terminal, and the visitor. Replay is blocked with campaign nullifiers, and settlement is tied to campaign state, reward escrow, and receipt verification.
+The POC-1 implementation demonstrates this settlement loop on Solana Devnet with an Anchor program, proof artifacts, a product-facing Next.js app, an SDK verifier, and a negative-path validation suite.
 
 The project includes a live interface, a public proof surface, devnet settlement evidence, generated verification artifacts, and reproducible validation commands.
 
