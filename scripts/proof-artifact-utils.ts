@@ -70,6 +70,22 @@ function listFiles(dir: string): string[] {
   return files.sort();
 }
 
+const TEXT_HASH_EXTENSIONS = new Set([
+  '.cjs',
+  '.js',
+  '.json',
+  '.mjs',
+  '.rs',
+  '.ts',
+  '.tsx',
+]);
+
+function canonicalFileContent(file: string): Buffer {
+  const content = readFileSync(file);
+  if (!TEXT_HASH_EXTENSIONS.has(path.extname(file).toLowerCase())) return content;
+  return Buffer.from(content.toString('utf8').replace(/\r\n?/g, '\n'), 'utf8');
+}
+
 export function hashFiles(paths: string[]): string | null {
   const files = paths.flatMap((item) => {
     if (!existsSync(item)) return [];
@@ -81,7 +97,7 @@ export function hashFiles(paths: string[]): string | null {
   for (const file of files) {
     hash.update(file.replace(process.cwd(), '').replace(/\\/g, '/'));
     hash.update('\0');
-    hash.update(readFileSync(file));
+    hash.update(canonicalFileContent(file));
     hash.update('\0');
   }
   return hash.digest('hex');
