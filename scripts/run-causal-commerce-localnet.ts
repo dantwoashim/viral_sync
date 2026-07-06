@@ -1913,6 +1913,7 @@ async function main() {
 
   let issueChildClaimPass: string | null = null;
   let recordChildCausalReceipt: string | null = null;
+  let settleChildReceiptReward: string | null = null;
   let childLineageProof: Record<string, unknown> | null = null;
   const childClaimHash = hashBytes('claim-pass', `${options.campaignId}:child-lineage`);
   const childLineageProofHash = hashBytes('lineage-proof', `${options.campaignId}:child-lineage`);
@@ -1921,6 +1922,7 @@ async function main() {
   const [childClaimPass] = findPda('claim_pass', [growthCampaign.toBuffer(), visitorAuthority.publicKey.toBuffer(), childClaimHash]);
   const [childReceipt] = findPda('causal_receipt', [growthCampaign.toBuffer(), childReceiptIdHash]);
   const [childNullifier] = findPda('campaign_nullifier', [growthCampaign.toBuffer(), childNullifierHash]);
+  const [childSettlementRecord] = findPda('settlement', [childReceipt.toBuffer()]);
 
   issueChildClaimPass = await sendProgramInstruction(connection, walletInfo.keypair, methods.issueClaimPass(
     Array.from(childClaimHash),
@@ -1970,6 +1972,23 @@ async function main() {
       : childRecordBuilder,
     [terminalAuthority, visitorAuthority],
   );
+  settleChildReceiptReward = await sendProgramInstruction(connection, walletInfo.keypair, methods.settleReceiptReward()
+    .accounts({
+      growthCampaign,
+      merchantConfig,
+      rewardEscrow,
+      rewardVault: rewardVault.address,
+      causalReceipt: childReceipt,
+      settlementRecord: childSettlementRecord,
+      referrerRewardAccount: visitorRewardAccount.address,
+      visitorRewardAccount: visitorRewardAccount.address,
+      protocolTreasury,
+      treasuryRewardAccount: treasuryRewardAccount.address,
+      rewardMint,
+      merchantAuthority: wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }));
   childLineageProof = {
     depth: 2,
     parentReceipt: causalReceipt.toBase58(),
@@ -1981,7 +2000,10 @@ async function main() {
     childLineageProofHash: childLineageProofHash.toString('hex'),
     issueChildClaimPass,
     recordChildCausalReceipt,
+    childSettlementRecord: childSettlementRecord.toBase58(),
+    settleChildReceiptReward,
     onChainParentReceiptVerified: true,
+    childSettlementVerified: true,
   };
 
   if (options.attackCheck) {
@@ -2326,6 +2348,7 @@ async function main() {
       recordCausalReceipt,
       recordChildCausalReceipt,
       settleReceiptReward,
+      settleChildReceiptReward,
       closeGrowthBounty,
     },
     // Compatibility alias for live app confirmation paths that expect proof.transactions.
