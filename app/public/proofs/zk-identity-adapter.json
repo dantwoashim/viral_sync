@@ -4,11 +4,11 @@
   "generatedForPhase": "phase-3",
   "status": "specified_not_integrated",
   "sourceArtifactHashes": {
-    "devnet-causal-commerce.json": "61b126007927ca5d9f269a4e627c8cfcc2e4cb89e05524041c6d6d0d3a19bf26",
-    "devnet-causal-commerce-verifier.json": "0b5514d4b7c692b0907b5e8c9d342755a6e00b0580ad5d9446f36508df64e11d",
-    "fraud-gauntlet.json": "580763144dcd62733566dad0cca18dfaa1dd180e9f47a2f7cadaa2d9b6115f2a",
-    "proof-feed.json": "3730d2b6e94b1e3337068372c05e25043c2a188ccfe49625313012ad268c79cb",
-    "frontier-readiness.json": "110245f2343943c66180ccded5d14a7189fff3498cc80c0ea1a5aa311a0b6403"
+    "devnet-causal-commerce.json": "b250f93884bba0e7c7fb49b287be3a8b1b4da7d6ae5584542442c6c1ecb53506",
+    "devnet-causal-commerce-verifier.json": "7863cfa67678d02ede9ebaccd5f944333a509516515169883f46848a720dd7b7",
+    "fraud-gauntlet.json": "15cc5b87a918ea50dd75029abe7bc88c3aa302ee9e254e41e549fce34a9fa953",
+    "proof-feed.json": "f603da7a975dbbc9b35b3f3ebb9335a5df88615f5aa71857cf08276dc9144db5",
+    "frontier-readiness.json": "f2195d2d20661019a1810b2b395d9087781238604de50cd14f726bdaad9f79ce"
   },
   "purpose": "Allow civic participation rewards without exposing private identity attributes to public app users.",
   "candidateAdapters": [
@@ -20,10 +20,10 @@
   "claimSafety": "This artifact is a specification boundary, not a live zk identity integration claim.",
   "programSourceHash": "e487e72b37d3672a841da31a3a5a5080e04ffd10d969cf708677e08aa1e31a3d",
   "idlHash": "af31db003a46ce5eb56fa5b3ad226678d688373524aabe1b635c66e99161b49e",
-  "proofGeneratorHash": "e773f69f8b39f812ea793e486913efac1a9dca8f006b62461dbb166c706542c5",
+  "proofGeneratorHash": "c547ed500bf6b23972f9bbc1878fa94274051bb4b3dc12a243cd2915d11dccc0",
   "verifierHash": "f6bdca7d4652439b1c49419320cb478e5813e44a8a4b688f29c0b2c87ab8ac84",
   "rawVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "publishedVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "stampMode": "final-candidate",
-  "artifactHash": "c6807129c9b57eb2e7839c2b753405266bb5311dbc78d57e8c7082499c205e58"
+  "artifactHash": "87ec91093b6091612566c7db5a7e73e811c77640b9b73587dfed0b0f2e59b92e"
 }

@@ -2074,7 +2074,7 @@ async function main() {
   let tokenBalancesAfterClose: Record<string, string> | null = null;
   if (options.closeCheck) {
     const campaignForClose = await fetchAccount<Record<string, unknown>>(program, 'growthCampaign', growthCampaign);
-    const campaignExpiresAtMs = (Number(bnFromAccountField(campaignForClose.expiresAt, 'expiresAt').toString()) + 1) * 1000;
+    const campaignExpiresAtMs = (Number(bnFromAccountField(campaignForClose.expiresAt, 'expiresAt').toString()) + 5) * 1000;
     const waitMs = Math.max(0, campaignExpiresAtMs - Date.now());
     if (waitMs > 0) {
       console.error(`waiting ${waitMs}ms for campaign expiry before close check`);
