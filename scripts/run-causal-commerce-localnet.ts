@@ -2226,7 +2226,7 @@ async function main() {
     replayEvidence('duplicate-nullifier', 'Duplicate receipt nullifier', 'record_causal_receipt', replayByLabel('duplicate campaign nullifier'), 'AccountAlreadyInitialized'),
     intentEvidence('inflated-reward-amount', 'Inflated reward amount', effectByLabel('Inflated reward'), 'RewardAmountExceedsManifest'),
     intentEvidence('inflated-split-bps', 'Inflated referrer split bps', effectByLabel('Inflated split bps'), 'IntentMismatch'),
-    replayEvidence('wrong-reward-mint', 'Wrong reward mint', 'fund_growth_bounty', replayByLabel('wrong reward mint'), '0x7de'),
+    replayEvidence('wrong-reward-mint', 'Wrong reward mint', 'fund_growth_bounty', replayByLabel('wrong reward mint'), 'InvalidConfig'),
     replayEvidence('wrong-reward-vault', 'Wrong reward vault', 'settle_receipt_reward', replayByLabel('wrong reward vault'), 'InvalidState'),
     replayEvidence('settlement-replay', 'Settlement replay', 'settle_receipt_reward', replayByLabel('duplicate receipt settlement'), 'AccountAlreadyInitialized'),
     replayEvidence('paused-or-expired-campaign', 'Paused or expired campaign receipt attempt', 'record_causal_receipt', replayByLabel('paused') ?? replayByLabel('expired campaign'), 'InvalidState'),

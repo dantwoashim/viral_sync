@@ -13,41 +13,41 @@
     "expectedResult": "ok=true"
   },
   "sourceArtifactHashes": {
-    "devnet-causal-commerce.json": "8df2c27149828855520c60fe02f1e7f26bd0131f4deffc37edd211d75ec8a1d5",
-    "devnet-causal-commerce-verifier.json": "577c8ebb01d107b79d7bfa2956578ed9beb4375690075adbfebf745c687e8c40",
-    "fraud-gauntlet.json": "813cacd159a28738656f74e6120a9226e4f0bcc8573ea68ac4295f318be1504e",
-    "proof-feed.json": "04c1b55f9c7dbc2defe482accc5562e20a5043fa3c527d7a1ae46343e336e71a",
-    "frontier-readiness.json": "4ed4cdd67eacfe24cb0b38b33f1df3acfbd2f869c1a5a3b317731a75c0f85b75"
+    "devnet-causal-commerce.json": "6415744176993eb8471c424e97384fae2da5a4f9ac0a12d99646babd9d52e86c",
+    "devnet-causal-commerce-verifier.json": "7ce0895d0351550a4530fb54316cebefb31c909fad20e03378d3cfb8559415e2",
+    "fraud-gauntlet.json": "a37fa2a5199e0a81a66c10a84e5b873d3c4706a36a4ced190d1db15be636239c",
+    "proof-feed.json": "acaa88f3a526c76736dfe62241ed5426e9a13e9e6562b5910804dad6ae2a73e3",
+    "frontier-readiness.json": "b247fe91c878ec17148db16be7fa61b74c36bbc7752a134844b63acf7db564ab"
   },
   "originalArtifacts": [
     {
       "id": "devnet-manifest",
       "file": "devnet-causal-commerce.json",
-      "sha256": "8df2c27149828855520c60fe02f1e7f26bd0131f4deffc37edd211d75ec8a1d5",
+      "sha256": "6415744176993eb8471c424e97384fae2da5a4f9ac0a12d99646babd9d52e86c",
       "role": "records the receipt PDA, nullifier PDA, settlement PDA, and transaction signatures"
     },
     {
       "id": "published-verifier",
       "file": "devnet-causal-commerce-verifier.json",
-      "sha256": "577c8ebb01d107b79d7bfa2956578ed9beb4375690075adbfebf745c687e8c40",
+      "sha256": "7ce0895d0351550a4530fb54316cebefb31c909fad20e03378d3cfb8559415e2",
       "role": "checks the published receipt, terminal, visitor, nullifier, settlement, and accounting fields"
     },
     {
       "id": "negative-path-gauntlet",
       "file": "fraud-gauntlet.json",
-      "sha256": "813cacd159a28738656f74e6120a9226e4f0bcc8573ea68ac4295f318be1504e",
+      "sha256": "a37fa2a5199e0a81a66c10a84e5b873d3c4706a36a4ced190d1db15be636239c",
       "role": "proves replay, wrong signer, wrong lineage, wrong vault, and inactive terminal paths were rejected"
     },
     {
       "id": "proof-feed",
       "file": "proof-feed.json",
-      "sha256": "04c1b55f9c7dbc2defe482accc5562e20a5043fa3c527d7a1ae46343e336e71a",
+      "sha256": "acaa88f3a526c76736dfe62241ed5426e9a13e9e6562b5910804dad6ae2a73e3",
       "role": "public proof feed consumed by the civic ledger view"
     },
     {
       "id": "frontier-readiness",
       "file": "frontier-readiness.json",
-      "sha256": "4ed4cdd67eacfe24cb0b38b33f1df3acfbd2f869c1a5a3b317731a75c0f85b75",
+      "sha256": "b247fe91c878ec17148db16be7fa61b74c36bbc7752a134844b63acf7db564ab",
       "role": "source readiness packet for Solana proof boundaries"
     }
   ],
@@ -94,10 +94,10 @@
   ],
   "programSourceHash": "e487e72b37d3672a841da31a3a5a5080e04ffd10d969cf708677e08aa1e31a3d",
   "idlHash": "af31db003a46ce5eb56fa5b3ad226678d688373524aabe1b635c66e99161b49e",
-  "proofGeneratorHash": "e3757da00a674d11482011678790794b31913e86bc491e8eba0604db3d2c27f6",
+  "proofGeneratorHash": "f8ce8d854e59d7d417e7b769bcdbd68d46a039a7849fb44b0f49396e5dfcb820",
   "verifierHash": "f6bdca7d4652439b1c49419320cb478e5813e44a8a4b688f29c0b2c87ab8ac84",
   "rawVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "publishedVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "stampMode": "final-candidate",
-  "artifactHash": "833edb2af602e36edb90bd549e48b241b80b3f22ecee7e8f22235362eef3f944"
+  "artifactHash": "bc4e901e5b4b34ee62b6449e436e19fb8e5fc3716ac648dddbcb4d1ac309606e"
 }
