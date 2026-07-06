@@ -86,7 +86,7 @@ export function MerchantTerminalFlow({
   async function confirm() {
     setConfirmation(null);
     performFlash();
-    setState("success");
+    setState("signing");
 
     try {
       const response = await fetch("/api/product-loop/terminal/confirm", {
@@ -161,8 +161,7 @@ export function MerchantTerminalFlow({
                         const next = text.toUpperCase();
                         setCode(next);
                         if (next.length >= 4) setState("detected");
-                      } catch (err) {
-                        console.error('Failed to paste', err);
+                      } catch {
                       }
                     }}
                   >
@@ -403,8 +402,7 @@ export function MerchantTerminalFlow({
                         performFlash();
                         setState("detected");
                       }
-                    } catch (err) {
-                      console.error("Failed to paste", err);
+                    } catch {
                     }
                   }}
                 >

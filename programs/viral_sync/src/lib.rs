@@ -8,7 +8,7 @@ pub mod instructions;
 pub mod state;
 
 use instructions::*;
-use state::{CausalMerchantStatus, GrowthCampaignStatus, TerminalDeviceStatus};
+use state::{CausalMerchantStatus, ConvictionChoice, GrowthCampaignStatus, TerminalDeviceStatus};
 
 declare_id!("AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46");
 
@@ -274,5 +274,23 @@ pub mod viral_sync {
 
     pub fn settle_receipt_reward(ctx: Context<SettleReceiptReward>) -> Result<()> {
         instructions::causal_commerce::settle_receipt_reward(ctx)
+    }
+
+    pub fn commit_conviction_signal(
+        ctx: Context<CommitConvictionSignal>,
+        signal_hash: [u8; 32],
+        participant_commitment: [u8; 32],
+        choice: ConvictionChoice,
+        credits_committed: u16,
+        confidence_bps: u16,
+    ) -> Result<()> {
+        instructions::conviction_signal::commit_conviction_signal(
+            ctx,
+            signal_hash,
+            participant_commitment,
+            choice,
+            credits_committed,
+            confidence_bps,
+        )
     }
 }

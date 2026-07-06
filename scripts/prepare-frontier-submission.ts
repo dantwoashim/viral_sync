@@ -580,9 +580,10 @@ async function main() {
 
   if (existsSync(path.resolve('README.md'))) {
     const readme = readText('README.md');
-    requireText('README', readme, 'Solana settlement layer for outcome-based marketing', failures);
-    requireText('README', readme, 'Merchant Proof Passport', failures);
-    requireText('README', readme, '/proof', failures);
+    requireText('README', readme, 'Verified civic forecasting and sponsor-funded action rewards', failures);
+    requireText('README', readme, 'Capped, non-transferable conviction signals', failures);
+    requireText('README', readme, '/ledger', failures);
+    requireText('README', readme, 'npm run civic:verify-receipt', failures);
   }
 
   const generatedAt = new Date().toISOString();

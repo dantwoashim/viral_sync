@@ -8,6 +8,7 @@ pub mod merchant_reputation;
 pub mod viral_oracle;
 pub mod session_key;
 pub mod causal_commerce;
+pub mod conviction_signal;
 
 pub use merchant_config::*;
 pub use token_generation::*;
@@ -19,3 +20,4 @@ pub use merchant_reputation::*;
 pub use viral_oracle::*;
 pub use session_key::*;
 pub use causal_commerce::*;
+pub use conviction_signal::*;

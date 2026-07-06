@@ -1,0 +1,49 @@
+{
+  "type": "civic-conviction-signal",
+  "version": "1.0.0",
+  "generatedForPhase": "phase-5",
+  "status": "signed_app_artifact_plus_on_chain_instruction_ready",
+  "market": "ward12-water-repair",
+  "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+  "instruction": {
+    "name": "commit_conviction_signal",
+    "account": "ConvictionSignal",
+    "implementedInProgramSource": true,
+    "deployedInCurrentDevnetProof": false,
+    "reasonNotDeployed": "Phase 5 adds the instruction after the existing devnet receipt proof. The signed artifact is judge-visible until a fresh program deployment is intentionally run."
+  },
+  "pda": {
+    "seedPrefix": "conviction_signal",
+    "growthCampaign": "c7WBeYQTf6TXPWvEQoKiWp59vKFupASBkRHun1JAPmw",
+    "participantAuthority": "11111111111111111111111111111111",
+    "signalHash": "0e9572fdc71a5f17adf0a34ddbceed3e4971e752baed3acb4ac4fa3d89a4e420",
+    "address": "D1v5odUUnajdgMDxXpQ1Snnt2E511kfmpeRviYaX8xf4",
+    "bump": 253,
+    "duplicatePrevention": "The PDA includes growth campaign, participant authority, and signal hash. Recommitting the same signal attempts to init the same account and is rejected by the runtime."
+  },
+  "creditPolicy": {
+    "maxCreditsPerSignal": 100,
+    "sampleCreditsCommitted": 62,
+    "transferable": false,
+    "tokenMint": null,
+    "cashValue": "0"
+  },
+  "settlementIndependence": {
+    "dependsOnConviction": false,
+    "dependsOnForecast": false,
+    "dependsOnReceipt": true,
+    "rewardReleaseRule": "A civic action reward is released only after a counter-attested receipt path exists."
+  },
+  "appLayerFallback": {
+    "endpoint": "/api/civic/conviction-signal",
+    "tokenType": "signed_civic_conviction_signal",
+    "verification": "POST the artifactToken back to the same endpoint or derive the PDA with the SDK helper."
+  },
+  "sourceArtifactHashes": {
+    "devnet-causal-commerce.json": "21e6bb89d4298e27793f5fec0990f668408ebbde04979e41a372adfac649699a",
+    "devnet-causal-commerce-verifier.json": "55debd7ead4547711301baade85da3246be609714ec258849475617fd568b1a4",
+    "fraud-gauntlet.json": "6b62c8d347783dcf9ce16650da806857049b98e473345d7b5eb2146a572a7f73",
+    "proof-feed.json": "7e0c30d95d7a80d124110258cb8d2da2a72390899d62f4f6533a6685a8e162e4",
+    "frontier-readiness.json": "68b9f04ffa0fecfd7f52bdd046f3e418385a4daacc51a2f536c304be49533ac0"
+  }
+}

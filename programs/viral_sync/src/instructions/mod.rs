@@ -18,6 +18,7 @@ pub mod bond_management;
 pub mod disputes;
 pub mod session_management;
 pub mod causal_commerce;
+pub mod conviction_signal;
 
 pub use init_token_generation::*;
 pub use init_treasury_token_generation::*;
@@ -35,3 +36,4 @@ pub use bond_management::*;
 pub use disputes::*;
 pub use session_management::*;
 pub use causal_commerce::*;
+pub use conviction_signal::*;

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { appBaseUrl, withCorsHeaders } from '@/lib/http/cors';
 import { createVisitPassPacket, findProductLoopCampaign } from '@/lib/product-loop/productLoop';
 import { loadProofSidecar } from '@/lib/proof/loadArtifacts';
 
@@ -17,35 +18,16 @@ type Orderbook = { campaigns?: Campaign[] };
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ACTIONS_HEADERS = {
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Content-Encoding, Accept-Encoding',
+const ACTIONS_CORS = {
+  methods: 'GET,POST,OPTIONS',
+  headers: 'Content-Type, Authorization, Content-Encoding, Accept-Encoding',
+  extraHeaders: {
   'X-Action-Version': '2.4',
+  },
 };
 
-function allowedOrigins() {
-  return [process.env.NEXT_PUBLIC_APP_URL, process.env.LAUNCH_ALLOWED_ORIGINS]
-    .filter(Boolean)
-    .flatMap((value) => String(value).split(','))
-    .map((value) => value.trim().replace(/\/$/, ''))
-    .filter(Boolean);
-}
-
-function corsOrigin(request: Request, publicRead = false) {
-  if (publicRead && request.method === 'GET') return '*';
-  const origin = request.headers.get('origin')?.replace(/\/$/, '');
-  if (!origin) return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'http://localhost:3000';
-  if (process.env.NODE_ENV !== 'production' && allowedOrigins().length === 0) return origin;
-  return allowedOrigins().includes(origin) ? origin : 'null';
-}
-
 function actionHeaders(response: NextResponse, request: Request, options: { publicRead?: boolean } = {}) {
-  response.headers.set('Access-Control-Allow-Origin', corsOrigin(request, options.publicRead === true));
-  for (const [key, value] of Object.entries(ACTIONS_HEADERS)) response.headers.set(key, value);
-  response.headers.set('Vary', 'Origin');
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  return response;
+  return withCorsHeaders(response, request, { ...ACTIONS_CORS, publicRead: options.publicRead });
 }
 
 function loadOrderbook(): Orderbook {
@@ -54,12 +36,6 @@ function loadOrderbook(): Orderbook {
 
 function findCampaign(slug: string) {
   return loadOrderbook().campaigns?.find((campaign) => campaign.slug === slug);
-}
-
-function appBaseUrl(request: Request) {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return new URL(request.url).origin || 'http://localhost:3000';
 }
 
 export async function OPTIONS(request: Request) {

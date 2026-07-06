@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist, Geist_Mono, Playfair_Display } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { PremiumMobileNav } from '@/components/premium/PremiumUi';
 import { EdgeSwipeNavigation } from '@/components/product/EdgeSwipeNavigation';
@@ -16,33 +16,25 @@ const mono = Geist_Mono({
   display: 'swap',
 });
 
-const serif = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-serif',
-  display: 'swap',
-});
-
 export const metadata: Metadata = {
   title: {
-    default: 'Viral Sync | Verified Traffic',
-    template: '%s - Viral Sync',
+    default: 'Civic Impact Markets | Viral Sync',
+    template: '%s - Civic Impact Markets',
   },
-  description: 'Outcome settlement infrastructure for receipt-backed Solana payouts.',
+  description: 'Verified civic forecasting and sponsor-funded action rewards settled with Solana receipt evidence.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Viral Sync',
+    title: 'Civic Markets',
   },
-  manifest: '/manifest.json', // We'll assume a manifest exists or browsers will ignore it gracefully
+  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1, // Disable input zoom
-  userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#ffffff',
+  themeColor: '#fafaf6',
 };
 
 export default function RootLayout({
@@ -51,8 +43,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable} ${serif.variable} scroll-smooth antialiased overflow-x-hidden`}>
-      <body className="h-[100dvh] overflow-hidden overflow-x-hidden text-gray-900 bg-white font-sans selection:bg-indigo-500 selection:text-white flex flex-col">
+    <html lang="en" className={`${sans.variable} ${mono.variable} scroll-smooth antialiased overflow-x-hidden`}>
+      <body className="min-h-dvh overflow-x-hidden bg-[var(--civic-paper)] text-[var(--civic-ink)] font-sans selection:bg-[var(--civic-green)] selection:text-white">
         <EdgeSwipeNavigation />
         {children}
         <PremiumMobileNav />

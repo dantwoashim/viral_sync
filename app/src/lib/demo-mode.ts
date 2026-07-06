@@ -1,5 +1,8 @@
 export const PUBLIC_DEMO_ROUTES = new Set([
   '/',
+  '/ledger',
+  '/for-sponsors',
+  '/how-it-works',
   '/merchant/today',
   '/merchant/scan',
   '/proof',
@@ -10,6 +13,10 @@ export const PUBLIC_DEMO_ROUTES = new Set([
 ]);
 
 const PUBLIC_DEMO_PREFIXES = [
+  '/market/',
+  '/participate/',
+  '/verify/',
+  '/api/civic/',
   '/campaign/',
   '/claim/',
   '/receipt/',

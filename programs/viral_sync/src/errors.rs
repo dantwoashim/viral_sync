@@ -106,4 +106,10 @@ pub enum ViralSyncError {
 
     #[msg("Claim-pass lineage proof does not match receipt parent data")]
     InvalidLineageProof,
+
+    #[msg("Conviction signal credits exceed the non-transferable civic cap")]
+    ConvictionCreditCapExceeded,
+
+    #[msg("Conviction signal confidence must be between 0 and 10000 basis points")]
+    ConvictionConfidenceOutOfRange,
 }

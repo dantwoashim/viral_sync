@@ -26,6 +26,40 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/for-merchants",
+        destination: "/for-sponsors",
+        permanent: false,
+      },
+      {
+        source: "/campaign/:path*",
+        destination: "/market/ward12-water-repair",
+        permanent: false,
+      },
+      {
+        source: "/claim/:path*",
+        destination: "/participate/ward12-water-repair",
+        permanent: false,
+      },
+      {
+        source: "/merchant/scan",
+        destination: "/verify/ward12-water-repair",
+        permanent: false,
+      },
+      {
+        source: "/merchant/today",
+        destination: "/ledger",
+        permanent: false,
+      },
+      {
+        source: "/proof",
+        destination: "/ledger",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

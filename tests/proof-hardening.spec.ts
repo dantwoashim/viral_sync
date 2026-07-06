@@ -8,7 +8,7 @@ import { confirmVisitPass, createVisitPassPacket, resetProductLoopPassStoreForTe
 import { getWorldClassReadiness } from '../app/src/lib/readiness/operatingReadiness';
 import { getExecutionAudit } from '../app/src/lib/readiness/executionAudit';
 import { getMerchantValidationState, normalizeMerchantValidation } from '../app/src/lib/traction/merchantValidation';
-import { buildBeneficiaryIntentManifestHash, verifyFraudGauntlet } from '../sdk/src/index';
+import { buildBeneficiaryIntentManifestHash, isValidWebhookSignature, verifyFraudGauntlet } from '../sdk/src/index';
 
 describe('proof hardening regressions', () => {
   const originalEnv = { ...process.env };
@@ -215,14 +215,20 @@ describe('proof hardening regressions', () => {
   });
 
   it('restricts mutation route CORS in production instead of using wildcard origins', () => {
+    const corsHelper = fs.readFileSync('app/src/lib/http/cors.ts', 'utf8');
+    expect(corsHelper).to.include('LAUNCH_ALLOWED_ORIGINS');
+    expect(corsHelper).to.include("return allowed.includes(origin) ? origin : 'null'");
+    expect(corsHelper).to.include('withPublicReadHeaders');
+    expect(corsHelper).to.include("response.headers.set('Access-Control-Allow-Origin', '*');");
+    expect(corsHelper).to.include('corsOrigin(request, options.publicRead === true)');
+
     for (const file of [
       'app/src/app/api/product-loop/claim-pass/route.ts',
       'app/src/app/api/product-loop/terminal/confirm/route.ts',
       'app/src/app/api/actions/campaign/[slug]/route.ts',
     ]) {
       const source = fs.readFileSync(file, 'utf8');
-      expect(source).to.include('LAUNCH_ALLOWED_ORIGINS');
-      expect(source).to.include("return allowedOrigins().includes(origin) ? origin : 'null'");
+      expect(source).to.include('withCorsHeaders');
       expect(source).not.to.include("response.headers.set('Access-Control-Allow-Origin', '*');");
     }
   });
@@ -276,8 +282,17 @@ describe('proof hardening regressions', () => {
 
     expect(relayer).to.include("app.get('/.well-known/mcp.json'");
     expect(relayer).to.include('campaign_creation_not_enabled');
+    expect(relayer).to.include('publicErrorMessage');
+    expect(relayer).to.include('Relay request rejected by policy.');
     expect(relayer).not.to.include('x402_paid_campaign_creation');
     expect(relayer).to.include('relay_sponsored_transaction');
+  });
+
+  it('compares webhook signatures in constant time for hex and plain encodings', () => {
+    expect(isValidWebhookSignature({ payload: 'unused', signature: '616263', expectedSignature: '616263' })).to.equal(true);
+    expect(isValidWebhookSignature({ payload: 'unused', signature: 'abc', expectedSignature: 'abc' })).to.equal(true);
+    expect(isValidWebhookSignature({ payload: 'unused', signature: '616263', expectedSignature: '616264' })).to.equal(false);
+    expect(isValidWebhookSignature({ payload: 'unused', signature: '616263', expectedSignature: 'abc' })).to.equal(true);
   });
 
   it('SDK verifies the currently published negative-path suite', () => {

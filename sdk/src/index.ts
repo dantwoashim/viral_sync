@@ -13,6 +13,7 @@ export const SEEDS = {
   settlement: 'settlement',
   terminalDevice: 'terminal_device',
   claimPass: 'claim_pass',
+  convictionSignal: 'conviction_signal',
 } as const;
 
 const ZERO_HASH = '0'.repeat(64);
@@ -244,6 +245,68 @@ export function deriveNullifierPda(params: {
   ], params.programId);
 }
 
+export function deriveConvictionSignalPda(params: {
+  growthCampaign: string;
+  participantAuthority: string;
+  signalHashHex: string;
+  programId?: string;
+}) {
+  return pda([
+    Buffer.from(SEEDS.convictionSignal),
+    new PublicKey(params.growthCampaign).toBuffer(),
+    new PublicKey(params.participantAuthority).toBuffer(),
+    bytes32(params.signalHashHex, 'signalHashHex'),
+  ], params.programId);
+}
+
+export function buildConvictionSignalHash(params: {
+  marketSlug: string;
+  question: string;
+  choice: 'repair_likely' | 'repair_delayed' | 'abstain';
+  participantCommitmentHex: string;
+}) {
+  return createHash('sha256')
+    .update(params.marketSlug)
+    .update(':')
+    .update(params.question)
+    .update(':')
+    .update(params.choice)
+    .update(':')
+    .update(params.participantCommitmentHex)
+    .digest('hex');
+}
+
+function u16Le(value: number, label: string) {
+  if (!Number.isInteger(value) || value < 0 || value > 65_535) {
+    throw new Error(`${label} must fit in u16.`);
+  }
+  const buffer = Buffer.alloc(2);
+  buffer.writeUInt16LE(value, 0);
+  return buffer;
+}
+
+function anchorDiscriminator(name: string) {
+  return createHash('sha256').update(`global:${name}`).digest().subarray(0, 8);
+}
+
+export function buildCommitConvictionSignalInstructionData(params: {
+  signalHashHex: string;
+  participantCommitmentHex: string;
+  choice: 'repair_likely' | 'repair_delayed' | 'abstain';
+  creditsCommitted: number;
+  confidenceBps: number;
+}) {
+  const choiceIndex = params.choice === 'repair_delayed' ? 1 : params.choice === 'abstain' ? 2 : 0;
+  return Buffer.concat([
+    anchorDiscriminator('commit_conviction_signal'),
+    bytes32(params.signalHashHex, 'signalHashHex'),
+    bytes32(params.participantCommitmentHex, 'participantCommitmentHex'),
+    Buffer.from([choiceIndex]),
+    u16Le(params.creditsCommitted, 'creditsCommitted'),
+    u16Le(params.confidenceBps, 'confidenceBps'),
+  ]);
+}
+
 export function deriveReceiptSeed(campaignId: string, receiptIdHash: string) {
   return ['causal_receipt', campaignId, receiptIdHash] as const;
 }
@@ -276,9 +339,16 @@ export function buildBeneficiaryIntentManifestHash(params: {
   return createHash('sha256').update(payload).digest('hex');
 }
 
+function signatureBytes(value: string) {
+  const normalized = value.trim();
+  return /^[0-9a-fA-F]+$/.test(normalized) && normalized.length % 2 === 0
+    ? Buffer.from(normalized, 'hex')
+    : Buffer.from(normalized);
+}
+
 export function isValidWebhookSignature(params: { payload: string; signature: string; expectedSignature: string }) {
-  const signature = Buffer.from(params.signature);
-  const expected = Buffer.from(params.expectedSignature);
+  const signature = signatureBytes(params.signature);
+  const expected = signatureBytes(params.expectedSignature);
   return signature.length > 0 && signature.length === expected.length && timingSafeEqual(signature, expected);
 }
 
@@ -397,4 +467,325 @@ export function verifyFraudGauntlet(gauntlet: FraudGauntletArtifact): Poc1Verifi
 
   const failures = Object.entries(checks).filter(([, ok]) => !ok).map(([key]) => key);
   return { ok: failures.length === 0, checks, failures };
+}
+
+export const CIVIC_WARD12_MARKET_SLUG = 'ward12-water-repair';
+
+export type CivicSourceArtifactHashes = Record<string, string>;
+
+export type CivicMarketArtifact = {
+  type?: string;
+  generatedForPhase?: string;
+  slug?: string;
+  sourceArtifactHashes?: CivicSourceArtifactHashes;
+  sourceDataset?: {
+    officialFeedIntegrated?: boolean;
+    janamatIntegrated?: boolean;
+  };
+  marketDesign?: {
+    nonWager?: boolean;
+    forecastUsesRealMoney?: boolean;
+    forecastTokenHasPayoutClaim?: boolean;
+    forecastCredits?: {
+      transferable?: boolean;
+      cashValue?: string;
+    };
+    settlement?: {
+      dependsOnForecast?: boolean;
+      dependsOnReceipt?: boolean;
+    };
+  };
+  devnetEvidence?: {
+    programId?: string;
+    growthCampaignPda?: string;
+    receiptPda?: string;
+    nullifierPda?: string;
+    settlementRecord?: string;
+    recordTx?: string;
+    settleTx?: string;
+    sourceManifestSha256?: string;
+    sourceVerifierSha256?: string;
+    sourceGauntletSha256?: string;
+    negativePathCasesRejected?: number;
+  };
+};
+
+export type CivicConvictionSignalArtifact = {
+  type?: string;
+  generatedForPhase?: string;
+  market?: string;
+  instruction?: {
+    name?: string;
+    account?: string;
+    implementedInProgramSource?: boolean;
+    deployedInCurrentDevnetProof?: boolean;
+  };
+  pda?: {
+    seedPrefix?: string;
+    growthCampaign?: string;
+    participantAuthority?: string;
+    signalHash?: string;
+    address?: string;
+    duplicatePrevention?: string;
+  };
+  creditPolicy?: {
+    maxCreditsPerSignal?: number;
+    sampleCreditsCommitted?: number;
+    transferable?: boolean;
+    tokenMint?: string | null;
+    cashValue?: string;
+  };
+  settlementIndependence?: {
+    dependsOnConviction?: boolean;
+    dependsOnForecast?: boolean;
+    dependsOnReceipt?: boolean;
+  };
+  sourceArtifactHashes?: CivicSourceArtifactHashes;
+};
+
+export type CivicReceiptArtifact = {
+  type?: string;
+  generatedForPhase?: string;
+  market?: string;
+  sourceArtifactHashes?: CivicSourceArtifactHashes;
+  sourceManifestSha256?: string;
+  receiptPda?: string;
+  nullifierPda?: string;
+  settlementRecord?: string;
+  forecastCredits?: {
+    transferable?: boolean;
+    cashValue?: string;
+  };
+  settlement?: {
+    dependsOnForecast?: boolean;
+    dependsOnReceipt?: boolean;
+  };
+};
+
+export type CivicLedgerArtifact = {
+  type?: string;
+  generatedForPhase?: string;
+  market?: string;
+  sourceArtifactHashes?: CivicSourceArtifactHashes;
+  sourceFeedSha256?: string;
+  entries?: Array<{
+    id?: string;
+    status?: string;
+    signature?: string;
+    object?: string;
+  }>;
+  settlement?: {
+    dependsOnForecast?: boolean;
+    dependsOnReceipt?: boolean;
+  };
+};
+
+export type CivicVerifierArtifact = {
+  type?: string;
+  generatedForPhase?: string;
+  market?: string;
+  sourceArtifactHashes?: CivicSourceArtifactHashes;
+  sourceVerifierSha256?: string;
+  checks?: Array<{
+    id?: string;
+    status?: string;
+    source?: string;
+  }>;
+};
+
+export type CivicProofSidecarArtifact = {
+  type?: string;
+  generatedForPhase?: string;
+  market?: string;
+  verificationCommand?: string;
+  sourceArtifactHashes?: CivicSourceArtifactHashes;
+  originalArtifacts?: Array<{
+    file?: string;
+    sha256?: string;
+    role?: string;
+  }>;
+  receiptBinding?: {
+    receiptPda?: string;
+    nullifierPda?: string;
+    settlementRecord?: string;
+    recordTx?: string;
+    settleTx?: string;
+  };
+  nonWagerBoundary?: {
+    forecastUsesRealMoney?: boolean;
+    forecastTokenHasPayoutClaim?: boolean;
+    forecastCreditsTransferable?: boolean;
+    forecastCreditsCashValue?: string;
+    settlementDependsOnForecast?: boolean;
+    settlementDependsOnReceipt?: boolean;
+  };
+  compatibility?: {
+    janamat?: { status?: string; artifact?: string };
+    zkIdentity?: { status?: string; artifact?: string };
+  };
+};
+
+export type CivicReceiptVerificationArtifacts = {
+  market: CivicMarketArtifact;
+  receipt: CivicReceiptArtifact;
+  ledger: CivicLedgerArtifact;
+  verifier: CivicVerifierArtifact;
+  sidecar: CivicProofSidecarArtifact;
+  conviction?: CivicConvictionSignalArtifact;
+};
+
+export type CivicReceiptVerificationResult = {
+  ok: boolean;
+  checks: Record<string, boolean>;
+  failures: string[];
+};
+
+function civicUrl(baseUrl: string, path: string) {
+  return new URL(path, baseUrl).toString();
+}
+
+async function fetchCivicJson<T>(baseUrl: string, path: string, fetcher: typeof fetch = fetch): Promise<T> {
+  const response = await fetcher(civicUrl(baseUrl, path));
+  if (!response.ok) throw new Error(`Civic artifact fetch failed for ${path}: ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
+export async function fetchCivicMarketArtifact(
+  baseUrl: string,
+  slug = CIVIC_WARD12_MARKET_SLUG,
+  fetcher: typeof fetch = fetch,
+): Promise<CivicMarketArtifact> {
+  return fetchCivicJson(baseUrl, `/proofs/civic-market-${encodeURIComponent(slug)}.json`, fetcher);
+}
+
+export async function fetchCivicReceiptArtifact(
+  baseUrl: string,
+  fetcher: typeof fetch = fetch,
+): Promise<CivicReceiptArtifact> {
+  return fetchCivicJson(baseUrl, '/proofs/civic-receipt-latest.json', fetcher);
+}
+
+export async function fetchCivicLedgerArtifact(
+  baseUrl: string,
+  fetcher: typeof fetch = fetch,
+): Promise<CivicLedgerArtifact> {
+  return fetchCivicJson(baseUrl, '/proofs/civic-ledger.json', fetcher);
+}
+
+export async function fetchCivicVerifierArtifact(
+  baseUrl: string,
+  fetcher: typeof fetch = fetch,
+): Promise<CivicVerifierArtifact> {
+  return fetchCivicJson(baseUrl, '/proofs/civic-verifier.json', fetcher);
+}
+
+export async function fetchCivicProofSidecar(
+  baseUrl: string,
+  fetcher: typeof fetch = fetch,
+): Promise<CivicProofSidecarArtifact> {
+  return fetchCivicJson(baseUrl, '/proofs/civic-proof-sidecar.json', fetcher);
+}
+
+export async function fetchCivicConvictionSignalArtifact(
+  baseUrl: string,
+  fetcher: typeof fetch = fetch,
+): Promise<CivicConvictionSignalArtifact> {
+  return fetchCivicJson(baseUrl, '/proofs/civic-conviction-signal.json', fetcher);
+}
+
+export async function fetchCivicReceiptVerificationBundle(
+  baseUrl: string,
+  fetcher: typeof fetch = fetch,
+): Promise<CivicReceiptVerificationArtifacts> {
+  const [market, receipt, ledger, verifier, sidecar, conviction] = await Promise.all([
+    fetchCivicMarketArtifact(baseUrl, CIVIC_WARD12_MARKET_SLUG, fetcher),
+    fetchCivicReceiptArtifact(baseUrl, fetcher),
+    fetchCivicLedgerArtifact(baseUrl, fetcher),
+    fetchCivicVerifierArtifact(baseUrl, fetcher),
+    fetchCivicProofSidecar(baseUrl, fetcher),
+    fetchCivicConvictionSignalArtifact(baseUrl, fetcher),
+  ]);
+  return { market, receipt, ledger, verifier, sidecar, conviction };
+}
+
+export function verifyCivicReceiptArtifacts(artifacts: CivicReceiptVerificationArtifacts): CivicReceiptVerificationResult {
+  const checks: Record<string, boolean> = {
+    marketSlug: artifacts.market.slug === CIVIC_WARD12_MARKET_SLUG,
+    marketPhase3: artifacts.market.generatedForPhase === 'phase-3',
+    receiptPhase3: artifacts.receipt.generatedForPhase === 'phase-3',
+    sidecarPhase3: artifacts.sidecar.generatedForPhase === 'phase-3',
+    receiptMarketMatch: artifacts.receipt.market === artifacts.market.slug,
+    sidecarMarketMatch: artifacts.sidecar.market === artifacts.market.slug,
+    nonWager: artifacts.market.marketDesign?.nonWager === true,
+    forecastNoRealMoney: artifacts.market.marketDesign?.forecastUsesRealMoney === false,
+    forecastNoPayoutClaim: artifacts.market.marketDesign?.forecastTokenHasPayoutClaim === false,
+    forecastCreditsNonTransferable: artifacts.market.marketDesign?.forecastCredits?.transferable === false,
+    forecastCreditsNoCashValue: artifacts.market.marketDesign?.forecastCredits?.cashValue === '0',
+    settlementNotForecastDependent: artifacts.market.marketDesign?.settlement?.dependsOnForecast === false,
+    settlementReceiptDependent: artifacts.market.marketDesign?.settlement?.dependsOnReceipt === true,
+    receiptPdaBound: artifacts.receipt.receiptPda === artifacts.market.devnetEvidence?.receiptPda &&
+      artifacts.receipt.receiptPda === artifacts.sidecar.receiptBinding?.receiptPda,
+    nullifierBound: artifacts.receipt.nullifierPda === artifacts.market.devnetEvidence?.nullifierPda &&
+      artifacts.receipt.nullifierPda === artifacts.sidecar.receiptBinding?.nullifierPda,
+    settlementBound: artifacts.receipt.settlementRecord === artifacts.market.devnetEvidence?.settlementRecord &&
+      artifacts.receipt.settlementRecord === artifacts.sidecar.receiptBinding?.settlementRecord,
+    recordTxBound: artifacts.market.devnetEvidence?.recordTx === artifacts.sidecar.receiptBinding?.recordTx,
+    settleTxBound: artifacts.market.devnetEvidence?.settleTx === artifacts.sidecar.receiptBinding?.settleTx,
+    ledgerHasReceipt: artifacts.ledger.entries?.some((entry) => entry.id === 'receipt-recorded' && entry.status === 'verified_devnet') === true,
+    ledgerHasSettlement: artifacts.ledger.entries?.some((entry) => entry.id === 'reward-settled' && entry.status === 'verified_devnet') === true,
+    janamatSpecifiedNotIntegrated: artifacts.sidecar.compatibility?.janamat?.status === 'specified_not_integrated',
+    zkIdentitySpecifiedNotIntegrated: artifacts.sidecar.compatibility?.zkIdentity?.status === 'specified_not_integrated',
+    officialFeedNotIntegrated: artifacts.market.sourceDataset?.officialFeedIntegrated === false,
+    janamatNotIntegrated: artifacts.market.sourceDataset?.janamatIntegrated === false,
+    independentVerifierPublished: artifacts.sidecar.verificationCommand === 'npm run civic:verify-receipt',
+    sdkWrapperPublished: artifacts.verifier.checks?.some((check) => check.id === 'sdk-civic-wrappers' && check.status === 'pass') === true,
+  };
+
+  if (artifacts.conviction) {
+    checks.convictionPhase5 = artifacts.conviction.generatedForPhase === 'phase-5';
+    checks.convictionInstruction = artifacts.conviction.instruction?.name === 'commit_conviction_signal' &&
+      artifacts.conviction.instruction?.account === 'ConvictionSignal';
+    checks.convictionDuplicatePda = artifacts.conviction.pda?.seedPrefix === SEEDS.convictionSignal &&
+      typeof artifacts.conviction.pda?.address === 'string';
+    checks.convictionCreditCap = artifacts.conviction.creditPolicy?.maxCreditsPerSignal === 100 &&
+      typeof artifacts.conviction.creditPolicy?.sampleCreditsCommitted === 'number' &&
+      artifacts.conviction.creditPolicy.sampleCreditsCommitted <= 100;
+    checks.convictionNoTransferPath = artifacts.conviction.creditPolicy?.transferable === false &&
+      artifacts.conviction.creditPolicy?.tokenMint === null &&
+      artifacts.conviction.creditPolicy?.cashValue === '0';
+    checks.convictionSettlementIndependent = artifacts.conviction.settlementIndependence?.dependsOnConviction === false &&
+      artifacts.conviction.settlementIndependence?.dependsOnForecast === false &&
+      artifacts.conviction.settlementIndependence?.dependsOnReceipt === true;
+  }
+
+  const expectedHashes = artifacts.sidecar.sourceArtifactHashes ?? {};
+  for (const artifact of [artifacts.market, artifacts.receipt, artifacts.ledger, artifacts.verifier]) {
+    for (const [file, hash] of Object.entries(expectedHashes)) {
+      checks[`${artifact.type ?? 'artifact'}:${file}:hashBound`] = artifact.sourceArtifactHashes?.[file] === hash;
+    }
+  }
+
+  const failures = Object.entries(checks).filter(([, ok]) => !ok).map(([key]) => key);
+  return { ok: failures.length === 0, checks, failures };
+}
+
+export async function verifyCivicReceiptFromBaseUrl(
+  baseUrl: string,
+  fetcher: typeof fetch = fetch,
+): Promise<CivicReceiptVerificationResult> {
+  return verifyCivicReceiptArtifacts(await fetchCivicReceiptVerificationBundle(baseUrl, fetcher));
+}
+
+export function hashCivicSourceArtifact(content: string | Buffer | Uint8Array): string {
+  return createHash('sha256').update(content).digest('hex');
+}
+
+export function buildCivicReceiptVerificationCommand(options: {
+  receipt?: string;
+  proofDir?: string;
+} = {}) {
+  const args = ['node scripts/verify-civic-receipt.mjs'];
+  if (options.receipt) args.push(`--receipt ${options.receipt}`);
+  if (options.proofDir) args.push(`--proof-dir ${options.proofDir}`);
+  return args.join(' ');
 }

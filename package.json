@@ -23,6 +23,12 @@
     "test:protocol": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "verify": "npm run verify:core",
+    "claims:scan": "node scripts/claim-safety-scan.mjs",
+    "civic:assert-artifacts": "node scripts/assert-civic-artifacts.mjs",
+    "civic:conviction-artifact": "node scripts/generate-civic-conviction-artifact.mjs",
+    "civic:assert-routes": "node scripts/assert-civic-routes.mjs",
+    "civic:verify-receipt": "node scripts/verify-civic-receipt.mjs",
+    "civic:stamp-artifacts": "node scripts/stamp-civic-artifacts.mjs",
     "verify:core": "npm run lint --workspace app && npm run build --workspace app && npm run build --workspace viral-sync-sdk && cargo check --manifest-path programs/viral_sync/Cargo.toml && npm run build:program && npm run frontier:verify-artifacts && npm run auditor:packet && npm run frontier:assert-final && npm run test:protocol",
     "verify:relayer": "npm run build --workspace relayer",
     "devnet:verify-receipt": "ts-node scripts/verify-causal-receipt-localnet.ts --manifest app/public/proofs/devnet-causal-commerce.json",
@@ -61,6 +67,9 @@
   "overrides": {
     "axios": "1.16.0",
     "postcss": "8.5.10",
+    "next": {
+      "postcss": "8.5.10"
+    },
     "mocha": {
       "diff": "8.0.3",
       "serialize-javascript": "7.0.5"

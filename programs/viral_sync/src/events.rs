@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::state::causal_commerce::{CausalMerchantStatus, GrowthCampaignStatus, TerminalDeviceStatus};
+use crate::state::conviction_signal::ConvictionChoice;
 use crate::state::token_generation::GenSource;
 
 #[event]
@@ -145,4 +146,17 @@ pub struct TerminalDeviceStatusUpdated {
     pub terminal_authority: Pubkey,
     pub status: TerminalDeviceStatus,
     pub updated_at: i64,
+}
+
+#[event]
+pub struct ConvictionSignalCommitted {
+    pub conviction_signal: Pubkey,
+    pub growth_campaign: Pubkey,
+    pub participant_authority: Pubkey,
+    pub signal_hash: [u8; 32],
+    pub choice: ConvictionChoice,
+    pub credits_committed: u16,
+    pub confidence_bps: u16,
+    pub non_transferable: bool,
+    pub settlement_dependent: bool,
 }

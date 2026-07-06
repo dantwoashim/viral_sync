@@ -275,6 +275,111 @@
       "args": []
     },
     {
+      "name": "commit_conviction_signal",
+      "discriminator": [
+        76,
+        96,
+        124,
+        92,
+        104,
+        33,
+        84,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "growth_campaign"
+        },
+        {
+          "name": "participant_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "conviction_signal",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  118,
+                  105,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110,
+                  95,
+                  115,
+                  105,
+                  103,
+                  110,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "growth_campaign"
+              },
+              {
+                "kind": "account",
+                "path": "participant_authority"
+              },
+              {
+                "kind": "arg",
+                "path": "signal_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "signal_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "participant_commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "choice",
+          "type": {
+            "defined": {
+              "name": "ConvictionChoice"
+            }
+          }
+        },
+        {
+          "name": "credits_committed",
+          "type": "u16"
+        },
+        {
+          "name": "confidence_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "compute_merchant_reputation",
       "discriminator": [
         171,
@@ -2378,6 +2483,19 @@
       ]
     },
     {
+      "name": "ConvictionSignal",
+      "discriminator": [
+        225,
+        135,
+        158,
+        84,
+        70,
+        191,
+        78,
+        59
+      ]
+    },
+    {
       "name": "DisputeRecord",
       "discriminator": [
         198,
@@ -2624,6 +2742,19 @@
         46,
         30,
         247
+      ]
+    },
+    {
+      "name": "ConvictionSignalCommitted",
+      "discriminator": [
+        57,
+        165,
+        66,
+        45,
+        103,
+        70,
+        59,
+        15
       ]
     },
     {
@@ -3010,6 +3141,16 @@
       "code": 6034,
       "name": "InvalidLineageProof",
       "msg": "Claim-pass lineage proof does not match receipt parent data"
+    },
+    {
+      "code": 6035,
+      "name": "ConvictionCreditCapExceeded",
+      "msg": "Conviction signal credits exceed the non-transferable civic cap"
+    },
+    {
+      "code": 6036,
+      "name": "ConvictionConfidenceOutOfRange",
+      "msg": "Conviction signal confidence must be between 0 and 10000 basis points"
     }
   ],
   "types": [
@@ -3579,6 +3720,142 @@
           {
             "name": "mint",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConvictionChoice",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "RepairLikely"
+          },
+          {
+            "name": "RepairDelayed"
+          },
+          {
+            "name": "Abstain"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConvictionSignal",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "participant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "signal_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "participant_commitment",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "choice",
+            "type": {
+              "defined": {
+                "name": "ConvictionChoice"
+              }
+            }
+          },
+          {
+            "name": "credits_committed",
+            "type": "u16"
+          },
+          {
+            "name": "confidence_bps",
+            "type": "u16"
+          },
+          {
+            "name": "non_transferable",
+            "type": "bool"
+          },
+          {
+            "name": "settlement_dependent",
+            "type": "bool"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConvictionSignalCommitted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "conviction_signal",
+            "type": "pubkey"
+          },
+          {
+            "name": "growth_campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "participant_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "signal_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "choice",
+            "type": {
+              "defined": {
+                "name": "ConvictionChoice"
+              }
+            }
+          },
+          {
+            "name": "credits_committed",
+            "type": "u16"
+          },
+          {
+            "name": "confidence_bps",
+            "type": "u16"
+          },
+          {
+            "name": "non_transferable",
+            "type": "bool"
+          },
+          {
+            "name": "settlement_dependent",
+            "type": "bool"
           }
         ]
       }

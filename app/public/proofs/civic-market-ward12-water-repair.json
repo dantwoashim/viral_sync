@@ -1,0 +1,88 @@
+{
+  "type": "viral-sync-civic-market",
+  "version": "1.0.0",
+  "generatedForPhase": "phase-3",
+  "slug": "ward12-water-repair",
+  "title": "Ward 12 Water Repair Signal",
+  "locality": "Kathmandu Ward 12",
+  "category": "civic-infrastructure",
+  "network": "solana-devnet",
+  "status": "phase_three_machine_verifiable_sidecar",
+  "sourceArtifactHashes": {
+    "devnet-causal-commerce.json": "21e6bb89d4298e27793f5fec0990f668408ebbde04979e41a372adfac649699a",
+    "devnet-causal-commerce-verifier.json": "55debd7ead4547711301baade85da3246be609714ec258849475617fd568b1a4",
+    "fraud-gauntlet.json": "6b62c8d347783dcf9ce16650da806857049b98e473345d7b5eb2146a572a7f73",
+    "proof-feed.json": "7e0c30d95d7a80d124110258cb8d2da2a72390899d62f4f6533a6685a8e162e4",
+    "frontier-readiness.json": "68b9f04ffa0fecfd7f52bdd046f3e418385a4daacc51a2f536c304be49533ac0"
+  },
+  "question": "Will the reported water repair reach verified dispatch within the target window?",
+  "sourceDataset": {
+    "label": "Fixture dataset, not a public authority data source",
+    "officialFeedIntegrated": false,
+    "janamatCompatible": true,
+    "janamatIntegrated": false
+  },
+  "marketDesign": {
+    "nonWager": true,
+    "forecastUsesRealMoney": false,
+    "forecastTokenHasPayoutClaim": false,
+    "forecastCredits": {
+      "transferable": false,
+      "cashValue": "0",
+      "unit": "conviction_credit"
+    },
+    "settlement": {
+      "dependsOnForecast": false,
+      "dependsOnReceipt": true
+    },
+    "rewardSettlementCondition": "A civic action reward is released only after a counter-attested receipt path exists.",
+    "whyNonWager": "The forecast is an information signal. The sponsor reward is for verified civic participation, not for choosing the correct outcome."
+  },
+  "sponsorPool": {
+    "sponsorLabel": "Demo public-good sponsor",
+    "assetLabel": "devnet reward units",
+    "custodyStatus": "verified_devnet",
+    "releaseRule": "Release only after a valid civic action receipt path exists."
+  },
+  "devnetEvidence": {
+    "sourceManifest": "app/public/proofs/devnet-causal-commerce.json",
+    "sourceManifestSha256": "21e6bb89d4298e27793f5fec0990f668408ebbde04979e41a372adfac649699a",
+    "sourceVerifier": "app/public/proofs/devnet-causal-commerce-verifier.json",
+    "sourceVerifierSha256": "55debd7ead4547711301baade85da3246be609714ec258849475617fd568b1a4",
+    "sourceGauntlet": "app/public/proofs/fraud-gauntlet.json",
+    "sourceGauntletSha256": "6b62c8d347783dcf9ce16650da806857049b98e473345d7b5eb2146a572a7f73",
+    "programId": "AeKT1B58Qi9rBtrtnMe11o4eXbVwHweKxGFNS5X3Vv46",
+    "receiptPda": "6i9UeRN1s9tA3qxZ3PQvCseoVFAWNGia6NsLieorJRxK",
+    "nullifierPda": "E3kT3UT9XEKhxLY8p22YLFtiQ3aZJ1USRJPFt8WU5eEB",
+    "settlementRecord": "5FUTwyEP1UanmtxJNECfEiieczAKEahH4Tb81JPvyVpy",
+    "recordTx": "2TeXV39HGnU3Go2z1uXyQefCmE28hhKKsXFoVSmxF1JygaPbw92f7bNkKD8Desg9b4hnBLvDacAxggeQWGkkC64U",
+    "settleTx": "byiQwdijWYUuwj3SD7qEMx1R4ADFfHTCdrm9ZfmRr2fX5u9ihDj4nhzPy6t9vXrLfiHfqEqCKHdyp4VXbeH83Xx",
+    "negativePathCasesRejected": 19,
+    "growthCampaignPda": "c7WBeYQTf6TXPWvEQoKiWp59vKFupASBkRHun1JAPmw"
+  },
+  "proofBoundary": {
+    "proven": [
+      "A devnet Solana program can record a counter-attested receipt.",
+      "The current proof artifact includes custody, nullifier, settlement, and negative-path evidence.",
+      "The verifier artifact can independently check the published manifest fields."
+    ],
+    "notProven": [
+      "The Ward 12 issue dataset is not yet an official public data integration.",
+      "Identity privacy adapters are specified but not live in Phase 3.",
+      "Physical-world repair completion still needs a trusted oracle or permitted verifier."
+    ],
+    "requiredForProduction": [
+      "Permissioned civic data feed or field-verifier integration.",
+      "Persistent pass storage with atomic consume semantics.",
+      "External security review before real-value mainnet deployment."
+    ]
+  },
+  "programSourceHash": "ef6cdb25eaaf9d53060fc4ce9caf5175b0d046de22ff722497d6cefdb69e0351",
+  "idlHash": "52420550cfea8806bb6e31c2e8434f7ba07488da18728676b4d8b46159d12d9d",
+  "proofGeneratorHash": "e69ef8930b15bad61d4dc1ed7b26845912c025cffabbfde2107eea88740a0443",
+  "verifierHash": "b75c63938ac0c52f4a00045f19138f41db9d0a53cb75b5acab128d7b87139b3f",
+  "rawVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
+  "publishedVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
+  "stampMode": "final-candidate",
+  "artifactHash": "e930879f70a019544a731eec9b4b6efe477a958c56897c5586a923ef12fff101"
+}

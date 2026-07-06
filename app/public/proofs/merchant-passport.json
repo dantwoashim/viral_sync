@@ -56,18 +56,18 @@
     "rewardEscrow": "https://explorer.solana.com/address/2D9yt6aFE1C2zCgtw1xnSsWi11e3F5Zz5wsFjwUS9QGU?cluster=devnet"
   },
   "passportHash": "74371f2683e695e01bbe5c7bc2d14102fe46387f542b8eff64412b5658666303",
-  "generatedAt": "2026-05-09T11:52:47.000Z",
+  "generatedAt": "2026-07-06T16:10:01.398Z",
   "limitations": [
     "This passport proves counter-attested receipt and settlement artifacts, not GPS/location truth.",
     "Mainnet use requires external audit, funded relayer operations, and production incident coverage.",
     "Passport generated from current proof manifest and verifier output."
   ],
-  "programSourceHash": "d32e45cff047e254ef928e1978eed5b85b46f4b37ab47fe9b1c4a774fe1d72fe",
-  "idlHash": "cbb74d824ce63e9cc5aacd63e5f3d1407ddd011417cd9cbb4f33f76b86e3a6af",
+  "programSourceHash": "ef6cdb25eaaf9d53060fc4ce9caf5175b0d046de22ff722497d6cefdb69e0351",
+  "idlHash": "52420550cfea8806bb6e31c2e8434f7ba07488da18728676b4d8b46159d12d9d",
   "proofGeneratorHash": "e69ef8930b15bad61d4dc1ed7b26845912c025cffabbfde2107eea88740a0443",
-  "verifierHash": "66a6f12a5d1b98886862580608a131ab2fb32b5a6484b2aa8e0b4962503fe31c",
+  "verifierHash": "b75c63938ac0c52f4a00045f19138f41db9d0a53cb75b5acab128d7b87139b3f",
   "rawVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "publishedVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "stampMode": "final-candidate",
-  "artifactHash": "0f8a2b9aa019a32f0be7ed52944d2e2b10a0087aded5ba74fbf2b59379354549"
+  "artifactHash": "5348393f82c9fe3f347b917a91f8422406cc68bed6535b2441b9828df7b32200"
 }

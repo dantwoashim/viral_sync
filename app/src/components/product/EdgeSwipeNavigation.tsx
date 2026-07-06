@@ -5,9 +5,10 @@ import { useRouter, usePathname } from "next/navigation";
 
 const ROUTES = [
   "/",
-  "/merchant/scan",
-  "/merchant/today",
-  "/proof"
+  "/market/ward12-water-repair",
+  "/participate/ward12-water-repair",
+  "/verify/ward12-water-repair",
+  "/ledger"
 ];
 
 export function EdgeSwipeNavigation() {

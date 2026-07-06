@@ -1,28 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { appBaseUrl, withPublicReadHeaders } from '@/lib/http/cors';
 import { getProofState, gauntletLabel } from '@/lib/proof/getProofState';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const AGENT_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept-Encoding',
-};
-
-function agentHeaders(response: NextResponse) {
-  for (const [key, value] of Object.entries(AGENT_HEADERS)) response.headers.set(key, value);
-  response.headers.set('Cache-Control', 'no-store');
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  return response;
-}
-
-function appBaseUrl(request: NextRequest) {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return new URL(request.url).origin || 'http://localhost:3000';
-}
 
 function verifierFlags(proof: ReturnType<typeof getProofState>) {
   return {
@@ -46,7 +27,7 @@ function gauntletStrict(proof: ReturnType<typeof getProofState>) {
 }
 
 export async function OPTIONS() {
-  return agentHeaders(new NextResponse(null, { status: 204 }));
+  return withPublicReadHeaders(new NextResponse(null, { status: 204 }));
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -57,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const matchesReceipt = receiptLookup === 'latest' || receiptLookup === proof.receiptId || receiptLookup === receiptPda;
 
   if (!matchesReceipt) {
-    return agentHeaders(NextResponse.json({
+    return withPublicReadHeaders(NextResponse.json({
       ok: false,
       artifactType: 'viral_sync_agent_receipt_context',
       error: 'receipt_not_found',
@@ -74,7 +55,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     fraudGauntletBlockedAllCases &&
     sourceHashesMatched;
 
-  return agentHeaders(NextResponse.json({
+  return withPublicReadHeaders(NextResponse.json({
     ok: verified,
     artifactType: 'viral_sync_agent_receipt_context',
     generatedFor: receiptLookup,

@@ -13,7 +13,7 @@
     "@phosphor-icons/react": "^2.1.10",
     "@solana/web3.js": "^1.98.4",
     "framer-motion": "^12.38.0",
-    "next": "^16.2.4",
+    "next": "^16.3.0-canary.36",
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -22,7 +22,10 @@
   },
   "overrides": {
     "axios": "1.16.0",
-    "postcss": "8.5.10"
+    "postcss": "8.5.10",
+    "next": {
+      "postcss": "8.5.10"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",
@@ -32,7 +35,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.4",
+    "eslint-config-next": "^16.3.0-canary.36",
     "typescript": "^5"
   }
 }

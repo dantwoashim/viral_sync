@@ -11,7 +11,7 @@
     inset 0 0 0 1px rgb(9 9 11 / 0.05);
   --shadow-stripe:
     0 13px 27px -5px rgb(50 50 93 / 0.25), 0 8px 16px -8px rgb(0 0 0 / 0.3);
-  --shadow-diffuse-indigo: 0 40px 100px -20px rgba(79, 70, 229, 0.15);
+  --shadow-diffuse-proof: 0 40px 100px -20px rgba(22, 122, 75, 0.14);
   --shadow-diffuse-emerald: 0 40px 100px -20px rgba(16, 185, 129, 0.15);
   --shadow-diffuse-rose: 0 40px 100px -20px rgba(244, 63, 94, 0.15);
 }
@@ -43,21 +43,35 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --nav-h: 64px;
   --content-max: 1180px;
+  --civic-paper: #fafaf6;
+  --civic-wash: #f1f2ec;
+  --civic-ink: #131611;
+  --civic-muted: #5f665c;
+  --civic-line: rgba(19, 22, 17, 0.1);
+  --civic-line-strong: rgba(19, 22, 17, 0.18);
+  --civic-green: #167a4b;
+  --civic-green-ink: #0d5f38;
+  --civic-green-light: #63d99a;
+  --civic-green-soft: #e4f5ea;
+  --civic-amber: #a26413;
+  --civic-amber-ink: #7d4905;
+  --civic-amber-soft: #f8ebd7;
+  --civic-red: #b7392f;
 }
 
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   font-weight: 700;
 }
 
 ::selection {
-  background-color: #312e81; /* indigo-900 */
+  background-color: var(--civic-green);
   color: #ffffff;
 }
 
@@ -130,11 +144,35 @@ h1, h2, h3, h4, h5, h6 {
 html {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation; /* Disable double-tap to zoom, enabling instant tap */
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Native Overscroll / Rubber banding */
 body {
   overscroll-behavior-y: none; /* Prevent whole-page bounce to feel like native app */
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+code,
+pre,
+.font-mono {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  h1,
+  h2 {
+    overflow-wrap: anywhere;
+  }
 }
 
 .scroll-container {
@@ -149,7 +187,7 @@ body {
 }
 
 *:focus-visible {
-  outline: 2px solid #4f46e5; /* Electric Indigo */
+  outline: 2px solid var(--civic-green);
   animation: focus-ring-expand 100ms var(--spring-snappy) forwards;
 }
 
@@ -397,8 +435,8 @@ a.bg-\[\#0a0a0a\]:hover {
   }
 }
 
-.ambient-glow-indigo {
-  box-shadow: 0 0 40px rgba(79, 70, 229, 0.1);
+.ambient-glow-proof {
+  box-shadow: 0 0 40px rgba(22, 122, 75, 0.12);
 }
 
 .ambient-glow-emerald {

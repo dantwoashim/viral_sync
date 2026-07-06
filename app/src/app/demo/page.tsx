@@ -1,77 +1,136 @@
 import Link from 'next/link';
-import { ArrowRight, PlayCircle, Tag, HandCoins, ChartLineUp, Receipt, Code } from '@phosphor-icons/react/dist/ssr';
-import { PremiumNav, PremiumShell } from '@/components/premium/PremiumUi';
+import { ArrowRight, CheckCircle, Fingerprint, HandCoins, ListChecks, PlayCircle, Prohibit, Receipt, ShieldCheck } from '@phosphor-icons/react/dist/ssr';
+import { CivicShell } from '@/components/civic/CivicExperience';
+import { ReplayRejectionPanel } from '@/components/civic/ReplayRejectionPanel';
+import { getFeaturedCivicMarket } from '@/lib/civic/civicMarket';
 
-export default function DemoLauncherPage() {
+export default function CivicDemoPage() {
+  const market = getFeaturedCivicMarket();
   const steps = [
-    { title: 'Claim Pass', desc: 'Customer saves pass to their phone.', icon: Tag },
-    { title: 'Confirm at Terminal', desc: 'Staff confirms the visit.', icon: HandCoins },
-    { title: 'View Summary', desc: 'Merchant sees daily outcomes.', icon: ChartLineUp },
-    { title: 'Open Receipt', desc: 'Inspect the generated receipt.', icon: Receipt },
-    { title: 'Inspect Proof', desc: 'Review fraud gauntlet & program.', icon: Code }
+    {
+      title: 'Open the Ward 12 signal',
+      text: 'Show the civic question, data boundary, conviction signal, and sponsor pool.',
+      href: `/market/${market.slug}`,
+      icon: PlayCircle,
+    },
+    {
+      title: 'Issue signed participation pass',
+      text: 'Create a stateless pass packet that survives hosted serverless routing.',
+      href: `/participate/${market.slug}`,
+      icon: HandCoins,
+    },
+    {
+      title: 'Verify at station',
+      text: 'Confirm the pass signature, receipt binding, and no forecast payout coupling.',
+      href: `/verify/${market.slug}`,
+      icon: Fingerprint,
+    },
+    {
+      title: 'Open civic receipt',
+      text: 'Show the Solana receipt backing the action reward path.',
+      href: `/receipt/${encodeURIComponent(market.evidence.receiptId)}?mode=civic`,
+      icon: Receipt,
+    },
+    {
+      title: 'Show replay rejection',
+      text: 'Open the nullifier-backed replay proof and negative-path artifact.',
+      href: '/proofs/civic-fraud-gauntlet.json',
+      icon: Prohibit,
+    },
+    {
+      title: 'Finish at ledger',
+      text: 'End on the public civic ledger and raw artifact links.',
+      href: '/ledger',
+      icon: ListChecks,
+    },
   ];
 
   return (
-    <PremiumShell className="bg-white">
-      <PremiumNav />
-
-      {/* Hero Section */}
-      <section className="relative min-h-[min(calc(100vh-64px),800px)] flex items-center justify-center overflow-hidden bg-white">
-        {/* Dynamic rotating mesh-gradient orb */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] md:w-[1200px] md:h-[1200px] pointer-events-none opacity-60 mix-blend-multiply">
-           <div className="w-full h-full animate-[spin_40s_linear_infinite] relative">
-              <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-indigo-300 rounded-full mix-blend-multiply filter blur-[100px] animate-[pulse_10s_ease-in-out_infinite]" />
-              <div className="absolute top-1/4 right-1/4 w-[500px] h-[500px] bg-purple-300 rounded-full mix-blend-multiply filter blur-[120px] animate-[pulse_12s_ease-in-out_infinite_reverse]" />
-              <div className="absolute bottom-1/4 left-1/3 w-[700px] h-[700px] bg-emerald-200 rounded-full mix-blend-multiply filter blur-[140px] animate-[pulse_14s_ease-in-out_infinite]" />
-           </div>
-        </div>
-
-        <div className="flex flex-col items-center justify-center text-center py-20 px-6 max-w-4xl mx-auto relative z-10 w-full pt-[100px]">
-          <div className="inline-flex items-center gap-2 rounded-full px-5 py-2 bg-white/60 backdrop-blur-md text-gray-800 text-sm font-bold tracking-widest uppercase mb-10 shadow-sm shadow-hairline">
-            <PlayCircle size={18} weight="bold" /> Start Demo
-          </div>
-          <h1 className="text-6xl md:text-8xl lg:text-[6rem] xl:text-[7.5rem] font-bold tracking-tight text-gray-900 mb-6 font-serif leading-[0.95]">
-            Experience <span className="relative whitespace-nowrap"><span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800">Viral Sync</span><span className="absolute bottom-2 left-0 w-full h-6 bg-indigo-100/50 -z-0 transform -rotate-1 rounded-full blur-sm"></span></span>
+    <CivicShell>
+      <section className="mx-auto grid max-w-[1180px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--civic-muted)]">Guided judge demo</p>
+          <h1 className="mt-3 text-[clamp(2.5rem,6vw,5.6rem)] font-semibold leading-[0.96] tracking-normal text-[var(--civic-ink)]">
+            One path from civic signal to receipt to replay proof.
           </h1>
-          <p className="text-xl md:text-2xl text-gray-500 leading-relaxed max-w-2xl mx-auto mb-14 font-medium mt-10">
-            This linear demo will guide you through the exact flow a customer and merchant experience,
-            culminating in the technical proof available to judges and developers.
+          <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--civic-muted)]">
+            This demo keeps the story tight: forecast signal, sponsor-funded action, signed participation pass, verifier station, civic receipt, replay rejection, and ledger.
           </p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <Link className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[var(--civic-ink)] px-5 text-sm font-semibold text-white" href={`/market/${market.slug}`}>
+              Start demo <ArrowRight size={16} weight="bold" />
+            </Link>
+            <Link className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-[var(--civic-line-strong)] bg-white px-5 text-sm font-semibold text-[var(--civic-ink)]" href="/ledger">
+              Skip to ledger
+            </Link>
+          </div>
+        </div>
 
-          <Link className="inline-flex items-center justify-center gap-2 h-16 px-10 rounded-full bg-black text-white text-lg font-bold shadow-2xl shadow-black/20 shadow-hairline hover:-translate-y-1 transition-all hover:shadow-black/30 w-full sm:w-auto" href="/claim/thamel-brew-counter-attested-visits">
-              Start Customer Claim <ArrowRight size={20} weight="bold" />
-          </Link>
+        <section className="rounded-lg border border-[var(--civic-line)] bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <ShieldCheck size={24} weight="duotone" className="text-[var(--civic-green)]" />
+            <h2 className="text-xl font-semibold tracking-normal">Demo proof contract</h2>
+          </div>
+          <div className="mt-5 grid gap-3">
+            <DemoFact label="Market" value={market.title} />
+            <DemoFact label="Pass model" value="stateless signed packet" />
+            <DemoFact label="Settlement depends on forecast" value="false" />
+            <DemoFact label="Replay evidence" value={`${market.evidence.gauntletLabel} invalid flows rejected`} />
+          </div>
+        </section>
+      </section>
+
+      <section className="mx-auto max-w-[1180px] px-4 pb-10 sm:px-6 lg:px-8">
+        <div className="grid gap-3">
+          {steps.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <Link
+                key={step.title}
+                href={step.href}
+                className="grid gap-4 rounded-lg border border-[var(--civic-line)] bg-white p-5 shadow-sm transition-transform hover:-translate-y-0.5 md:grid-cols-[64px_1fr_auto]"
+              >
+                <span className="grid size-12 place-items-center rounded-md bg-[var(--civic-wash)] text-[var(--civic-green)]">
+                  <Icon size={23} weight="duotone" />
+                </span>
+                <span>
+                  <span className="font-mono text-xs text-[var(--civic-muted)]">0{index + 1}</span>
+                  <strong className="mt-1 block text-lg font-semibold tracking-normal text-[var(--civic-ink)]">{step.title}</strong>
+                  <span className="mt-1 block text-sm leading-6 text-[var(--civic-muted)]">{step.text}</span>
+                </span>
+                <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[var(--civic-line-strong)] bg-[var(--civic-paper)] px-3 text-sm font-semibold text-[var(--civic-ink)]">
+                  Open <ArrowRight size={15} weight="bold" />
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
-      {/* Demo Workflow */}
-      <section className="py-24 px-6 bg-gray-50/50 relative">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-indigo-600 font-bold tracking-widest uppercase text-xs">Demo Sequence</span>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 mt-2 font-serif">What to expect.</h2>
+      <section className="mx-auto grid max-w-[1180px] gap-4 px-4 pb-16 sm:px-6 lg:grid-cols-[1fr_1fr] lg:px-8">
+        <ReplayRejectionPanel market={market} />
+        <section className="rounded-lg border border-[var(--civic-line)] bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <CheckCircle size={23} weight="fill" className="text-[var(--civic-green)]" />
+            <h2 className="text-xl font-semibold tracking-normal">What judges should see</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 lg:gap-8" aria-label="Demo workflow">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <div className="relative group flex flex-col gap-4 bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 hover:border-indigo-100 hover:shadow-md transition-all duration-300 hover:-translate-y-1" key={step.title}>
-                  {index < steps.length - 1 && (
-                    <div className="hidden md:block absolute top-1/2 -right-6 lg:-right-10 w-8 lg:w-12 h-[2px] bg-gray-200 -z-10 transform -translate-y-1/2 group-hover:bg-indigo-300 transition-colors" />
-                  )}
-                  <span className="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
-                    <Icon size={24} weight="duotone" />
-                  </span>
-                  <div className="flex flex-col gap-1">
-                    <strong className="text-gray-900 text-lg font-bold">{step.title}</strong>
-                    <small className="text-gray-500 text-sm leading-relaxed font-medium">{step.desc}</small>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+          <ul className="mt-4 space-y-2 text-sm leading-6 text-[var(--civic-muted)]">
+            <li>Forecast credits have no cash value and are non-transferable.</li>
+            <li>Sponsor reward settlement is tied to the receipt, not the forecast answer.</li>
+            <li>The verifier flow works from a signed token rather than in-memory hosted state.</li>
+            <li>Replay rejection is backed by the public nullifier and negative-path artifact.</li>
+          </ul>
+        </section>
       </section>
-    </PremiumShell>
+    </CivicShell>
+  );
+}
+
+function DemoFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-[var(--civic-wash)] px-3 py-2">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--civic-muted)]">{label}</span>
+      <strong className="mt-1 block break-words text-sm font-semibold text-[var(--civic-ink)]">{value}</strong>
+    </div>
   );
 }

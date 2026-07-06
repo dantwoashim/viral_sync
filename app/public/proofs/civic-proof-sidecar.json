@@ -1,0 +1,103 @@
+{
+  "type": "viral-sync-civic-proof-sidecar",
+  "version": "1.0.0",
+  "generatedForPhase": "phase-3",
+  "market": "ward12-water-repair",
+  "network": "solana-devnet",
+  "purpose": "Bind the civic market, receipt, verifier, replay, Janamat, and zk identity sidecars to the original devnet proof artifacts without mutating the original artifacts.",
+  "verificationCommand": "npm run civic:verify-receipt",
+  "independentVerification": {
+    "requiresNetwork": false,
+    "mutatesArtifacts": false,
+    "script": "scripts/verify-civic-receipt.mjs",
+    "expectedResult": "ok=true"
+  },
+  "sourceArtifactHashes": {
+    "devnet-causal-commerce.json": "21e6bb89d4298e27793f5fec0990f668408ebbde04979e41a372adfac649699a",
+    "devnet-causal-commerce-verifier.json": "55debd7ead4547711301baade85da3246be609714ec258849475617fd568b1a4",
+    "fraud-gauntlet.json": "6b62c8d347783dcf9ce16650da806857049b98e473345d7b5eb2146a572a7f73",
+    "proof-feed.json": "7e0c30d95d7a80d124110258cb8d2da2a72390899d62f4f6533a6685a8e162e4",
+    "frontier-readiness.json": "68b9f04ffa0fecfd7f52bdd046f3e418385a4daacc51a2f536c304be49533ac0"
+  },
+  "originalArtifacts": [
+    {
+      "id": "devnet-manifest",
+      "file": "devnet-causal-commerce.json",
+      "sha256": "21e6bb89d4298e27793f5fec0990f668408ebbde04979e41a372adfac649699a",
+      "role": "records the receipt PDA, nullifier PDA, settlement PDA, and transaction signatures"
+    },
+    {
+      "id": "published-verifier",
+      "file": "devnet-causal-commerce-verifier.json",
+      "sha256": "55debd7ead4547711301baade85da3246be609714ec258849475617fd568b1a4",
+      "role": "checks the published receipt, terminal, visitor, nullifier, settlement, and accounting fields"
+    },
+    {
+      "id": "negative-path-gauntlet",
+      "file": "fraud-gauntlet.json",
+      "sha256": "6b62c8d347783dcf9ce16650da806857049b98e473345d7b5eb2146a572a7f73",
+      "role": "proves replay, wrong signer, wrong lineage, wrong vault, and inactive terminal paths were rejected"
+    },
+    {
+      "id": "proof-feed",
+      "file": "proof-feed.json",
+      "sha256": "7e0c30d95d7a80d124110258cb8d2da2a72390899d62f4f6533a6685a8e162e4",
+      "role": "public proof feed consumed by the civic ledger view"
+    },
+    {
+      "id": "frontier-readiness",
+      "file": "frontier-readiness.json",
+      "sha256": "68b9f04ffa0fecfd7f52bdd046f3e418385a4daacc51a2f536c304be49533ac0",
+      "role": "source readiness packet for Solana proof boundaries"
+    }
+  ],
+  "sidecarArtifacts": [
+    "civic-market-ward12-water-repair.json",
+    "civic-ledger.json",
+    "civic-receipt-latest.json",
+    "civic-verifier.json",
+    "civic-fraud-gauntlet.json",
+    "civic-readiness.json",
+    "janamat-compatibility.json",
+    "zk-identity-adapter.json"
+  ],
+  "receiptBinding": {
+    "receiptPda": "6i9UeRN1s9tA3qxZ3PQvCseoVFAWNGia6NsLieorJRxK",
+    "nullifierPda": "E3kT3UT9XEKhxLY8p22YLFtiQ3aZJ1USRJPFt8WU5eEB",
+    "settlementRecord": "5FUTwyEP1UanmtxJNECfEiieczAKEahH4Tb81JPvyVpy",
+    "recordTx": "2TeXV39HGnU3Go2z1uXyQefCmE28hhKKsXFoVSmxF1JygaPbw92f7bNkKD8Desg9b4hnBLvDacAxggeQWGkkC64U",
+    "settleTx": "byiQwdijWYUuwj3SD7qEMx1R4ADFfHTCdrm9ZfmRr2fX5u9ihDj4nhzPy6t9vXrLfiHfqEqCKHdyp4VXbeH83Xx"
+  },
+  "nonWagerBoundary": {
+    "forecastUsesRealMoney": false,
+    "forecastTokenHasPayoutClaim": false,
+    "forecastCreditsTransferable": false,
+    "forecastCreditsCashValue": "0",
+    "settlementDependsOnForecast": false,
+    "settlementDependsOnReceipt": true
+  },
+  "compatibility": {
+    "janamat": {
+      "status": "specified_not_integrated",
+      "artifact": "janamat-compatibility.json"
+    },
+    "zkIdentity": {
+      "status": "specified_not_integrated",
+      "artifact": "zk-identity-adapter.json"
+    }
+  },
+  "claimSafety": [
+    "The civic artifacts are sidecars over the original devnet proof artifacts.",
+    "The original devnet proof artifacts are not rewritten by the civic sidecar layer.",
+    "Janamat and zk identity are specified compatibility boundaries, not live integrations.",
+    "Sponsor reward settlement is tied to receipt verification, not forecast correctness."
+  ],
+  "programSourceHash": "ef6cdb25eaaf9d53060fc4ce9caf5175b0d046de22ff722497d6cefdb69e0351",
+  "idlHash": "52420550cfea8806bb6e31c2e8434f7ba07488da18728676b4d8b46159d12d9d",
+  "proofGeneratorHash": "e69ef8930b15bad61d4dc1ed7b26845912c025cffabbfde2107eea88740a0443",
+  "verifierHash": "b75c63938ac0c52f4a00045f19138f41db9d0a53cb75b5acab128d7b87139b3f",
+  "rawVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
+  "publishedVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
+  "stampMode": "final-candidate",
+  "artifactHash": "efca2f8901a2679b40a3ac0e7bb55d4581ee4e787c7511e88cb682fa4da3d1d5"
+}

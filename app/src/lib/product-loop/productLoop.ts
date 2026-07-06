@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { getProofState, gauntletLabel } from '../proof/getProofState';
 import { signatureValue } from '../proof/links';
 import { loadProofSidecar } from '../proof/loadArtifacts';
@@ -94,7 +94,11 @@ function constantTimeEqual(left: string, right: string) {
 
 function randomNonce(seed: string) {
   return createHash('sha256')
-    .update(`${seed}:${Date.now()}:${Math.random()}`)
+    .update(seed)
+    .update(':')
+    .update(Date.now().toString())
+    .update(':')
+    .update(randomBytes(32))
     .digest('hex')
     .slice(0, 24);
 }

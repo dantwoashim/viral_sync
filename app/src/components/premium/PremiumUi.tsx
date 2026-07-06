@@ -24,16 +24,8 @@ export function PremiumShell({
 }) {
   return (
     <main
-      className={`flex-1 overflow-y-auto w-full bg-[#f9f9fb] selection:bg-indigo-100 selection:text-indigo-900 font-sans relative overflow-x-hidden ${className}`}
+      className={`min-h-dvh w-full bg-[var(--civic-paper)] selection:bg-[var(--civic-green)] selection:text-white font-sans relative overflow-x-hidden ${className}`}
     >
-      {/* Decorative magical lighting */}
-      <div
-        className="absolute top-0 inset-x-0 h-[600px] pointer-events-none opacity-40 mix-blend-multiply"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% -20%, rgba(99,102,241,0.15), transparent 70%)",
-        }}
-      />
       <div className="max-w-[1240px] mx-auto px-6 lg:px-8 pt-6 pb-32 md:pt-16 md:pb-24">
         {children}
       </div>
@@ -41,27 +33,31 @@ export function PremiumShell({
   );
 }
 
-import { House, Scan, Wallet, Gear } from '@phosphor-icons/react/dist/ssr';
+import { ChartLineUp, HandCoins, House, ListChecks, ShieldCheck } from '@phosphor-icons/react/dist/ssr';
 
 export function PremiumMobileNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] w-full max-w-[100vw] overflow-hidden bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-[env(safe-area-inset-bottom)]">
-       <div className="grid grid-cols-4 items-center h-16 px-1">
-          <Link href="/" className="flex min-w-0 flex-col items-center justify-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] w-full max-w-[100vw] overflow-hidden bg-white/90 backdrop-blur-xl border-t border-[var(--civic-line)] pb-[env(safe-area-inset-bottom)]">
+       <div className="grid grid-cols-5 items-center h-16 px-1">
+          <Link href="/" className="flex min-w-0 flex-col items-center justify-center gap-1 text-[var(--civic-muted)] hover:text-[var(--civic-green)] transition-colors">
             <House size={24} weight="duotone" />
             <span className="text-[10px] font-bold">Home</span>
           </Link>
-          <Link href="/merchant/scan" className="flex min-w-0 flex-col items-center justify-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors">
-            <Scan size={24} weight="duotone" />
-            <span className="text-[10px] font-bold">Scan</span>
+          <Link href="/market/ward12-water-repair" className="flex min-w-0 flex-col items-center justify-center gap-1 text-[var(--civic-muted)] hover:text-[var(--civic-green)] transition-colors">
+            <ChartLineUp size={24} weight="duotone" />
+            <span className="text-[10px] font-bold">Market</span>
           </Link>
-          <Link href="/merchant/today" className="flex min-w-0 flex-col items-center justify-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors">
-            <Wallet size={24} weight="duotone" />
-            <span className="text-[10px] font-bold">Wallet</span>
+          <Link href="/participate/ward12-water-repair" className="flex min-w-0 flex-col items-center justify-center gap-1 text-[var(--civic-muted)] hover:text-[var(--civic-green)] transition-colors">
+            <HandCoins size={24} weight="duotone" />
+            <span className="text-[10px] font-bold">Action</span>
           </Link>
-          <Link href="/proof" className="flex min-w-0 flex-col items-center justify-center gap-1 text-gray-500 hover:text-indigo-600 transition-colors">
-            <Gear size={24} weight="duotone" />
-            <span className="text-[10px] font-bold">Proof</span>
+          <Link href="/verify/ward12-water-repair" className="flex min-w-0 flex-col items-center justify-center gap-1 text-[var(--civic-muted)] hover:text-[var(--civic-green)] transition-colors">
+            <ShieldCheck size={24} weight="duotone" />
+            <span className="text-[10px] font-bold">Verify</span>
+          </Link>
+          <Link href="/ledger" className="flex min-w-0 flex-col items-center justify-center gap-1 text-[var(--civic-muted)] hover:text-[var(--civic-green)] transition-colors">
+            <ListChecks size={24} weight="duotone" />
+            <span className="text-[10px] font-bold">Ledger</span>
           </Link>
        </div>
     </nav>
@@ -105,32 +101,37 @@ export function PremiumNav() {
           href="/"
         >
           <span
-            className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-[0_2px_10px_rgba(79,70,229,0.4)] shadow-hairline"
+            className="grid size-8 place-items-center rounded-lg border border-[var(--civic-line-strong)] bg-white text-[var(--civic-green)] shadow-sm shadow-hairline"
             aria-hidden="true"
-          />
-          Viral Sync
+          >
+            <ShieldCheck size={16} weight="bold" />
+          </span>
+          Civic Impact Markets
         </Link>
         <div className="relative flex items-center gap-8 text-sm font-semibold text-gray-600">
           <Link
             className="transition-colors hover:text-gray-900"
-            href="/for-merchants"
+            href="/market/ward12-water-repair"
           >
-            For merchants
+            Market
           </Link>
           <Link
             className="transition-colors hover:text-gray-900"
-            href="/#how-it-works"
+            href="/participate/ward12-water-repair"
           >
-            How it works
+            Participate
           </Link>
-          <Link className="transition-colors hover:text-gray-900" href="/demo">
-            Demo
+          <Link className="transition-colors hover:text-gray-900" href="/verify/ward12-water-repair">
+            Verify
+          </Link>
+          <Link className="transition-colors hover:text-gray-900" href="/for-sponsors">
+            Sponsors
           </Link>
           <Link
-            className="px-4 py-2 transition-transform bg-gray-900 rounded-full hover:shadow-lg shadow-gray-900/10 hover:-translate-y-[1px] text-white shadow-hairline"
-            href="/proof#artifacts"
+            className="px-4 py-2 transition-transform bg-gray-900 rounded-md hover:shadow-lg shadow-gray-900/10 hover:-translate-y-[1px] text-white shadow-hairline"
+            href="/ledger"
           >
-            For builders
+            Ledger
           </Link>
         </div>
       </div>

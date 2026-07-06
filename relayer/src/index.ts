@@ -48,6 +48,7 @@ const MAX_COMPUTE_UNITS = Number(process.env.MAX_COMPUTE_UNITS || 200_000);
 const allowAddressLookupTables = process.env.RELAYER_ALLOW_ADDRESS_LOOKUP_TABLES === 'true';
 const allowUnauthenticated = process.env.RELAYER_ALLOW_UNAUTHENTICATED === 'true';
 const COMPUTE_BUDGET_PROGRAM_ID = 'ComputeBudget111111111111111111111111111111';
+const GENERIC_RELAY_ERROR = 'Relay request rejected by policy.';
 
 if (MAX_TRANSACTION_BYTES > 2_048) {
   throw new Error('MAX_TRANSACTION_BYTES must not exceed 2048 for the production relayer.');
@@ -267,6 +268,13 @@ function constantTimeEqual(left: string, right: string) {
   }
 
   return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function publicErrorMessage(error: unknown, fallback = GENERIC_RELAY_ERROR) {
+  if (isProduction) {
+    return fallback;
+  }
+  return error instanceof Error ? error.message : fallback;
 }
 
 function decodeTransactionPayload(transactionBase64: unknown) {
@@ -615,13 +623,12 @@ app.post('/relay', requireApiKey, requireRateLimit, async (req, res) => {
       throw error;
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Relay failed.';
-    res.status(400).json({ error: message });
+    res.status(400).json({ error: publicErrorMessage(error) });
   }
 });
 
 app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
-  res.status(400).json({ error: error.message });
+  res.status(400).json({ error: publicErrorMessage(error) });
 });
 
 app.listen(PORT, () => {

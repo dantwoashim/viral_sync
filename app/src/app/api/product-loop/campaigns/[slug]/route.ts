@@ -1,27 +1,16 @@
 import { NextResponse } from 'next/server';
+import { withPublicReadHeaders } from '@/lib/http/cors';
 import { findProductLoopCampaign } from '@/lib/product-loop/productLoop';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function json(data: unknown, status = 200) {
-  const response = NextResponse.json(data, { status });
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  return response;
+  return withPublicReadHeaders(NextResponse.json(data, { status }), 'GET,OPTIONS', 'Content-Type');
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
+  return withPublicReadHeaders(new NextResponse(null, { status: 204 }), 'GET,OPTIONS', 'Content-Type');
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
