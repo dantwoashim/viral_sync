@@ -5,11 +5,11 @@
   "network": "solana-devnet",
   "market": "ward12-water-repair",
   "sourceArtifactHashes": {
-    "devnet-causal-commerce.json": "60b4c29e53686a09c3996aee4ae7b6a31c60336cf52e70a047590b837b3932b8",
-    "devnet-causal-commerce-verifier.json": "a1a1240fb6ff48774c627c752364dc3b310a6f0cb5f17f016e166fa59c2ab77d",
-    "fraud-gauntlet.json": "43c8aee321228a59af0aa5df5c78e0482c42ffcadb8b6b937138eddbc3ae31fc",
-    "proof-feed.json": "4dbcda0a6753329d2e719a7bd3b4a25b4ba7f271da66853b884be7d1313d8a24",
-    "frontier-readiness.json": "b53f9e01ed4f40697b5dba5c82ecf23a784a603241ee61594227d69d88d77364"
+    "devnet-causal-commerce.json": "61b126007927ca5d9f269a4e627c8cfcc2e4cb89e05524041c6d6d0d3a19bf26",
+    "devnet-causal-commerce-verifier.json": "0b5514d4b7c692b0907b5e8c9d342755a6e00b0580ad5d9446f36508df64e11d",
+    "fraud-gauntlet.json": "580763144dcd62733566dad0cca18dfaa1dd180e9f47a2f7cadaa2d9b6115f2a",
+    "proof-feed.json": "3730d2b6e94b1e3337068372c05e25043c2a188ccfe49625313012ad268c79cb",
+    "frontier-readiness.json": "110245f2343943c66180ccded5d14a7189fff3498cc80c0ea1a5aa311a0b6403"
   },
   "entries": [
     {
@@ -46,17 +46,17 @@
     }
   ],
   "sourceFeed": "app/public/proofs/proof-feed.json",
-  "sourceFeedSha256": "4dbcda0a6753329d2e719a7bd3b4a25b4ba7f271da66853b884be7d1313d8a24",
+  "sourceFeedSha256": "3730d2b6e94b1e3337068372c05e25043c2a188ccfe49625313012ad268c79cb",
   "settlement": {
     "dependsOnForecast": false,
     "dependsOnReceipt": true
   },
   "programSourceHash": "e487e72b37d3672a841da31a3a5a5080e04ffd10d969cf708677e08aa1e31a3d",
   "idlHash": "af31db003a46ce5eb56fa5b3ad226678d688373524aabe1b635c66e99161b49e",
-  "proofGeneratorHash": "8ba7c2c69cc3046d3bb428fc4e2a2d739f520f79e6af69ca3d8480b5dd6df6cc",
+  "proofGeneratorHash": "e773f69f8b39f812ea793e486913efac1a9dca8f006b62461dbb166c706542c5",
   "verifierHash": "f6bdca7d4652439b1c49419320cb478e5813e44a8a4b688f29c0b2c87ab8ac84",
   "rawVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "publishedVerifierHash": "556d7dc43cf17e0c7d77c00574d0b9b063627ad49e17ed772456a5cf97c5d0e0",
   "stampMode": "final-candidate",
-  "artifactHash": "3df317758dbb47afd78761d548534a983994cc11a0dbb4f058f10df8a369d572"
+  "artifactHash": "c06b0c34e1f20155c540f7beb48a05761a3ae4eeb3aaee177affa2d22b9ce091"
 }

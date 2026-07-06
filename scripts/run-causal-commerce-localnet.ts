@@ -213,7 +213,7 @@ Options:
   --max-redemptions <count>   Campaign cap. Default: 10
   --max-depth <count>         Referral depth cap. Default: 2
   --campaign-duration-seconds <seconds>
-                              Campaign lifetime. Default: 2592000, or 5 when --close-check is used.
+                              Campaign lifetime. Default: 2592000, or 120 when --close-check is used.
   --fund-amount <units>       Funded state amount. Default: reward-per-visit * max-redemptions
   --airdrop-sol <number>      Request localnet SOL if balance is low. Default: 2
   --replay-check              Require duplicate nullifier and duplicate settlement attempts to fail.
@@ -269,7 +269,7 @@ function parseArgs(): CliOptions {
   const maxDepth = parsePositiveInteger(argValue(args, '--max-depth') ?? '2', '--max-depth');
   const closeCheck = args.includes('--close-check');
   const campaignDurationSeconds = parsePositiveInteger(
-    argValue(args, '--campaign-duration-seconds') ?? (closeCheck ? '5' : String(60 * 60 * 24 * 30)),
+    argValue(args, '--campaign-duration-seconds') ?? (closeCheck ? '120' : String(60 * 60 * 24 * 30)),
     '--campaign-duration-seconds',
   );
   const fundAmount = new anchor.BN(argValue(args, '--fund-amount') ?? rewardPerVisit.mul(new anchor.BN(maxRedemptions)).toString());
@@ -827,7 +827,18 @@ async function expectRejected(label: string, action: () => Promise<unknown>, ext
   try {
     await action();
   } catch (error) {
-    const fullMessage = error instanceof Error ? error.message : String(error);
+    const transactionError = error as {
+      getLogs?: (connection: Connection) => Promise<string[] | null>;
+      logs?: string[];
+    };
+    let logs = transactionError.logs ?? [];
+    if (logs.length === 0 && attackSnapshotContext && typeof transactionError.getLogs === 'function') {
+      logs = await transactionError.getLogs(attackSnapshotContext.connection) ?? [];
+    }
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const fullMessage = logs.length > 0
+      ? `${errorMessage}\n${logs.join('\n')}`
+      : errorMessage;
     const after = attackSnapshotContext
       ? await accountSnapshot(attackSnapshotContext.connection, watchedKeys)
       : undefined;
@@ -838,7 +849,7 @@ async function expectRejected(label: string, action: () => Promise<unknown>, ext
       rejected: true,
       message: fullMessage,
       shortMessage: fullMessage.split('\n')[0],
-      logs: (error as { logs?: string[] })?.logs ?? [],
+      logs,
       source: attackSnapshotContext?.proofSource ?? 'transaction_rejection_evidence',
       failureKind: classifyFailure(fullMessage),
       accountsMutated,
@@ -2062,7 +2073,8 @@ async function main() {
   let closeGrowthBounty: string | null = null;
   let tokenBalancesAfterClose: Record<string, string> | null = null;
   if (options.closeCheck) {
-    const campaignExpiresAtMs = (Math.floor(Date.now() / 1000) + options.campaignDurationSeconds + 1) * 1000;
+    const campaignForClose = await fetchAccount<Record<string, unknown>>(program, 'growthCampaign', growthCampaign);
+    const campaignExpiresAtMs = (Number(bnFromAccountField(campaignForClose.expiresAt, 'expiresAt').toString()) + 1) * 1000;
     const waitMs = Math.max(0, campaignExpiresAtMs - Date.now());
     if (waitMs > 0) {
       console.error(`waiting ${waitMs}ms for campaign expiry before close check`);
