@@ -121,7 +121,6 @@ type ProgramMethods = {
       merchantAuthority: PublicKey;
       systemProgram: PublicKey;
       tokenProgram: PublicKey;
-      associatedTokenProgram: PublicKey;
     }) => RpcBuilder;
   };
   closeGrowthBounty: () => {
@@ -1178,7 +1177,6 @@ async function main() {
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       }));
     console.error(`fundGrowthBounty complete for ${amountToFund.toString()} units`);
   } else {
@@ -1513,7 +1511,6 @@ async function main() {
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       })), [wrongMintMerchantAta.address]));
 
     const pausedCampaignIdHash = hashBytes('campaign', `${options.campaignId}:paused-attack`);
@@ -1548,7 +1545,6 @@ async function main() {
         merchantAuthority: wallet.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       }));
     const pausedClaimHash = hashBytes('claim-pass', `${options.campaignId}:paused-attack`);
     const [pausedClaimPass] = findPda('claim_pass', [pausedCampaign.toBuffer(), visitorAuthority.publicKey.toBuffer(), pausedClaimHash]);

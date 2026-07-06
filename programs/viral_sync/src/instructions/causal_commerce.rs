@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    associated_token::AssociatedToken,
     token_interface::{
         close_account, transfer_checked, CloseAccount, Mint, TokenAccount, TokenInterface,
         TransferChecked,
@@ -252,11 +251,10 @@ pub struct FundGrowthBounty<'info> {
     pub merchant_reward_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
-        init_if_needed,
-        payer = merchant_authority,
-        associated_token::mint = reward_mint,
-        associated_token::authority = reward_escrow,
-        associated_token::token_program = token_program,
+        mut,
+        token::mint = reward_mint,
+        token::authority = reward_escrow,
+        token::token_program = token_program,
     )]
     pub reward_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -268,8 +266,6 @@ pub struct FundGrowthBounty<'info> {
     pub system_program: Program<'info, System>,
 
     pub token_program: Interface<'info, TokenInterface>,
-
-    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 pub fn fund_growth_bounty(ctx: Context<FundGrowthBounty>, amount: u64) -> Result<()> {

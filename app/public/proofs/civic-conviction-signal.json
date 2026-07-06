@@ -40,10 +40,10 @@
     "verification": "POST the artifactToken back to the same endpoint or derive the PDA with the SDK helper."
   },
   "sourceArtifactHashes": {
-    "devnet-causal-commerce.json": "b53fb1669c956560c267e51d7a097be35b930e1291c5e8e4364bc7d316c5579c",
-    "devnet-causal-commerce-verifier.json": "4452d70cfbd417a64c319d5276bb581173061c3400ef8da3909956fc595e06d8",
-    "fraud-gauntlet.json": "dfce3412b5c3e8834fb58a8f1a97bd23a808f4cc82a6f39dc1a588c04667fb72",
-    "proof-feed.json": "86e6340eca4f33c285fee3adefefc23f184aeb751e40f809ab657d2bd55e8ef6",
-    "frontier-readiness.json": "a58eafecd72083c7260bfc7fc3764773c6fb385143d151b8b628cbfcd76ecd60"
+    "devnet-causal-commerce.json": "60b4c29e53686a09c3996aee4ae7b6a31c60336cf52e70a047590b837b3932b8",
+    "devnet-causal-commerce-verifier.json": "a1a1240fb6ff48774c627c752364dc3b310a6f0cb5f17f016e166fa59c2ab77d",
+    "fraud-gauntlet.json": "43c8aee321228a59af0aa5df5c78e0482c42ffcadb8b6b937138eddbc3ae31fc",
+    "proof-feed.json": "4dbcda0a6753329d2e719a7bd3b4a25b4ba7f271da66853b884be7d1313d8a24",
+    "frontier-readiness.json": "b53f9e01ed4f40697b5dba5c82ecf23a784a603241ee61594227d69d88d77364"
   }
 }
