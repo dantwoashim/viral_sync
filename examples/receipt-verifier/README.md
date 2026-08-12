@@ -9,4 +9,4 @@ npm install
 npm run verify -- --base-url http://localhost:3000 --receipt receipt-1
 ```
 
-For hackathon judging, use a receipt id from `docs/frontier-submission-packet.md` or from the localnet smoke manifest.
+Use a receipt id from a published proof manifest or from the localnet smoke manifest.

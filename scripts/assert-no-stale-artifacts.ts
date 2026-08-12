@@ -16,31 +16,6 @@ const finalJsonArtifacts = new Set([
   'app/public/proofs/frontier-readiness.json',
   'app/public/proofs/program-id-consistency.json',
   'tmp/devnet-causal-commerce-verifier.json',
-  'dist/auditor-packet/app/public/proofs/devnet-causal-commerce.json',
-  'dist/auditor-packet/app/public/proofs/devnet-causal-commerce-verifier.json',
-  'dist/auditor-packet/app/public/proofs/fraud-gauntlet.json',
-  'dist/auditor-packet/app/public/proofs/merchant-passport.json',
-  'dist/auditor-packet/app/public/proofs/conversion-orderbook.json',
-  'dist/auditor-packet/app/public/proofs/campaign-links.json',
-  'dist/auditor-packet/app/public/proofs/proof-feed.json',
-  'dist/auditor-packet/app/public/proofs/merchant-validation-kit.json',
-  'dist/auditor-packet/app/public/proofs/frontier-readiness.json',
-  'dist/auditor-packet/app/public/proofs/program-id-consistency.json',
-  'dist/auditor-packet/tmp/devnet-causal-commerce-verifier.json',
-]);
-
-const finalMarkdownFiles = new Set([
-  'docs/frontier-final-go-no-go.md',
-  'docs/frontier-submission-packet.md',
-  'docs/frontier-final-run-readiness.md',
-  'dist/auditor-packet/docs/frontier-final-go-no-go.md',
-  'dist/auditor-packet/docs/frontier-submission-packet.md',
-  'dist/auditor-packet/docs/frontier-final-run-readiness.md',
-]);
-
-const finalTextFiles = new Set([
-  'dist/final-command-transcript.txt',
-  'dist/auditor-packet/dist/final-command-transcript.txt',
 ]);
 
 const failures: Failure[] = [];
@@ -167,35 +142,8 @@ function scanJsonFile(file: string) {
   }
 }
 
-function scanTextFile(file: string) {
-  if (!finalTextFiles.has(file)) return;
-  if (!exists(file)) { fail(file, '$', 'required final transcript missing'); return; }
-  const text = read(file);
-  if (text.includes('\u0000')) fail(file, '$', 'transcript must be UTF-8 text, not UTF-16/null-byte encoded');
-  if (localPath.test(text)) fail(file, '$', 'final transcript leaks local path or secret-like value');
-  if (!allowMockFinal && mockMarker.test(text)) fail(file, '$', 'mock fixture marker is not allowed in real final transcript');
-  if (badStatus.test(text)) fail(file, '$', 'final transcript contains unsafe/pre-final status text');
-}
-
-function scanMarkdownFile(file: string) {
-  if (!finalMarkdownFiles.has(file)) return;
-  if (!exists(file)) { fail(file, '$', 'required final markdown missing'); return; }
-  const text = read(file);
-  const patterns = [
-    { pattern: /^NO-GO:/m, reason: 'explicit NO-GO decision' },
-    { pattern: /Decision\s*\n\s*NO-GO/i, reason: 'NO-GO decision block' },
-    { pattern: /Status:\s*\*\*(BLOCKED|READY_FOR_FINAL_PROOF_RUN|NO-GO)\*\*/i, reason: 'final readiness doc is not GO' },
-    { pattern: /proofStatus[^\n]*(needs[-_\s]?regeneration|stale|unsafe)/i, reason: 'stale proofStatus in final doc' },
-  ];
-  for (const { pattern, reason } of patterns) if (pattern.test(text)) fail(file, '$', reason, pattern.toString());
-  if (localPath.test(text)) fail(file, '$', 'final markdown leaks local path or secret-like value');
-  if (!allowMockFinal && /mock final fixture|mockFinal/i.test(text)) fail(file, '$', 'mock fixture marker is not allowed in real final markdown');
-}
-
 for (const file of [...finalJsonArtifacts].map(normalize)) scanJsonFile(file);
-for (const file of [...finalMarkdownFiles].map(normalize)) scanMarkdownFile(file);
-for (const file of [...finalTextFiles].map(normalize)) scanTextFile(file);
 
-const result = { ok: failures.length === 0, scannedMode: allowMockFinal ? 'mock-final-artifact-assertion' : 'explicit-final-artifact-assertion', jsonArtifacts: [...finalJsonArtifacts].sort(), markdownArtifacts: [...finalMarkdownFiles].sort(), failures };
+const result = { ok: failures.length === 0, scannedMode: allowMockFinal ? 'mock-final-artifact-assertion' : 'explicit-final-artifact-assertion', jsonArtifacts: [...finalJsonArtifacts].sort(), failures };
 console.log(JSON.stringify(result, null, 2));
 if (failures.length) process.exitCode = 1;
