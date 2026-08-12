@@ -2,6 +2,10 @@
 
 Verified civic forecasting and sponsor-funded action rewards, settled with Viral Sync receipt evidence on Solana.
 
+[Open the live devnet prototype](https://viralsync1.vercel.app) |
+[Inspect the architecture](#architecture) |
+[Run verification](#verify-locally)
+
 Civic Impact Markets separates three ideas that are often incorrectly combined:
 
 1. Forecast signals organize attention around a public outcome.
@@ -23,7 +27,7 @@ The current prototype uses a Ward 12 water repair scenario and a real Solana dev
 | Guided demo | `/demo` |
 | Machine-readable evidence | `/proofs/*.json` |
 
-## What Works
+## Implemented capabilities
 
 - Signed, stateless participation passes
 - Capped, non-transferable conviction signals
@@ -118,3 +122,7 @@ Civic issue
 ```
 
 The product is a devnet prototype. Real-value deployment requires an external security review, durable replay storage, production key management, monitoring, incident response, and an authorized civic data source.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE). Security reports follow [`SECURITY.md`](SECURITY.md).
